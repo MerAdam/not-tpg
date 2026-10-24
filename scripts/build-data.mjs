@@ -218,7 +218,19 @@ async function colorsFromTpgCh() {
     report.colors.tpgChSample = objText ? objText.slice(0, 1500) : html.slice(0, 600);
     if (objText) {
       const obj = vm.runInNewContext('(' + objText + ')', Object.create(null), { timeout: 1000 });
-      walk(obj, null, found);
+      // Format constaté : { "12": { type, couleur: { classes: "noir line-logo …", color: "#F5A300" }, … } }
+      if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+        for (const [line, v] of Object.entries(obj)) {
+          const c = v && v.couleur;
+          if (!c || !HEXV.test(String(c.color || '').trim())) continue;
+          const cls = String(c.classes || '');
+          found[line.trim().toUpperCase()] = {
+            bg: '#' + String(c.color).trim().replace('#', '').toUpperCase(),
+            fg: /\bblanc\b/.test(cls) ? '#FFFFFF' : /\bnoir\b/.test(cls) ? '#000000' : null
+          };
+        }
+      }
+      if (!Object.keys(found).length) walk(obj, null, found);
     } else note('Objet « lignes » introuvable sur tpg.ch');
   } catch (e) { note('tpg.ch : ' + e.message); }
   report.colors.tpgCh = Object.keys(found).length;
