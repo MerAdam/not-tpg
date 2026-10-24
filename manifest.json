@@ -1,0 +1,16 @@
+{
+  "name": "Not TPG",
+  "short_name": "Not TPG",
+  "description": "Prochains départs tpg, itinéraires et trajets pendulaires",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F3EF",
+  "theme_color": "#F4F3EF",
+  "icons": [
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
