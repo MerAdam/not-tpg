@@ -25,11 +25,11 @@
   html,body{margin:0;height:100%}
   body{font-family:'Nunito',system-ui,-apple-system,sans-serif;background:var(--ground);color:var(--ink);overscroll-behavior:none}
   button{font:inherit;color:inherit;cursor:pointer}
-  input{font:inherit;color:var(--ink)}
+  input,select{font:inherit;color:var(--ink)}
   #app{height:100dvh;max-width:560px;margin:0 auto;display:flex;flex-direction:column;overflow:hidden}
   #main{flex:1;display:flex;flex-direction:column;min-height:0}
   .scroll{flex:1;overflow-y:auto;padding:0 16px 24px;-webkit-overflow-scrolling:touch}
-  .stack{display:flex;flex-direction:column;gap:14px}
+  .stack{display:flex;flex-direction:column;gap:12px}
   .top{padding:calc(env(safe-area-inset-top) + 18px) 16px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
   .top.back{padding-left:8px;justify-content:flex-start;gap:4px}
   .brand{margin:0;font-size:30px;font-weight:900;letter-spacing:-.01em}
@@ -58,18 +58,23 @@
   .row-btn{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:56px;padding:0 12px 0 16px;background:none;border:0;border-bottom:1px solid var(--line2);text-align:left;font-size:17px;font-weight:700}
   .row-actions{display:flex}
   .sugg{display:flex;flex-direction:column}
-  .sugg-item{min-height:48px;padding:0 16px;text-align:left;background:#FAF9F6;border:0;border-top:1px solid var(--line2);font-weight:600;font-size:15px}
+  .sugg-item{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;text-align:left;background:#FAF9F6;border:0;border-top:1px solid var(--line2);font-weight:700;font-size:15px}
+  .kind{font-size:11px;font-weight:800;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 5px;margin-left:auto}
   .foot{margin:12px 4px 0;font-size:12px;color:var(--muted)}
   .empty{margin:0;padding:20px 16px;color:var(--muted)}
   .empty-card{padding:24px 18px;text-align:center;color:var(--muted)}
-  .badge{min-width:42px;height:30px;padding:0 8px;border-radius:8px;color:#fff;font-weight:900;font-size:15px;display:inline-flex;align-items:center;justify-content:center;flex:none}
-  .badge-sm{min-width:30px;height:22px;padding:0 6px;border-radius:6px;color:#fff;font-weight:900;font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+  .badge{min-width:42px;height:30px;padding:0 8px;border-radius:8px;font-weight:900;font-size:15px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+  .badge-sm{min-width:30px;height:22px;padding:0 6px;border-radius:6px;font-weight:900;font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none}
   .controls{padding:2px 16px 12px;display:flex;flex-direction:column;gap:10px}
   .chips{display:flex;gap:8px;flex-wrap:wrap}
-  .chip{height:36px;min-width:44px;padding:0 14px;border-radius:18px;border:1.5px solid #D6D3CC;background:#fff;font-weight:900;font-size:15px}
+  .chip{height:36px;min-width:44px;padding:0 12px;border-radius:18px;border:1.5px solid #D6D3CC;background:#fff;font-weight:900;font-size:15px;display:inline-flex;align-items:center;gap:6px}
+  .chip .dot{width:10px;height:10px;border-radius:5px;flex:none}
   .chip.on-dark{background:var(--ink);color:#fff;border-color:var(--ink)}
-  .from-row{display:flex;align-items:center;gap:8px}
-  .time-in{height:44px;border:1.5px solid #D6D3CC;border-radius:12px;padding:0 10px;background:#fff;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+  .wrap-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .time-in{height:44px;border:1.5px solid #D6D3CC;border-radius:12px;padding:0 10px;background:#fff;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;min-width:0}
+  .seg{display:inline-flex;background:#E9E7E1;border-radius:12px;padding:3px}
+  .seg button{height:38px;padding:0 14px;border:0;border-radius:9px;background:none;font-weight:800;font-size:14px;color:var(--muted)}
+  .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
   .dep{display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 16px;border-bottom:1px solid var(--line2)}
   .dep-to{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
   .to{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -79,7 +84,7 @@
   .st-ok{font-size:13px;font-weight:800;color:var(--ok)}
   .st-late{font-size:13px;font-weight:800;color:var(--late)}
   .st-gone{font-size:13px;font-weight:800;color:var(--bad)}
-  .conn{padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+  .conn{padding:14px 16px;display:flex;flex-direction:column;gap:10px;width:100%;text-align:left}
   .conn-top{display:flex;align-items:baseline;justify-content:space-between}
   .big2{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}
   .dash{color:var(--faint);font-weight:700}
@@ -97,6 +102,23 @@
   .days{display:flex;justify-content:space-between;margin-top:8px}
   .day{width:42px;height:42px;border-radius:21px;border:1.5px solid #D6D3CC;background:#fff;font-weight:900;font-size:13px}
   .day.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  /* détail d'itinéraire */
+  .leg{display:grid;grid-template-columns:52px 14px 1fr;column-gap:10px;padding:0 16px}
+  .leg-t{font-weight:900;font-variant-numeric:tabular-nums;font-size:16px;padding-top:12px;text-align:right}
+  .leg-t .d{display:block;font-size:12px;font-weight:800;color:var(--late)}
+  .rail{position:relative;display:flex;justify-content:center}
+  .rail::before{content:"";position:absolute;top:0;bottom:0;width:4px;border-radius:2px;background:var(--c,#D6D3CC)}
+  .rail.walk::before{background:repeating-linear-gradient(to bottom,#B8B4AC 0 4px,transparent 4px 9px);width:3px}
+  .rail .node{position:relative;margin-top:16px;width:14px;height:14px;border-radius:7px;background:#fff;border:3px solid var(--c,#8A8F98)}
+  .leg-b{padding:10px 0 12px;min-width:0}
+  .stn{font-size:16px;font-weight:800}
+  .meta{font-size:13px;color:var(--muted);margin-top:2px}
+  .mid{padding:4px 0 6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  details.pass summary{list-style:none;cursor:pointer;font-size:13px;font-weight:800;color:var(--accent);min-height:36px;display:flex;align-items:center}
+  details.pass summary::-webkit-details-marker{display:none}
+  details.pass ol{margin:0 0 6px;padding:0;list-style:none}
+  details.pass li{display:flex;gap:10px;font-size:14px;padding:4px 0;color:var(--muted)}
+  details.pass li span:first-child{width:44px;font-variant-numeric:tabular-nums;font-weight:700}
   nav{display:flex;background:#fff;border-top:1px solid var(--line);padding:4px 8px calc(env(safe-area-inset-bottom) + 6px)}
   .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:0;font-size:12px;font-weight:800;min-height:56px;color:var(--muted)}
   .tab.on{color:var(--accent)}
@@ -123,13 +145,18 @@
 
 <script>
 /* =========================================================
-   Not TPG — données : transport.opendata.ch (sans clé)
+   Not TPG
+   Temps réel : transport.opendata.ch (sans clé)
+   Arrêts et couleurs : data/stops.json et data/lines.json,
+   générés depuis les sources officielles (voir scripts/build-data.mjs)
    ========================================================= */
 const API = 'https://transport.opendata.ch/v1';
 const DAYS = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'];
 const DAYS_LONG = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
-const PALETTE = ['#1D4ED8', '#BE185D', '#0E7490', '#047857', '#374151', '#B45309', '#9F1239', '#7C2D12', '#4D7C0F', '#6D28D9', '#0F766E', '#A21CAF'];
-const LOCAL_CATS = ['B', 'T', 'BN', 'NFB', 'NFT', 'M', 'BUS', 'TRAM', 'Bus', 'Tram'];
+const LOCAL_CATS = ['B', 'T', 'BN', 'NFB', 'NFT', 'M', 'BUS', 'TRAM', 'Bus', 'Tram', 'TN', 'BAT', 'NFO'];
+const TPG_ORANGE = { bg: '#F59700', fg: '#1A1200' };
+const TRAIN = { bg: '#2B2F36', fg: '#FFFFFF' };
+const GE_BOX = { latMin: 46.08, latMax: 46.40, lonMin: 5.90, lonMax: 6.35 }; // secours si data/stops.json manque
 
 const ICON = {
   target: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C2410C" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>',
@@ -140,21 +167,29 @@ const ICON = {
   back: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#15171C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>',
   plus: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C2410C" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   up: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5E6470" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>',
-  trash: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>'
+  trash: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  walk: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5E6470" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="2"/><path d="M10 21l2-6-3-3 1-5 4 3h3M8 12l-2 3"/></svg>'
 };
 
 /* ---------- utilitaires ---------- */
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const pad = (n) => String(n).padStart(2, '0');
-const parseISO = (s) => (s ? new Date(s.replace(/([+-]\d\d)(\d\d)$/, '$1:$2')) : null);
+const parseISO = (s) => (s ? new Date(String(s).replace(/([+-]\d\d)(\d\d)$/, '$1:$2')) : null);
 const hm = (d) => pad(d.getHours()) + ':' + pad(d.getMinutes());
 const t2m = (t) => { const p = String(t || '0:0').split(':').map(Number); return (p[0] || 0) * 60 + (p[1] || 0); };
-const m2t = (m) => pad(Math.floor(m / 60) % 24) + ':' + pad(m % 60);
+const m2t = (m) => { m = ((m % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
 const dmin = (d) => d.getHours() * 60 + d.getMinutes();
 const ymd = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 const dayIdx = (d) => (d.getDay() + 6) % 7;
 const short = (n) => String(n || '').replace(/^Genève,\s*/, '');
+const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const todayStr = () => ymd(new Date());
+function dateLabel(str) {
+  if (!str || str === todayStr()) return 'aujourd’hui';
+  const d = new Date(str + 'T12:00:00');
+  return DAYS_LONG[dayIdx(d)] + ' ' + d.getDate() + '.' + (d.getMonth() + 1) + '.';
+}
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -172,21 +207,55 @@ function toast(msg) {
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2600);
 }
 
-function lineColor(cat, num) {
-  if (!LOCAL_CATS.includes(cat)) return '#B91C1C'; // trains (CFF, Léman Express…)
-  const k = String(num || cat); let h = 0;
-  for (const c of k) h = (h * 31 + c.charCodeAt(0)) % 997;
-  return PALETTE[h % PALETTE.length];
+/* ---------- données tpg (arrêts, couleurs) ---------- */
+let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
+let LINES = {};   // { "12": {bg, fg} }
+const dataReady = Promise.all([
+  fetch('data/stops.json').then((r) => (r.ok ? r.json() : null)).then((j) => {
+    if (!j || !Array.isArray(j.stops)) return;
+    STOPS = j.stops.map((s) => {
+      const f = fold(s.name);
+      const local = fold(s.name.includes(',') ? s.name.slice(s.name.indexOf(',') + 1) : s.name);
+      return Object.assign({}, s, { f, w: f.split(' '), l: local, c: f.replace(/ /g, '') });
+    });
+  }).catch(() => {}),
+  fetch('data/lines.json').then((r) => (r.ok ? r.json() : null)).then((j) => { if (j && j.lines) LINES = j.lines; }).catch(() => {})
+]);
+
+function searchStops(q) {
+  const tokens = fold(q).split(' ').filter(Boolean);
+  if (!tokens.length) return [];
+  const qc = tokens.join('');
+  return STOPS
+    .filter((s) => tokens.every((t) => s.w.some((w) => w.startsWith(t))) || (qc.length >= 5 && s.c.includes(qc)))
+    .map((s) => ({ s, score: (s.l.startsWith(tokens[0]) ? 0 : 1000) + (s.f.startsWith('geneve') ? 0 : 100) + s.name.length }))
+    .sort((a, b) => a.score - b.score).slice(0, 8).map((x) => x.s);
+}
+const inGeneva = (lat, lon) => lat >= GE_BOX.latMin && lat <= GE_BOX.latMax && lon >= GE_BOX.lonMin && lon <= GE_BOX.lonMax;
+function distM(a, b, c, d) {
+  const R = 6371000, r = Math.PI / 180;
+  const x = (d - b) * r * Math.cos(((a + c) / 2) * r), y = (c - a) * r;
+  return Math.sqrt(x * x + y * y) * R;
+}
+
+function lineStyle(cat, num) {
+  const key = String(num || '').toUpperCase();
+  if (!cat || LOCAL_CATS.includes(cat)) return LINES[key] || TPG_ORANGE;
+  return TRAIN;
 }
 function badge(cat, num, small) {
-  return `<span class="${small ? 'badge-sm' : 'badge'}" style="background:${lineColor(cat, num)}">${esc(num || cat || '?')}</span>`;
+  const s = lineStyle(cat, num);
+  return `<span class="${small ? 'badge-sm' : 'badge'}" style="background:${s.bg};color:${s.fg}">${esc(num || cat || '?')}</span>`;
 }
 
 /* ---------- état ---------- */
 let favs = store.get('nt_favs', []);
 let filters = store.get('nt_filters', {});
 let commutes = store.get('nt_commutes', []);
-const S = { screen: 'home', stop: null, fromText: '', toText: '', geo: null, editFavs: false, fromTime: '', board: [], draft: null, q: null, res: [] };
+const S = {
+  screen: 'home', stop: null, fromText: '', toText: '', geo: null, editFavs: false,
+  boardDate: '', boardTime: '', board: [], draft: null, q: null, res: [], trip: null, resLoading: false
+};
 const statusCache = {};
 let boardTimer = null;
 const main = $('#main');
@@ -197,11 +266,21 @@ function mapConn(c) {
   const legs = (c.sections || []).filter((s) => s.journey).map((s) => ({ cat: s.journey.category, num: s.journey.number }));
   return {
     dep, arr, depStr: hm(dep), arrStr: hm(arr), dur: Math.round((arr - dep) / 60000),
-    transfers: c.transfers || 0, legs, key: legs.map((l) => l.num || l.cat).join('+'), delay: c.from.delay || 0
+    transfers: c.transfers || 0, legs, key: legs.map((l) => l.num || l.cat).join('+'), delay: c.from.delay || 0, raw: c
   };
 }
+function connQuery(o) {
+  let q = `/connections?from=${encodeURIComponent(o.from)}&to=${encodeURIComponent(o.to)}&date=${o.date}&time=${o.time}&limit=${o.limit || 6}`;
+  if (o.arrival) q += '&isArrivalTime=1';
+  if (o.direct) q += '&direct=1';
+  if (o.modes) {
+    const on = Object.keys(o.modes).filter((k) => o.modes[k]);
+    if (on.length && on.length < Object.keys(o.modes).length) on.forEach((m) => { q += '&transportations%5B%5D=' + m; });
+  }
+  return q;
+}
 async function getConns(from, to, date, time, limit = 6) {
-  const j = await api(`/connections?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&date=${date}&time=${time}&limit=${limit}`);
+  const j = await api(connQuery({ from, to, date, time, limit }));
   return (j.connections || []).map(mapConn);
 }
 async function connsInWindow(from, to, date, start, end) {
@@ -234,9 +313,9 @@ function daysLabel(ds) {
 }
 async function commuteStatus(cm) {
   if (!todayIn(cm)) return null;
-  const k = cm.id + '|' + ymd(new Date()); const c = statusCache[k];
+  const k = cm.id + '|' + todayStr(); const c = statusCache[k];
   if (c && Date.now() - c.at < 60000) return c.list;
-  const list = await connsInWindow(cm.from, cm.to, ymd(new Date()), cm.start, cm.end);
+  const list = await connsInWindow(cm.from, cm.to, todayStr(), cm.start, cm.end);
   statusCache[k] = { at: Date.now(), list };
   return list;
 }
@@ -249,18 +328,23 @@ function statusOf(p, list) {
   return { text: 'À l’heure', cls: 'st-ok' };
 }
 
-/* ---------- suggestions d'arrêts ---------- */
+/* ---------- suggestions d'arrêts (réseau tpg uniquement) ---------- */
+function kindLabel(k) { return k && k.includes('t') ? 'Tram' : k && k.includes('n') ? 'Bateau' : 'Bus'; }
 function attachSuggest(input, box, onPick) {
   let t;
+  const show = (list) => {
+    box.innerHTML = list.map((s) => `<button type="button" class="sugg-item" data-id="${esc(s.id)}" data-name="${esc(s.name)}">
+      <span>${esc(s.name)}</span>${s.k ? `<span class="kind">${kindLabel(s.k)}</span>` : ''}</button>`).join('');
+  };
   input.addEventListener('input', () => {
     clearTimeout(t);
     const q = input.value.trim();
     if (q.length < 2) { box.innerHTML = ''; return; }
+    if (STOPS) { show(searchStops(q)); return; }
     t = setTimeout(async () => {
       try {
         const j = await api(`/locations?type=station&query=${encodeURIComponent(q)}`);
-        box.innerHTML = (j.stations || []).filter((s) => s.id && s.name).slice(0, 6)
-          .map((s) => `<button type="button" class="sugg-item" data-id="${esc(s.id)}" data-name="${esc(s.name)}">${esc(s.name)}</button>`).join('');
+        show((j.stations || []).filter((s) => s.id && s.name && s.coordinate && inGeneva(s.coordinate.x, s.coordinate.y) && s.icon !== 'train').slice(0, 8));
       } catch { box.innerHTML = ''; }
     }, 250);
   });
@@ -272,21 +356,25 @@ function attachSuggest(input, box, onPick) {
 }
 
 /* ---------- navigation ---------- */
+const SUB = ['board', 'results', 'trip', 'new'];
 function go(screen, push = true) {
   clearTimeout(boardTimer);
-  if (push && ['board', 'results', 'new'].includes(screen)) history.pushState({ s: screen }, '');
+  if (push && SUB.includes(screen)) history.pushState({ s: screen }, '');
   S.screen = screen;
   const commuteTab = screen === 'commutes' || screen === 'new';
   $('#tabHome').classList.toggle('on', !commuteTab);
   $('#tabCommutes').classList.toggle('on', commuteTab);
-  ({ home: renderHome, board: renderBoard, results: renderResults, commutes: renderCommutes, new: renderNew })[screen]();
-  main.scrollTop = 0;
+  ({ home: renderHome, board: renderBoard, results: renderResults, trip: renderTrip, commutes: renderCommutes, new: renderNew })[screen]();
 }
-window.addEventListener('popstate', () => go(S.screen === 'new' ? 'commutes' : 'home', false));
-document.querySelector('nav').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-tab]'); if (b) go(b.dataset.tab);
+window.addEventListener('popstate', () => {
+  const parent = { new: 'commutes', trip: 'results' }[S.screen] || 'home';
+  go(parent, false);
 });
-const backBtn = (to) => `<button class="icon-btn" data-act="back" data-to="${to}" aria-label="Retour">${ICON.back}</button>`;
+document.querySelector('nav').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tab]'); if (!b) return;
+  go(b.dataset.tab, false);
+});
+const backBtn = () => `<button class="icon-btn" data-act="back" aria-label="Retour">${ICON.back}</button>`;
 
 /* ---------- ACCUEIL ---------- */
 function renderHome() {
@@ -319,7 +407,7 @@ function renderHome() {
         <label class="field">${ICON.plus}<input id="addIn" placeholder="Ajouter un arrêt…" aria-label="Ajouter un arrêt"></label>
         <div class="sugg" id="addSugg"></div>
       </div>
-      <p class="foot">Données : transport.opendata.ch</p>
+      <p class="foot">Données : transport.opendata.ch · arrêts et couleurs : tpg / opentransportdata.swiss</p>
     </div>`;
 
   const fromIn = $('#fromIn'), toIn = $('#toIn');
@@ -337,7 +425,8 @@ function renderHome() {
     const to = S.toText.trim();
     if (!from) return toast('Active la localisation ou saisis un départ.');
     if (!to) return toast('Saisis une destination.');
-    S.q = { from, to }; S.res = [];
+    S.q = { from, to, date: todayStr(), time: hm(new Date()), arrival: false, direct: false, modes: { bus: true, tram: true, train: true } };
+    S.res = [];
     go('results');
   });
   fillNext();
@@ -356,7 +445,7 @@ async function fillNext() {
   }
   if (!best) { el.innerHTML = ''; return; }
   el.innerHTML = `
-    <button class="card next" data-tab-go="commutes">
+    <button class="card next">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
         <span class="label">Prochain trajet pendulaire</span>
         <span style="font-size:16px;font-weight:800">${esc(short(best.cm.from))} → ${esc(short(best.cm.to))}</span>
@@ -367,45 +456,61 @@ async function fillNext() {
         <span id="nextSt" class="small">…</span>
       </div>
     </button>`;
-  el.querySelector('button').addEventListener('click', () => go('commutes'));
+  el.querySelector('button').addEventListener('click', () => go('commutes', false));
   try {
     const s = statusOf(best.p, await commuteStatus(best.cm));
     const st = $('#nextSt'); if (st && s) { st.className = s.cls; st.textContent = s.text; }
   } catch { const st = $('#nextSt'); if (st) st.textContent = ''; }
 }
 
-function locate() {
+async function locate() {
   if (!navigator.geolocation) return toast('Localisation indisponible sur cet appareil.');
   navigator.geolocation.getCurrentPosition(async (pos) => {
-    try {
-      const j = await api(`/locations?type=station&x=${pos.coords.latitude}&y=${pos.coords.longitude}`);
-      const s = (j.stations || []).find((x) => x.id && x.name);
-      if (s) { S.geo = { id: s.id, name: s.name }; S.fromText = ''; if (S.screen === 'home') renderHome(); }
-    } catch {}
+    const { latitude: lat, longitude: lon } = pos.coords;
+    await dataReady;
+    let s = null;
+    if (STOPS) {
+      let best = Infinity;
+      for (const x of STOPS) { const d = distM(lat, lon, x.lat, x.lon); if (d < best) { best = d; s = x; } }
+      if (best > 3000) s = null;
+    } else {
+      try {
+        const j = await api(`/locations?type=station&x=${lat}&y=${lon}`);
+        s = (j.stations || []).find((x) => x.id && x.name && x.icon !== 'train');
+      } catch {}
+    }
+    if (s) { S.geo = { id: s.id, name: s.name }; S.fromText = ''; if (S.screen === 'home') renderHome(); }
   }, () => toast('Localisation refusée : saisis ton départ à la main.'), { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
 }
 
 /* ---------- DÉPARTS D'UN ARRÊT ---------- */
+const boardLive = () => !S.boardDate && !S.boardTime;
 function renderBoard() {
   const f = S.stop;
   main.innerHTML = `
-    <header class="top back">${backBtn('home')}<h1 class="title">${esc(short(f.name))}</h1></header>
+    <header class="top back">${backBtn()}<h1 class="title">${esc(short(f.name))}</h1></header>
     <div class="controls">
       <div class="chips" id="chips"></div>
-      <div class="from-row">
-        <label for="ft" class="muted-strong">À partir de</label>
-        <input id="ft" class="time-in" type="time" value="${S.fromTime}">
-        ${S.fromTime ? '<button class="ghost" data-act="clearTime">Maintenant</button>' : ''}
+      <div class="wrap-row">
+        <span class="muted-strong">À partir de</span>
+        <input id="bd" class="time-in" type="date" value="${S.boardDate || todayStr()}" aria-label="Date">
+        <input id="bt" class="time-in" type="time" value="${S.boardTime}" aria-label="Heure">
+        ${boardLive() ? '' : '<button class="ghost" data-act="boardNow">Maintenant</button>'}
       </div>
     </div>
     <div class="scroll"><div class="card list" id="deps"><p class="empty">Chargement…</p></div><p class="foot" id="upd"></p></div>`;
-  $('#ft').addEventListener('change', (e) => { S.fromTime = e.target.value; renderBoard(); });
+  $('#bd').addEventListener('change', (e) => { S.boardDate = e.target.value === todayStr() ? '' : e.target.value; renderBoard(); });
+  $('#bt').addEventListener('change', (e) => { S.boardTime = e.target.value; renderBoard(); });
   loadBoard();
 }
 async function loadBoard() {
   clearTimeout(boardTimer);
   let q = `/stationboard?id=${encodeURIComponent(S.stop.id)}&limit=80`;
-  if (S.fromTime) q += `&datetime=${encodeURIComponent(ymd(new Date()) + ' ' + S.fromTime)}`;
+  if (!boardLive()) {
+    const date = S.boardDate || todayStr();
+    const time = S.boardTime || (S.boardDate ? '05:00' : hm(new Date()));
+    q += `&datetime=${encodeURIComponent(date + ' ' + time)}`;
+  }
   try {
     const j = await api(q);
     S.board = j.stationboard || [];
@@ -413,7 +518,7 @@ async function loadBoard() {
   } catch {
     const d = $('#deps'); if (d) d.innerHTML = '<p class="empty">Impossible de charger les départs. Réessaie dans un instant.</p>';
   }
-  if (!S.fromTime) boardTimer = setTimeout(() => { if (S.screen === 'board') loadBoard(); }, 30000);
+  if (boardLive()) boardTimer = setTimeout(() => { if (S.screen === 'board') loadBoard(); }, 30000);
 }
 function drawBoard() {
   const f = S.stop, active = filters[f.id] || [];
@@ -422,55 +527,146 @@ function drawBoard() {
   const lines = [...lineMap.values()].sort((a, b) => a.l.localeCompare(b.l, 'fr', { numeric: true }));
   $('#chips').innerHTML = `<button class="chip ${active.length ? '' : 'on-dark'}" data-act="lineAll">Toutes</button>` +
     lines.map((x) => {
-      const on = active.includes(x.l), c = lineColor(x.cat, x.num);
+      const on = active.includes(x.l), c = lineStyle(x.cat, x.num);
       return `<button class="chip" data-act="lineToggle" data-l="${esc(x.l)}" aria-pressed="${on}"
-        style="${on ? `background:${c};color:#fff;border-color:${c}` : `color:${c};border-color:${c}`}">${esc(x.l)}</button>`;
+        style="${on ? `background:${c.bg};color:${c.fg};border-color:${c.bg}` : `border-color:${c.bg}`}">${on ? '' : `<span class="dot" style="background:${c.bg}"></span>`}${esc(x.l)}</button>`;
     }).join('');
 
-  const now = Date.now();
-  const rows = S.board.filter((d) => !active.length || active.includes(String(d.number || d.category))).slice(0, 25).map((d) => {
+  const now = Date.now(), live = boardLive();
+  const rows = S.board.filter((d) => !active.length || active.includes(String(d.number || d.category))).slice(0, 30).map((d) => {
     const planned = parseISO(d.stop.departure);
     const delay = d.stop.delay || 0;
     const prog = parseISO(d.stop.prognosis && d.stop.prognosis.departure);
     const real = prog || new Date(planned.getTime() + delay * 60000);
     const diff = Math.round((real - now) / 60000);
-    const big = S.fromTime || diff > 59 ? hm(real) : (diff <= 0 ? 'Imm.' : diff + ' min');
+    const big = !live || diff > 59 ? hm(real) : (diff <= 0 ? 'Imm.' : diff + ' min');
     return `<div class="dep">${badge(d.category, d.number)}
       <div class="dep-to"><span class="to">${esc(short(d.to))}</span>
         <span class="small">Prévu ${hm(planned)}${d.stop.platform ? ' · quai ' + esc(d.stop.platform) : ''}</span></div>
       <div class="dep-r"><span class="big">${big}</span>${delay > 0 ? `<span class="st-late">+${delay} min</span>` : ''}</div></div>`;
   }).join('');
   $('#deps').innerHTML = rows || '<p class="empty">Aucun départ pour ce filtre.</p>';
-  $('#upd').textContent = 'Mis à jour à ' + hm(new Date()) + (active.length ? ' · filtre mémorisé pour cet arrêt' : '');
+  $('#upd').textContent = (live ? 'Temps réel · mis à jour à ' + hm(new Date()) : 'Horaire du ' + dateLabel(S.boardDate))
+    + (active.length ? ' · filtre mémorisé pour cet arrêt' : '');
 }
 
 /* ---------- RÉSULTATS D'ITINÉRAIRE ---------- */
 function renderResults() {
+  const q = S.q;
+  const modeChip = (m, label) => `<button class="chip ${q.modes[m] ? 'on-dark' : ''}" data-act="mode" data-m="${m}" aria-pressed="${q.modes[m]}">${label}</button>`;
   main.innerHTML = `
-    <header class="top back">${backBtn('home')}
+    <header class="top back">${backBtn()}
       <div style="display:flex;flex-direction:column;min-width:0">
-        <span class="small">${esc(short(S.q.from))}</span>
-        <h1 class="title" style="font-size:21px">→ ${esc(short(S.q.to))}</h1>
+        <span class="small">${esc(short(q.from))}</span>
+        <h1 class="title" style="font-size:21px">→ ${esc(short(q.to))}</h1>
       </div></header>
-    <div class="scroll stack" id="res"><p class="empty">Recherche…</p></div>`;
-  loadResults(hm(new Date()));
+    <div class="controls">
+      <div class="wrap-row">
+        <div class="seg" role="group" aria-label="Type d’horaire">
+          <button class="${q.arrival ? '' : 'on'}" data-act="arr" data-v="0" aria-pressed="${!q.arrival}">Départ</button>
+          <button class="${q.arrival ? 'on' : ''}" data-act="arr" data-v="1" aria-pressed="${q.arrival}">Arrivée</button>
+        </div>
+        <input id="rd" class="time-in" type="date" value="${q.date}" aria-label="Date" style="flex:1">
+        <input id="rt" class="time-in" type="time" value="${q.time}" aria-label="Heure">
+      </div>
+      <div class="chips">
+        ${modeChip('bus', 'Bus')}${modeChip('tram', 'Tram')}${modeChip('train', 'Train')}
+        <button class="chip ${q.direct ? 'on-dark' : ''}" data-act="direct" aria-pressed="${q.direct}">Direct</button>
+      </div>
+    </div>
+    <div class="scroll stack" id="res"></div>`;
+  $('#rd').addEventListener('change', (e) => { q.date = e.target.value || todayStr(); reloadResults(); });
+  $('#rt').addEventListener('change', (e) => { q.time = e.target.value || hm(new Date()); reloadResults(); });
+  if (S.res.length) drawResults(); else reloadResults();
 }
-async function loadResults(time) {
+function reloadResults() { S.res = []; loadResults(S.q.time, 'replace'); }
+async function loadResults(time, how) {
+  const el = $('#res'); if (!el) return;
+  if (how === 'replace') el.innerHTML = '<p class="empty">Recherche…</p>';
+  S.resLoading = true;
   try {
-    const list = await getConns(S.q.from, S.q.to, ymd(new Date()), time, 6);
-    S.res = S.res.concat(list.filter((c) => !S.res.some((o) => o.depStr === c.depStr && o.key === c.key)));
-    const el = $('#res'); if (!el) return;
-    el.innerHTML = S.res.length ? S.res.map((c) => `
-      <div class="card conn">
-        <div class="conn-top"><span class="big2">${c.depStr} <span class="dash">–</span> ${c.arrStr}</span><span class="muted" style="font-weight:700">${c.dur} min</span></div>
-        <div class="conn-legs">${c.legs.map((l) => badge(l.cat, l.num, true)).join('')}
+    const q = S.q;
+    const j = await api(connQuery({ ...q, time }));
+    const list = (j.connections || []).map(mapConn);
+    const merged = S.res.concat(list.filter((c) => !S.res.some((o) => o.depStr === c.depStr && o.arrStr === c.arrStr && o.key === c.key)));
+    S.res = merged.sort((a, b) => a.dep - b.dep);
+    if (S.screen === 'results') drawResults();
+  } catch {
+    if ($('#res')) $('#res').innerHTML = '<div class="card empty-card">Impossible de charger les liaisons. Vérifie le nom des arrêts.</div>';
+  }
+  S.resLoading = false;
+}
+function drawResults() {
+  const el = $('#res'); if (!el) return;
+  if (!S.res.length) { el.innerHTML = '<div class="card empty-card">Aucune liaison trouvée avec ces critères.</div>'; return; }
+  const showDate = S.q.date !== todayStr();
+  el.innerHTML = (S.q.arrival ? '' : '<button class="ghost" data-act="earlier" style="align-self:center">Plus tôt</button>') +
+    (showDate ? `<p class="small" style="margin:0 4px">Horaire du ${esc(dateLabel(S.q.date))}</p>` : '') +
+    S.res.map((c, i) => `
+      <button class="card conn" data-act="openTrip" data-i="${i}">
+        <div class="conn-top"><span class="big2">${c.depStr} <span class="dash">–</span> ${c.arrStr}</span>
+          <span class="row gap"><span class="muted" style="font-weight:700">${c.dur} min</span>${ICON.chev}</span></div>
+        <div class="conn-legs">${c.legs.map((l) => badge(l.cat, l.num, true)).join('') || `<span class="small">À pied</span>`}
           <span class="muted sm">${c.transfers ? c.transfers + ' changement' + (c.transfers > 1 ? 's' : '') : 'direct'}</span>
           ${c.delay ? `<span class="st-late ml">+${c.delay} min</span>` : ''}</div>
-      </div>`).join('') + '<button class="ghost" data-act="later" style="align-self:center">Plus tard</button>'
-      : '<div class="card empty-card">Aucune liaison trouvée. Vérifie le nom des arrêts.</div>';
-  } catch {
-    const el = $('#res'); if (el) el.innerHTML = '<div class="card empty-card">Impossible de charger les liaisons.</div>';
-  }
+      </button>`).join('') +
+    (S.q.arrival ? '' : '<button class="ghost" data-act="later" style="align-self:center">Plus tard</button>');
+}
+
+/* ---------- DÉTAIL D'UN ITINÉRAIRE ---------- */
+function renderTrip() {
+  const c = S.trip; if (!c) return go('results', false);
+  const secs = c.raw.sections || [];
+  const parts = secs.map((s) => {
+    const dep = parseISO(s.departure && s.departure.departure);
+    const arr = parseISO(s.arrival && s.arrival.arrival);
+    const fromName = s.departure && s.departure.station ? s.departure.station.name : '';
+    const toName = s.arrival && s.arrival.station ? s.arrival.station.name : '';
+    if (!s.journey) {
+      let mins = dep && arr ? Math.round((arr - dep) / 60000) : 0;
+      if (!mins && s.walk && s.walk.duration) {
+        const w = String(s.walk.duration);
+        const secs = w.includes(':') ? w.split(':').reduce((a, b) => a * 60 + Number(b), 0) : Number(w);
+        mins = Math.max(1, Math.round(secs / 60));
+      }
+      return `<div class="leg"><div class="leg-t"></div><div class="rail walk"></div>
+        <div class="leg-b"><div class="mid">${ICON.walk}<span class="small" style="font-weight:700">Marche${mins ? ' · ' + mins + ' min' : ''}</span></div>
+        ${toName && toName !== fromName ? `<div class="meta">jusqu’à ${esc(short(toName))}</div>` : ''}</div></div>`;
+    }
+    const j = s.journey, st = lineStyle(j.category, j.number);
+    const delay = s.departure.delay || 0;
+    const pass = (j.passList || []).slice(1, -1);
+    const plat = (x) => (x && x.platform ? ' · quai ' + esc(x.platform) : '');
+    return `
+      <div class="leg" style="--c:${st.bg}">
+        <div class="leg-t">${dep ? hm(dep) : ''}${delay ? `<span class="d">+${delay}′</span>` : ''}</div>
+        <div class="rail"><span class="node"></span></div>
+        <div class="leg-b"><div class="stn">${esc(short(fromName))}</div><div class="meta">Départ${plat(s.departure)}</div></div>
+      </div>
+      <div class="leg" style="--c:${st.bg}">
+        <div class="leg-t"></div><div class="rail"></div>
+        <div class="leg-b">
+          <div class="mid">${badge(j.category, j.number, true)}<span style="font-weight:800">direction ${esc(short(j.to))}</span></div>
+          ${pass.length ? `<details class="pass"><summary>${pass.length} arrêt${pass.length > 1 ? 's' : ''} intermédiaire${pass.length > 1 ? 's' : ''}</summary>
+            <ol>${pass.map((p) => { const t = parseISO(p.departure || p.arrival); return `<li><span>${t ? hm(t) : ''}</span><span>${esc(short(p.station && p.station.name))}</span></li>`; }).join('')}</ol></details>` : ''}
+        </div>
+      </div>
+      <div class="leg" style="--c:${st.bg}">
+        <div class="leg-t">${arr ? hm(arr) : ''}</div>
+        <div class="rail"><span class="node"></span></div>
+        <div class="leg-b"><div class="stn">${esc(short(toName))}</div><div class="meta">Arrivée${plat(s.arrival)}</div></div>
+      </div>`;
+  }).join('');
+  main.innerHTML = `
+    <header class="top back">${backBtn()}
+      <div style="display:flex;flex-direction:column;min-width:0">
+        <span class="small">${esc(short(c.raw.from.station.name))} → ${esc(short(c.raw.to.station.name))}</span>
+        <h1 class="title" style="font-size:22px">${c.depStr} – ${c.arrStr}</h1>
+      </div></header>
+    <div class="scroll stack">
+      <p class="small" style="margin:0 4px">${c.dur} min · ${c.transfers ? c.transfers + ' changement' + (c.transfers > 1 ? 's' : '') : 'direct'}${S.q.date !== todayStr() ? ' · ' + esc(dateLabel(S.q.date)) : ''}</p>
+      <div class="card" style="padding:4px 0 8px">${parts}</div>
+    </div>`;
 }
 
 /* ---------- TRAJETS PENDULAIRES ---------- */
@@ -512,7 +708,7 @@ function renderCommutes() {
 function renderNew() {
   const d = S.draft;
   main.innerHTML = `
-    <header class="top back">${backBtn('commutes')}<h1 class="title" style="font-size:22px">Nouveau trajet</h1></header>
+    <header class="top back">${backBtn()}<h1 class="title" style="font-size:22px">Nouveau trajet</h1></header>
     <div class="scroll stack">
       <div class="card">
         <label class="field bb"><span class="label" style="width:64px">Départ</span><input id="dFrom" value="${esc(d.from)}" placeholder="Arrêt de départ" autocomplete="off"></label>
@@ -552,7 +748,7 @@ async function loadCands() {
     const date = nextDate(d.days);
     const list = await connsInWindow(d.from.trim(), d.to.trim(), ymd(date), d.start, d.end);
     d.cands = list.map((c) => ({ dep: c.depStr, arr: c.arrStr, dur: c.dur, legs: c.legs, key: c.key }));
-    d.candDay = DAYS_LONG[dayIdx(date)] + ' ' + date.getDate() + '.' + (date.getMonth() + 1) + '.';
+    d.candDay = dateLabel(ymd(date));
     d.picks = [];
     drawCands();
   } catch { box.innerHTML = '<p class="empty">Impossible de charger les liaisons. Vérifie le nom des arrêts.</p>'; }
@@ -580,7 +776,7 @@ function drawCands() {
 
 /* ---------- actions (clics) ---------- */
 const ACT = {
-  back: (ds) => history.state ? history.back() : go(ds.to, false),
+  back: () => (history.state ? history.back() : go({ new: 'commutes', trip: 'results' }[S.screen] || 'home', false)),
   locate: () => { S.fromText = ''; const i = $('#fromIn'); if (i) i.value = ''; locate(); },
   swap: () => {
     const from = S.fromText.trim() || (S.geo ? S.geo.name : '');
@@ -589,15 +785,25 @@ const ACT = {
   editFavs: () => { S.editFavs = !S.editFavs; renderHome(); },
   favUp: (ds) => { const i = +ds.i; [favs[i - 1], favs[i]] = [favs[i], favs[i - 1]]; store.set('nt_favs', favs); renderHome(); },
   favDel: (ds) => { favs.splice(+ds.i, 1); store.set('nt_favs', favs); if (!favs.length) S.editFavs = false; renderHome(); },
-  openStop: (ds) => { S.stop = favs[+ds.i]; S.fromTime = ''; S.board = []; go('board'); },
+  openStop: (ds) => { S.stop = favs[+ds.i]; S.boardDate = ''; S.boardTime = ''; S.board = []; go('board'); },
   lineAll: () => { filters[S.stop.id] = []; store.set('nt_filters', filters); drawBoard(); },
   lineToggle: (ds) => {
     const a = filters[S.stop.id] || [];
     filters[S.stop.id] = a.includes(ds.l) ? a.filter((x) => x !== ds.l) : a.concat([ds.l]);
     store.set('nt_filters', filters); drawBoard();
   },
-  clearTime: () => { S.fromTime = ''; renderBoard(); },
-  later: () => { const last = S.res[S.res.length - 1]; if (last) loadResults(m2t(dmin(last.dep) + 1)); },
+  boardNow: () => { S.boardDate = ''; S.boardTime = ''; renderBoard(); },
+  arr: (ds) => { S.q.arrival = ds.v === '1'; renderResultsAndReload(); },
+  mode: (ds) => {
+    const m = S.q.modes;
+    m[ds.m] = !m[ds.m];
+    if (!Object.values(m).some(Boolean)) { m[ds.m] = true; return toast('Garde au moins un moyen de transport.'); }
+    renderResultsAndReload();
+  },
+  direct: () => { S.q.direct = !S.q.direct; renderResultsAndReload(); },
+  earlier: () => { if (S.resLoading || !S.res.length) return; loadResults(m2t(dmin(S.res[0].dep) - 40), 'merge'); },
+  later: () => { if (S.resLoading || !S.res.length) return; loadResults(m2t(dmin(S.res[S.res.length - 1].dep) + 1), 'merge'); },
+  openTrip: (ds) => { S.trip = S.res[+ds.i]; go('trip'); },
   newCommute: () => { S.draft = { from: '', to: '', days: [0, 1, 2, 3, 4], start: '07:00', end: '08:00', picks: [], cands: null }; go('new'); },
   reverse: (ds) => {
     const cm = commutes[+ds.i];
@@ -628,6 +834,7 @@ const ACT = {
     history.state ? history.back() : go('commutes', false);
   }
 };
+function renderResultsAndReload() { S.res = []; renderResults(); }
 main.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const fn = ACT[el.dataset.act]; if (fn) fn(el.dataset, el);
@@ -641,6 +848,7 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 go('home', false);
+dataReady.then(() => { if (S.screen === 'board' && S.board.length) drawBoard(); if (S.screen === 'commutes') renderCommutes(); });
 locate();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
