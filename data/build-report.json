@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-10-24T23:56:12.839Z",
+  "startedAt": "2026-10-24T23:58:06.197Z",
   "gtfsUrl": "https://data.opentransportdata.swiss/dataset/timetable-2026-gtfs2020/permalink",
   "agencies": [
     "Transports Publics Genevois [881]",
@@ -39,5 +39,5 @@
     "stops.json : 885 arrêts",
     "lines.json : 87 lignes"
   ],
-  "finishedAt": "2026-10-24T23:57:29.671Z"
+  "finishedAt": "2026-10-24T23:59:05.233Z"
 }
