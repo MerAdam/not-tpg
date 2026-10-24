@@ -244,7 +244,8 @@ function lum(hex) {
 }
 const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
 function textFor(bg, fg) {
-  if (fg && contrast(bg, fg) >= 4.5) return fg;
+  // Texte officiel conservé tant qu'il reste lisible (badges en gras : seuil 3:1).
+  if (fg && contrast(bg, fg) >= 3) return fg;
   return contrast(bg, '#FFFFFF') >= contrast(bg, '#1A1200') ? '#FFFFFF' : '#1A1200';
 }
 
