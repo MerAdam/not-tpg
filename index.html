@@ -106,7 +106,7 @@
   .dep{display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 16px;border:0;border-bottom:1px solid var(--line2);width:100%;background:none;text-align:left}
   button.dep:active{background:var(--line2)}
   /* parcours d'une course */
-  .jrow{display:grid;grid-template-columns:56px 14px 1fr;column-gap:10px;padding:0 16px;width:100%;background:none;border:0;text-align:left}
+  .jrow{display:grid;grid-template-columns:66px 14px 1fr;column-gap:10px;padding:0 16px;width:100%;background:none;border:0;text-align:left}
   .jrow:active{background:var(--line2)}
   .jrow .leg-t{padding-top:10px}
   .jrow .rail .node{margin-top:14px;width:12px;height:12px}
@@ -131,6 +131,7 @@
   .big{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
   .st-ok{font-size:13px;font-weight:800;color:var(--ok)}
   .st-late{font-size:13px;font-weight:800;color:var(--late)}
+  .st-early{font-size:13px;font-weight:800;color:var(--ok)}
   .st-gone{font-size:13px;font-weight:800;color:var(--bad)}
   .conn{padding:14px 16px;display:flex;flex-direction:column;gap:10px;width:100%;text-align:left}
   .conn-top{display:flex;align-items:baseline;justify-content:space-between}
@@ -155,7 +156,8 @@
   /* détail d'itinéraire */
   .leg{display:grid;grid-template-columns:52px 14px 1fr;column-gap:10px;padding:0 16px}
   .leg-t{font-weight:900;font-variant-numeric:tabular-nums;font-size:16px;padding-top:12px;text-align:right}
-  .leg-t .d{display:block;font-size:12px;font-weight:800;color:var(--late)}
+  .leg-t .d{display:block;font-size:11px;font-weight:800;color:var(--late);white-space:nowrap}
+  .leg-t .d.early{color:var(--ok)}
   .rail{position:relative;display:flex;justify-content:center}
   .rail::before{content:"";position:absolute;top:0;bottom:0;width:4px;border-radius:2px;background:var(--c,var(--border2))}
   .rail.walk::before{background:repeating-linear-gradient(to bottom,var(--faint) 0 4px,transparent 4px 9px);width:3px}
@@ -505,6 +507,9 @@ document.querySelector('nav').addEventListener('click', (e) => {
 const backBtn = () => `<button class="icon-btn" data-act="back" aria-label="Retour">${ICON.back}</button>`;
 
 const FAV_STAR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>';
+/* Affichage des départs : 'min' (minutes restantes, retard inclus) ou 'time' (heure prévue + écart) */
+const depMode = () => store.get('nt_depmode', 'min');
+const fmtDelta = (delta) => (delta > 0 ? '+' : '−') + Math.abs(delta);
 /* ---------- ACCUEIL ---------- */
 function renderHome() {
   const geoLabel = S.geo ? `Ma position (${short(S.geo.name)})` : 'Ma position';
@@ -769,12 +774,25 @@ function drawBoard() {
     const diff = Math.round((real - now) / 60000);
     const past = real.getTime() < now - 30000;
     const sameDay = ymd(planned) === todayStr();
-    const big = past || !live || diff > 59 ? (sameDay ? '' : planned.getDate() + '.' + (planned.getMonth() + 1) + '. ') + hm(real) : (diff <= 0 ? 'Imm.' : diff + ' min');
+    const pref = sameDay ? '' : planned.getDate() + '.' + (planned.getMonth() + 1) + '. ';
+    const delta = Math.round((real - planned) / 60000);
+    const dcls = delta > 0 ? 'st-late' : 'st-early';
+    const mode = depMode();
+    let big, sub = '';
+    if (mode === 'time') {
+      big = pref + hm(planned);
+      if (delta) sub = `<span class="${dcls}">${fmtDelta(delta)} · ${hm(real)}</span>`;
+    } else if (!past && live && diff <= 59) {
+      big = diff <= 0 ? 'Imm.' : diff + ' min'; // retard ou avance déjà compris
+    } else {
+      big = pref + hm(real);
+      if (delta) sub = `<span class="${dcls}">${fmtDelta(delta)} min</span>`;
+    }
     return `<button class="dep" data-act="openJourney" data-i="${i}"${past ? ' style="opacity:.5"' : ''}>${badge(d.category, d.number)}
       <div class="dep-to"><span class="to-line"><span class="to">${esc(short(d.to))}</span>${past ? '' : bellHtml(bellKey(S.stop.id, d), i)}</span>
-        <span class="small">Prévu ${hm(planned)}${d.stop.platform ? ' · quai ' + esc(d.stop.platform) : ''}</span>
+        ${mode === 'time' ? (d.stop.platform ? `<span class="small">Quai ${esc(d.stop.platform)}</span>` : '') : `<span class="small">Prévu ${hm(planned)}${d.stop.platform ? ' · quai ' + esc(d.stop.platform) : ''}</span>`}
         ${warnHtml(alertsFor([d.number], [S.stop.id, ...(d.passList || []).map((p) => p.station && p.station.id)], real, d.to))}</div>
-      <div class="dep-r"><span class="big">${big}</span>${delay > 0 ? `<span class="st-late">+${delay} min</span>` : ''}</div></button>`;
+      <div class="dep-r"><span class="big">${big}</span>${sub}</div></button>`;
   }).join('');
   $('#deps').innerHTML = rows || '<p class="empty">Aucun départ pour ce filtre.</p>';
   $('#upd').textContent = live ? 'Temps réel · mis à jour à ' + hm(new Date()) : 'Horaire du ' + dateLabel(S.boardDate);
@@ -832,6 +850,16 @@ function stopIssueFinder(alerts) {
     return null;
   };
 }
+function legTime(r, live, now) {
+  if (!r.t) return '';
+  const real = r.real || r.t;
+  const delta = Math.round((real - r.t) / 60000);
+  const dcls = delta > 0 ? 'd' : 'd early';
+  if (depMode() === 'time') return hm(r.t) + (delta ? `<span class="${dcls}">${fmtDelta(delta)} · ${hm(real)}</span>` : '');
+  const diff = Math.round((real - now) / 60000);
+  if (live && !r.past && diff >= 0 && diff <= 59) return diff === 0 ? 'Imm.' : diff + ' min';
+  return hm(real) + (delta ? `<span class="${dcls}">${fmtDelta(delta)}′</span>` : '');
+}
 function renderJourney() {
   const d = S.journey; if (!d) return go('board', false);
   const st = lineStyle(d.category, d.number);
@@ -853,7 +881,7 @@ function renderJourney() {
     const t = new Date(t0.getTime() - (prev.curOff - prev.off[i]) * 60000);
     const real = new Date(t.getTime() + curDelay * 60000);
     const s = stopById(id);
-    rowsData.push({ id, name: s ? s.name : '', t, delay: 0, past: live && real.getTime() < now - 30000, before: true });
+    rowsData.push({ id, name: s ? s.name : '', t, real, past: live && real.getTime() < now - 30000, before: true });
   });
   list.forEach((p, i) => {
     const t = parseISO(p.departure || p.arrival);
@@ -861,7 +889,7 @@ function renderJourney() {
     const delay = p.delay || (t && progT ? Math.round((progT - t) / 60000) : 0);
     const real = progT || (t ? new Date(t.getTime() + (delay || 0) * 60000) : null);
     rowsData.push({
-      id: ids[i], name: (p.station && p.station.name) || (i === 0 ? S.stop.name : ''), t, delay, platform: p.platform,
+      id: ids[i], name: (p.station && p.station.name) || (i === 0 ? S.stop.name : ''), t, real, platform: p.platform,
       past: live && i > 0 && real && real.getTime() < now - 30000, here: i === 0
     });
   });
@@ -869,7 +897,7 @@ function renderJourney() {
     const iss = issue(r.name);
     const cls = ['jrow', i === 0 ? 'first' : '', r.here ? 'here' : '', i === rowsData.length - 1 ? 'last' : '', r.past ? 'past' : '', iss ? 'iss-' + iss : ''].join(' ');
     const tag = iss === 'skip' ? '<span class="stop-tag skip">Non desservi</span>' : iss === 'moved' ? '<span class="stop-tag moved">Déplacé</span>' : '';
-    const inner = `<div class="leg-t">${r.t ? hm(r.t) : ''}${r.delay > 0 ? `<span class="d">+${r.delay}′</span>` : ''}</div>
+    const inner = `<div class="leg-t">${legTime(r, live, now)}</div>
       <div class="rail"><span class="node"${r.here ? ' style="background:var(--c)"' : ''}></span></div>
       <div class="stn"><span class="stn-name">${esc(short(r.name))}</span>${r.platform ? ` <span class="small">· quai ${esc(r.platform)}</span>` : ''}${r.here ? ' <span class="small">· tu es ici</span>' : ''}${tag}</div>`;
     return r.id && !r.here
@@ -1468,6 +1496,15 @@ function renderSettings() {
         <p class="small" style="margin:0">« Système » suit automatiquement le réglage clair/sombre de ton téléphone.</p>
       </div>
       <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+        <h2 class="label">Affichage des départs</h2>
+        <div class="seg" role="group" aria-label="Affichage des départs" style="display:flex">
+          ${['min', 'time'].map((v) => `<button class="${depMode() === v ? 'on' : ''}" data-act="depmode" data-v="${v}" aria-pressed="${depMode() === v}" style="flex:1">${v === 'min' ? 'En minutes' : 'À l’heure'}</button>`).join('')}
+        </div>
+        <p class="small" style="margin:0">${depMode() === 'min'
+          ? 'Les départs de la prochaine heure s’affichent en minutes restantes (ex. « 4 min »), retard ou avance déjà compris.'
+          : 'Les départs s’affichent à l’heure prévue (ex. « 14:30 »), avec en dessous l’écart et l’heure réelle (ex. « −4 · 14:26 »).'}</p>
+      </div>
+      <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
         <h2 class="label">Notifications</h2>
         ${NT.sid
           ? `<p style="margin:0;font-weight:800;color:var(--ok)">Activées sur cet appareil</p>
@@ -1537,6 +1574,7 @@ const ACT = {
   },
   bell: (ds) => { const d = S.boardRows[+ds.i]; if (d) toggleBell(d, S.stop).then(() => drawBoard()); },
   bellJourney: () => { if (S.journey) toggleBell(S.journey, S.stop).then(() => { if (S.screen === 'journey') renderJourney(); }); },
+  depmode: (ds) => { store.set('nt_depmode', ds.v); renderSettings(); },
   theme: (ds, el) => {
     if (getTheme() === ds.v) return;
     store.set('nt_theme', ds.v);
