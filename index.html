@@ -727,8 +727,8 @@ async function walkApi(action, params) {
   if (typeof j.duration === 'number') j.duration *= f;
   return j;
 }
-// Arrêts à ≤ 12 min à pied réels (pas à vol d'oiseau), triés par temps de marche. Mis en cache par point de départ.
-const NEAR_MAX = 720;
+// Arrêts à ≤ 10 min à pied réels (pas à vol d'oiseau), triés par temps de marche. Mis en cache par point de départ.
+const NEAR_MAX = 600;
 async function nearbyByWalk(pt) {
   const key = pt.map((x) => x.toFixed(4)).join(',') + walkSpeed();
   if (M.near && M.near.key === key) return M.near.p;
@@ -1051,7 +1051,7 @@ async function mapPlan(force) {
     const directWalk = estWalk(M.origin, dest);
     // Arrêts d'arrivée : l'arrêt choisi, ou les 2 arrêts les plus proches de l'adresse
     const destStops = M.dest.stopId ? [{ s: stopById(M.dest.stopId), d: 0 }] : nearestStops(dest, 2, 900);
-    // Arrêts de départ : les 4 plus proches en temps de marche réel (max 12 min)
+    // Arrêts de départ : les 4 plus proches en temps de marche réel (max 10 min)
     let origins = (await nearbyByWalk(M.origin)).slice(0, 4);
     if (!origins.length) origins = nearestStops(M.origin, 3, 1600).map((o) => ({ ...o, walk: estWalk(M.origin, [o.s.lat, o.s.lon]) })); // coin isolé
     const real = origins.length ? origins[0].real : false;
@@ -1163,7 +1163,7 @@ function drawMapPanel() {
       ? '<p class="small" style="margin:0">Calcul des temps de marche…</p>'
       : near.length
       ? `<div class="card list">${near.map(({ s, d, walk, real }) => `<button class="row-btn" data-act="mapStop" data-id="${esc(s.id)}"><span style="display:flex;flex-direction:column"><span>${esc(short(s.name))}</span><span class="small">${real ? '' : '~'}${minsTxt(walk)} à pied · ${Math.round(d / 10) * 10} m</span></span>${ICON.chev}</button>`).join('')}</div>`
-      : '<p class="small" style="margin:0">Aucun arrêt tpg à moins de 12 min à pied.</p>') +
+      : '<p class="small" style="margin:0">Aucun arrêt tpg à moins de 10 min à pied.</p>') +
       '<p class="small" style="margin:0">Cherche une destination en haut pour voir les meilleures options depuis ici.</p>';
   } else if (M.loading) {
     html = '<p class="empty" style="padding:8px 0">Recherche des meilleures options…</p>';
@@ -2300,7 +2300,7 @@ const TUTOS = [
       i: () => mock(`<div class="card" style="padding:4px 0;--c:${lineStyle('B', '15').bg}">${mJ('14:52', 'Plainpalais', 'first')}${mJ('', `${badge('B', '15', true)} <span style="font-weight:800">Nations</span>`)}${mJ('15:08', 'Gare Cornavin', 'last')}</div>`) }
   ] },
   { id: 'carte', title: 'Utiliser la carte', slides: [
-    { t: 'Autour de toi', p: 'L’onglet <b>Carte</b> se centre sur <b>ta position</b> (point bleu) et montre les arrêts tpg autour de toi. En dessous, les <b>arrêts à moins de 12 min à pied</b> (par les rues, pas à vol d’oiseau), avec le temps et la distance. Tu peux régler ta <b>vitesse de marche</b> dans <b>Réglages</b>. Sans localisation, <b>touche la carte</b> pour placer ton point de départ.',
+    { t: 'Autour de toi', p: 'L’onglet <b>Carte</b> se centre sur <b>ta position</b> (point bleu) et montre les arrêts tpg autour de toi. En dessous, les <b>arrêts à moins de 10 min à pied</b> (par les rues, pas à vol d’oiseau), avec le temps et la distance. Tu peux régler ta <b>vitesse de marche</b> dans <b>Réglages</b>. Sans localisation, <b>touche la carte</b> pour placer ton point de départ.',
       i: () => mock(mMap(mStop(70, 45) + mStop(195, 62) + mStop(90, 115) + mDot(140, 80)) + `<div class="card list"><div class="m-field" style="flex-direction:column;align-items:flex-start;gap:0"><span>Champel, gare/Peschier</span><span class="small">131 m · 2 min à pied</span></div></div>`) },
     { t: 'Où veux-tu aller ?', p: 'Tape ta destination en haut : un <b>arrêt tpg</b>, une <b>adresse</b> (« Rue de Carouge 12 ») ou un <b>lieu</b> (« Uni Mail »).',
       i: () => mock(`<div class="card list"><div class="m-field">${ICON.pin}uni mail</div><div class="m-field" style="background:var(--sugg);justify-content:space-between">Genève, Uni-Mail<span class="kind">Arrêt</span></div><div class="m-field" style="background:var(--sugg);justify-content:space-between"><span>Uni Mail<br><span class="small">1205, Genève</span></span><span class="kind">Lieu</span></div></div>`, tap(40, 60)) },
@@ -2564,7 +2564,7 @@ function renderSettings() {
         <div class="seg" role="group" aria-label="Vitesse de marche" style="display:flex">
           ${Object.entries(WALK_SPEEDS).map(([v, o]) => `<button class="${walkSpeed() === v ? 'on' : ''}" data-act="walkSpeed" data-v="${v}" aria-pressed="${walkSpeed() === v}" style="flex:1">${o.label}</button>`).join('')}
         </div>
-        <p class="small" style="margin:0">Environ ${WALK_SPEEDS[walkSpeed()].kmh} km/h. Sert à calculer les temps à pied sur la carte et les arrêts à proximité (max 12 min).</p>
+        <p class="small" style="margin:0">Environ ${WALK_SPEEDS[walkSpeed()].kmh} km/h. Sert à calculer les temps à pied sur la carte et les arrêts à proximité (max 10 min).</p>
       </div>
       <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:4px">
         <h2 class="label" style="margin-bottom:4px">Autorisations</h2>
