@@ -645,7 +645,8 @@ function drawPills() {
     : (S.boardDate ? dateLabel(S.boardDate).replace(/^\w/, (c) => c.toUpperCase()) + (S.boardTime ? ' · ' + S.boardTime : '') : 'Dès ' + S.boardTime);
   el.innerHTML = `
     <button class="pill ${active.length ? 'set' : ''}" data-act="openLines">${active.length ? 'Lignes ' + esc(active.join(', ')) : 'Toutes les lignes'} ${CARET}</button>
-    <button class="pill ${boardLive() ? '' : 'set'}" data-act="openTime">${esc(timeTxt)} ${CARET}</button>`;
+    <button class="pill ${boardLive() ? '' : 'set'}" data-act="openTime">${esc(timeTxt)} ${CARET}</button>
+    <button class="pill" data-act="openMode" aria-label="Affichage des départs : ${depMode() === 'min' ? 'en minutes' : 'à l’heure'}">${depMode() === 'min' ? 'MN' : 'HR'} ${CARET}</button>`;
 }
 function boardLines() {
   const m = new Map();
@@ -680,6 +681,19 @@ function linesSheetHtml() {
     <p class="small" style="margin:0 0 14px">Le choix est mémorisé pour cet arrêt.</p>
     <button class="primary w100" data-sheet="close">OK</button>`;
 }
+function modeSheetHtml() {
+  const m = depMode();
+  const opt = (v, title, ex) => `
+    <button class="card" data-sheet="setMode" data-v="${v}" aria-pressed="${m === v}" style="width:100%;text-align:left;padding:14px 16px;display:flex;align-items:center;gap:12px;${m === v ? 'border:2px solid var(--accent)' : ''}">
+      <span class="pill ${m === v ? 'set' : ''}" style="pointer-events:none;flex:none">${v === 'min' ? 'MN' : 'HR'}</span>
+      <span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800;font-size:16px">${title}</span><span class="small">${ex}</span></span>
+    </button>`;
+  return `<h2>Affichage des départs</h2>
+    <div class="stack" style="gap:10px">
+      ${opt('min', 'En minutes', 'Ex. « 4 min ». Retard ou avance déjà compris, pour les départs de la prochaine heure.')}
+      ${opt('time', 'À l’heure', 'Ex. « 14:30 », avec en dessous l’écart et l’heure réelle : « −4 · 14:26 ».')}
+    </div>`;
+}
 function timeSheetHtml() {
   return `<h2>À partir de</h2>
     <div class="stack" style="gap:10px;margin-bottom:16px">
@@ -700,6 +714,7 @@ const SHEET = {
     store.set('nt_filters', filters); $('#sheetBody').innerHTML = linesSheetHtml(); drawPills(); drawBoard();
   },
   timeNow: () => { S.boardDate = ''; S.boardTime = ''; closeSheet(); drawPills(); reloadBoard(); },
+  setMode: (ds) => { store.set('nt_depmode', ds.v); closeSheet(); drawPills(); drawBoard(); },
   timeApply: () => {
     const d = $('#sd').value, t = $('#st').value;
     S.boardDate = d && d !== todayStr() ? d : '';
@@ -1496,15 +1511,6 @@ function renderSettings() {
         <p class="small" style="margin:0">« Système » suit automatiquement le réglage clair/sombre de ton téléphone.</p>
       </div>
       <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
-        <h2 class="label">Affichage des départs</h2>
-        <div class="seg" role="group" aria-label="Affichage des départs" style="display:flex">
-          ${['min', 'time'].map((v) => `<button class="${depMode() === v ? 'on' : ''}" data-act="depmode" data-v="${v}" aria-pressed="${depMode() === v}" style="flex:1">${v === 'min' ? 'En minutes' : 'À l’heure'}</button>`).join('')}
-        </div>
-        <p class="small" style="margin:0">${depMode() === 'min'
-          ? 'Les départs de la prochaine heure s’affichent en minutes restantes (ex. « 4 min »), retard ou avance déjà compris.'
-          : 'Les départs s’affichent à l’heure prévue (ex. « 14:30 »), avec en dessous l’écart et l’heure réelle (ex. « −4 · 14:26 »).'}</p>
-      </div>
-      <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
         <h2 class="label">Notifications</h2>
         ${NT.sid
           ? `<p style="margin:0;font-weight:800;color:var(--ok)">Activées sur cet appareil</p>
@@ -1574,7 +1580,6 @@ const ACT = {
   },
   bell: (ds) => { const d = S.boardRows[+ds.i]; if (d) toggleBell(d, S.stop).then(() => drawBoard()); },
   bellJourney: () => { if (S.journey) toggleBell(S.journey, S.stop).then(() => { if (S.screen === 'journey') renderJourney(); }); },
-  depmode: (ds) => { store.set('nt_depmode', ds.v); renderSettings(); },
   theme: (ds, el) => {
     if (getTheme() === ds.v) return;
     store.set('nt_theme', ds.v);
@@ -1583,6 +1588,7 @@ const ACT = {
   },
   openLines: () => openSheet(linesSheetHtml()),
   openTime: () => openSheet(timeSheetHtml()),
+  openMode: () => openSheet(modeSheetHtml()),
   arr: (ds) => { S.q.arrival = ds.v === '1'; renderResultsAndReload(); },
   mode: (ds) => {
     const m = S.q.modes;
