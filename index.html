@@ -189,6 +189,10 @@
   /* carte */
   .map-screen{position:relative;flex:1;min-height:0;overflow:hidden}
   #bigmap{position:absolute;inset:0;background:var(--line2);z-index:0}
+  /* fonds adoucis : clair un peu plus soutenu, sombre un peu plus lumineux */
+  #bigmap .leaflet-gl-layer{filter:brightness(.94) contrast(1.06) saturate(1.25)}
+  html.dark #bigmap .leaflet-gl-layer{filter:brightness(1.18) contrast(.95) saturate(.9)}
+  .map-panel.locked{overflow-y:hidden}
   html.dark #bigmap.osm-fallback .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9)}
   .leaflet-container{font-family:inherit}
   #bigmap .leaflet-control-attribution{font-size:9px}
@@ -590,7 +594,7 @@ const isDark = () => document.documentElement.classList.contains('dark');
 // Fond de carte : OpenFreeMap « positron » (clair) ou « dark » (sombre)
 function setBaseLayer() {
   const L = window.L; if (!M.map || !L) return;
-  const want = isDark() ? 'dark' : 'positron';
+  const want = isDark() ? 'fiord' : 'positron';
   if (M.base && M.baseStyle === want) return;
   if (M.base) { try { M.map.removeLayer(M.base); } catch {} }
   const attr = '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
@@ -615,6 +619,9 @@ function setSheet(state, anim = true) {
   const el = $('#mapSheet'); if (!el) return;
   el.style.transition = anim ? 'height .3s cubic-bezier(.2,.8,.2,1)' : 'none';
   el.style.height = sheetH(state) + 'px';
+  // Réduit : pas de défilement dans la liste (on remonte en haut)
+  const body = $('#mapPanel');
+  if (body) { body.classList.toggle('locked', state === 'peek'); if (state === 'peek') body.scrollTop = 0; }
 }
 // Centre la carte sur un point en tenant compte du panneau du bas
 function centerOn(ll, z) { if (!M.map) return; M.map.setView(ll, z, { animate: false }); M.map.panBy([0, Math.round(sheetPad() / 2) - 8], { animate: false }); }
@@ -630,7 +637,8 @@ function attachSheetDrag() {
     const dy = y - y0;
     if (fromBody && !dragging) {
       // Depuis la liste : on ne déplace le panneau que si on tire vers le bas en haut de liste
-      if (body.scrollTop > 0 || dy < 6) { if (dy < -6 || body.scrollTop > 0) y0 = null; return; }
+      // Réduit : on peut tirer la liste dans les deux sens pour agrandir/réduire
+      if (M.sheet !== 'peek' && (body.scrollTop > 0 || dy < 6)) { if (dy < -6 || body.scrollTop > 0) y0 = null; return; }
     }
     if (!dragging && Math.abs(dy) < 4) return;
     dragging = true;
