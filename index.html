@@ -591,31 +591,54 @@ function loadLeaflet() {
 const isDark = () => document.documentElement.classList.contains('dark');
 // Fond de carte : OpenFreeMap « positron » (clair) ou « dark » (sombre)
 // Fonds de carte disponibles (gratuits, sans clé)
+// Fonds de carte (gratuits, sans clé). « Suisse épurée » = swisstopo par-dessus OpenFreeMap
+// (qui couvre la France voisine) ; « Satellite » = imagerie Esri, partout.
 const MAP_STYLES = [
-  { id: 'swisslight', name: 'Suisse épurée', desc: 'Version claire et sobre, idéale pour les arrêts', kind: 'gl', url: 'https://vectortiles.geo.admin.ch/styles/ch.swisstopo.lightbasemap.vt/style.json', attr: '© <a href="https://www.swisstopo.admin.ch" target="_blank">swisstopo</a>', swatch: ['#F7F7F5', '#E4EBDC', '#C9DDEE', '#FFFFFF'] },
-  { id: 'satellite', name: 'Satellite', desc: 'Photo aérienne swisstopo avec les noms de rues', kind: 'gl', url: 'https://vectortiles.geo.admin.ch/styles/ch.swisstopo.imagerybasemap.vt/style.json', attr: '© <a href="https://www.swisstopo.admin.ch" target="_blank">swisstopo</a>', swatch: ['#3E4A33', '#6B7A55', '#8C8A7A', '#2F3B2A'], noDim: true }
+  { id: 'swisslight', name: 'Suisse épurée', desc: 'Claire et sobre, idéale pour les arrêts (France voisine comprise)', swatch: ['#F7F7F5', '#E4EBDC', '#C9DDEE', '#FFFFFF'] },
+  { id: 'satellite', name: 'Satellite', desc: 'Photo aérienne avec les noms de rues', swatch: ['#3E4A33', '#6B7A55', '#8C8A7A', '#2F3B2A'], noDim: true }
 ];
 const mapStyle = () => MAP_STYLES.find((x) => x.id === store.get('nt_mapstyle', 'swisslight')) || MAP_STYLES[0];
 const mapDim = () => store.get('nt_mapdim', true);
-function setBaseLayer() {
+const ATTR_SWISS = '© <a href="https://www.swisstopo.admin.ch" target="_blank">swisstopo</a> · <a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank">OSM</a>';
+const ATTR_ESRI = 'Imagerie © <a href="https://www.esri.com" target="_blank">Esri</a>, Maxar, Earthstar Geographics';
+let swissStyleP = null;
+// Style swisstopo sans son fond gris, pour laisser voir la carte OpenFreeMap hors de Suisse
+function swissStyle() {
+  if (!swissStyleP) swissStyleP = fetch('https://vectortiles.geo.admin.ch/styles/ch.swisstopo.lightbasemap.vt/style.json').then((r) => r.json()).then((st) => {
+    for (const l of st.layers || []) if (l.type === 'background') { l.paint = Object.assign({}, l.paint, { 'background-opacity': 0 }); }
+    return st;
+  }).catch((e) => { swissStyleP = null; throw e; });
+  return swissStyleP;
+}
+async function setBaseLayer() {
   const L = window.L; if (!M.map || !L) return;
   const st = mapStyle();
   const el = $('#bigmap');
   // En mode sombre, la carte est assombrie (sauf satellite), comme le mode nuit de Google Maps
   if (el) el.classList.toggle('dimmed', isDark() && mapDim() && !st.noDim);
   if (M.base && M.baseStyle === st.id) return;
-  if (M.base) { try { M.map.removeLayer(M.base); } catch {} }
-  if (st.kind === 'gl' && L.maplibreGL && window.maplibregl) {
+  const token = (M.baseToken = (M.baseToken || 0) + 1);
+  const group = L.layerGroup();
+  if (st.id === 'satellite') {
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, maxNativeZoom: 19, attribution: ATTR_ESRI }).addTo(group);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, maxNativeZoom: 19, opacity: 0.8 }).addTo(group);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, maxNativeZoom: 19 }).addTo(group);
+  } else if (L.maplibreGL && window.maplibregl) {
     try {
-      M.base = L.maplibreGL({ style: st.url, attribution: st.attr, interactive: false }).addTo(M.map);
-      M.baseStyle = st.id; return;
-    } catch {}
-  }
-  if (st.kind === 'raster') {
-    M.base = L.tileLayer(st.url, { maxZoom: 19, maxNativeZoom: 18, attribution: st.attr }).addTo(M.map);
+      L.maplibreGL({ style: 'https://tiles.openfreemap.org/styles/positron', interactive: false }).addTo(group);
+      const sw = await swissStyle();
+      if (token !== M.baseToken) return;
+      L.maplibreGL({ style: sw, attribution: ATTR_SWISS, interactive: false }).addTo(group);
+    } catch {
+      group.clearLayers();
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(group);
+    }
   } else {
-    M.base = L.tileLayer('https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg', { maxZoom: 19, maxNativeZoom: 18, attribution: '© swisstopo' }).addTo(M.map);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(group);
   }
+  if (token !== M.baseToken) return;
+  if (M.base) { try { M.map.removeLayer(M.base); } catch {} }
+  M.base = group.addTo(M.map);
   M.baseStyle = st.id;
 }
 function mapStylesHtml() {
@@ -771,14 +794,64 @@ function mapLocate(silent) {
 // Tracé d'un trajet complet : marche (bleu pointillé), chaque ligne à sa couleur, changements à pied
 const WALK_STYLE = { color: '#2563EB', weight: 5, opacity: 0.9, dashArray: '1 10', lineCap: 'round', lineJoin: 'round' };
 function walkLine(path) { const L = window.L; L.polyline(path, WALK_STYLE).addTo(M.layers); }
-function ptOfStation(st) {
+/* Quais exacts (data/quays.json) et tracés des lignes (data/shapes.json, OpenStreetMap) */
+let QUAYS = null, SHAPES = null, mapDataP = null;
+function loadMapData() {
+  if (!mapDataP) mapDataP = Promise.all([
+    fetch('data/quays.json').then((r) => (r.ok ? r.json() : null)).then((j) => (QUAYS = (j && j.quays) || {})).catch(() => (QUAYS = {})),
+    fetch('data/shapes.json').then((r) => (r.ok ? r.json() : null)).then((j) => (SHAPES = (j && j.lines) || {})).catch(() => (SHAPES = {}))
+  ]);
+  return mapDataP;
+}
+const stationId = (st) => String((st && st.id) || '').replace(/^Parent/i, '').split(':')[0];
+// Position d'un arrêt : le quai exact si on le connaît, sinon le centre de l'arrêt
+function ptOfStation(st, plat) {
   if (!st) return null;
-  const id = String(st.id || '').replace(/^Parent/i, '').split(':')[0];
+  const id = stationId(st);
+  const q = QUAYS && QUAYS[id], P = String(plat || '').trim().toUpperCase();
+  if (q && P && q[P]) return q[P];
   const s = id && stopById(id);
   if (s) return [s.lat, s.lon];
   const c = st.coordinate;
   if (c && c.x && c.y) { let a = +c.x, b = +c.y; if (a < b) [a, b] = [b, a]; if (a > 44 && a < 49 && b > 4 && b < 12) return [a, b]; }
   return null;
+}
+// Projection d'un point sur un tracé : distance (m) et position (index de segment + fraction)
+function projectOn(p, t) {
+  const Mm = 111320, k = Math.cos((p[0] * Math.PI) / 180);
+  let best = { dist: Infinity, pos: 0 };
+  for (let i = 0; i < t.length - 1; i++) {
+    const ax = (t[i][1] - p[1]) * k * Mm, ay = (t[i][0] - p[0]) * Mm;
+    const dx = (t[i + 1][1] - t[i][1]) * k * Mm, dy = (t[i + 1][0] - t[i][0]) * Mm;
+    const L2 = dx * dx + dy * dy;
+    const u = L2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2)) : 0;
+    const d = Math.hypot(ax + u * dx, ay + u * dy);
+    if (d < best.dist) best = { dist: d, pos: i + u };
+  }
+  return best;
+}
+const pointAt = (t, pos) => { const i = Math.min(Math.floor(pos), t.length - 2), u = pos - i; return [t[i][0] + (t[i + 1][0] - t[i][0]) * u, t[i][1] + (t[i + 1][1] - t[i][1]) * u]; };
+function slicePath(t, a, b) {
+  const out = [pointAt(t, a)];
+  for (let i = Math.floor(a) + 1; i <= Math.floor(b); i++) if (i < b) out.push(t[i]);
+  out.push(pointAt(t, b));
+  return out;
+}
+// Choisit le parcours OSM de la ligne qui colle aux arrêts (dans le bon sens) et le découpe
+function shapeFor(line, stops) {
+  const cands = SHAPES && SHAPES[String(line || '').trim().toUpperCase()];
+  if (!cands || !stops || stops.length < 2) return null;
+  let best = null;
+  for (const c of cands) {
+    const pr = stops.map((p) => projectOn(p, c.t));
+    if (pr[pr.length - 1].pos <= pr[0].pos) continue; // mauvais sens
+    const mean = pr.reduce((s, x) => s + x.dist, 0) / pr.length, max = Math.max(...pr.map((x) => x.dist));
+    let back = 0; for (let i = 1; i < pr.length; i++) if (pr[i].pos < pr[i - 1].pos - 0.01) back++;
+    const score = mean + back * 80;
+    if (!best || score < best.score) best = { score, mean, max, back, c, pr };
+  }
+  if (!best || best.mean > 60 || best.max > 250 || best.back > Math.max(1, stops.length * 0.15)) return null;
+  return slicePath(best.c.t, best.pr[0].pos, best.pr[best.pr.length - 1].pos);
 }
 function lineBadgeIcon(cat, num) {
   const c = lineStyle(cat, num);
@@ -786,28 +859,34 @@ function lineBadgeIcon(cat, num) {
 }
 function drawTripOnMap(sel) {
   const L = window.L, all = [];
-  const stop0 = [sel.stop.lat, sel.stop.lon];
+  const stop0 = sel.quay || [sel.stop.lat, sel.stop.lon];
   // 1) À pied jusqu'au premier arrêt
   const w1 = sel.walk && sel.walk.coords ? sel.walk.coords : [M.origin, stop0];
   walkLine(w1); all.push(...w1);
   let prevEnd = null;
   const secs = (sel.c.raw && sel.c.raw.sections) || [];
   secs.forEach((s, k) => {
-    const a = ptOfStation(s.departure && s.departure.station), b = ptOfStation(s.arrival && s.arrival.station);
+    const a = ptOfStation(s.departure && s.departure.station, s.departure && s.departure.platform);
+    const b = ptOfStation(s.arrival && s.arrival.station, s.arrival && s.arrival.platform);
     if (!s.journey) { // marche entre deux arrêts (changement)
       const path = [a || prevEnd, b].filter(Boolean);
       if (path.length === 2) { walkLine(path); all.push(...path); }
       prevEnd = b || prevEnd;
       return;
     }
-    const pts = (s.journey.passList || []).map((p) => ptOfStation(p.station)).filter(Boolean);
-    const path = pts.length >= 2 ? pts : [a, b].filter(Boolean);
+    const pl = s.journey.passList || [];
+    // Arrêts desservis, au quai exact (premier et dernier : quai de montée et de descente)
+    const stopsPts = pl.map((p, i) => ptOfStation(p.station, i === 0 ? s.departure.platform : i === pl.length - 1 ? s.arrival.platform : p.platform)).filter(Boolean);
+    const pts = stopsPts.length >= 2 ? stopsPts : [a, b].filter(Boolean);
+    // Tracé réel de la ligne (OpenStreetMap) entre la montée et la descente, sinon arrêts reliés
+    const shape = shapeFor(s.journey.number, pts);
+    const path = shape ? [pts[0], ...shape, pts[pts.length - 1]] : pts;
     // Changement sur un autre quai / arrêt voisin : petit bout à pied
     if (prevEnd && path[0] && distM(prevEnd[0], prevEnd[1], path[0][0], path[0][1]) > 15) walkLine([prevEnd, path[0]]);
     const c = lineStyle(s.journey.category, s.journey.number);
     L.polyline(path, { color: '#FFFFFF', weight: 9, opacity: 0.95, lineJoin: 'round', lineCap: 'round' }).addTo(M.layers);
     L.polyline(path, { color: c.bg, weight: 5.5, lineJoin: 'round', lineCap: 'round' }).addTo(M.layers);
-    path.slice(1, -1).forEach((p) => L.circleMarker(p, { radius: 3, color: c.bg, weight: 2, fillColor: '#fff', fillOpacity: 1 }).addTo(M.layers));
+    pts.slice(1, -1).forEach((p) => L.circleMarker(p, { radius: 3, color: c.bg, weight: 2, fillColor: '#fff', fillOpacity: 1 }).addTo(M.layers));
     if (path[0]) L.marker(path[0], { icon: lineBadgeIcon(s.journey.category, s.journey.number), zIndexOffset: 900 + k }).addTo(M.layers);
     all.push(...path);
     prevEnd = path[path.length - 1];
@@ -1056,7 +1135,12 @@ async function mapSelect(r) {
   }
   drawMapPanel(); drawMapLayers();
   const sel = M.sel;
-  walkApi('route', { from: M.origin.join(','), to: r.stop.lat + ',' + r.stop.lon })
+  await loadMapData();
+  const s0 = (r.c.raw.sections || [])[0];
+  const quay = (s0 && ptOfStation(s0.departure && s0.departure.station, s0.departure && s0.departure.platform)) || [r.stop.lat, r.stop.lon];
+  sel.quay = quay;
+  if (M.sel === sel) drawMapLayers(); // quais et tracés maintenant disponibles
+  walkApi('route', { from: M.origin.join(','), to: quay.join(',') })
     .then((w) => { if (M.sel === sel) { sel.walk = w; drawMapLayers(); drawMapPanel(); } }).catch(() => {});
   if (r.endWalk && r.destStop && M.dest) {
     walkApi('route', { from: r.destStop.lat + ',' + r.destStop.lon, to: M.dest.lat + ',' + M.dest.lon })
