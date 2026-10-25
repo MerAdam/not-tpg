@@ -183,7 +183,7 @@ module.exports = async (req, res) => {
     const connCache = new Map(), boardCache = new Map();
     const getConns = (from, to, time) => {
       const k = [from, to, time].join('|');
-      if (!connCache.has(k)) connCache.set(k, api((([dd, tt]) => `/connections?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&date=${dd}&time=${tt}&limit=4`)(shiftDT(z.date, time, SHIFT))).then((j) => j.connections || []).catch(() => null));
+      if (!connCache.has(k)) connCache.set(k, api(`/connections?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&date=${z.date}&time=${time}&limit=4`).then((j) => j.connections || []).catch(() => null));
       return connCache.get(k);
     };
     const getBoard = (stopId, time) => {

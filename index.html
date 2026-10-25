@@ -316,15 +316,10 @@ function shiftPath(path) {
     if (!ts) return m;
     const [a, b] = move(ds, ts); return 'datetime=' + encodeURIComponent(a + ' ' + b);
   });
-  const dm = path.match(/([?&])date=(\d{4}-\d\d-\d\d)/), tm = path.match(/([?&])time=(\d\d:\d\d)/);
-  if (dm && tm) {
-    const [a, b] = move(dm[2], tm[2]);
-    path = path.replace(dm[0], dm[1] + 'date=' + a).replace(tm[0], tm[1] + 'time=' + b);
-  }
-  return path;
+  return path; // les liaisons (/connections) ne sont pas touchées par ce décalage
 }
 async function api(path) {
-  if (/datetime=|[?&]time=/.test(path)) { await shiftReady; path = shiftPath(path); }
+  if (path.startsWith('/stationboard') && /datetime=/.test(path)) { await shiftReady; path = shiftPath(path); }
   const r = await fetch(API + path);
   if (!r.ok) throw new Error('HTTP ' + r.status);
   return r.json();
@@ -423,7 +418,9 @@ async function connsInWindow(from, to, date, start, end) {
     }
     const last = list[list.length - 1];
     if (ymd(last.dep) !== date || dmin(last.dep) >= e) break;
-    time = m2t(dmin(last.dep) + 1);
+    const nextT = dmin(last.dep) + 1;
+    if (nextT <= t2m(time)) break; // sécurité : on n'avance plus
+    time = m2t(nextT);
   }
   return out.sort((a, b) => a.dep - b.dep);
 }
