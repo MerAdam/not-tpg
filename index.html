@@ -179,6 +179,10 @@
   }
   html.dark #sheet .backdrop{background:rgba(0,0,0,.6)}
   html.dark .seg button.on{background:var(--border2)}
+  .to-line{display:flex;align-items:center;gap:4px;min-width:0}
+  .bell{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;margin:-6px 0;border-radius:16px;color:var(--faint);flex:none;cursor:pointer}
+  .bell.on{color:var(--accent)}
+  .bell:active{background:var(--line2)}
   .warn{display:inline-flex;align-items:center;gap:4px;width:max-content;background:var(--bad);color:var(--on-bad);border-radius:6px;padding:3px 8px;font-size:12px;font-weight:900;cursor:pointer;margin-top:3px}
   .warn svg{flex:none}
   .alert-card{display:flex;flex-direction:column;gap:8px;width:100%;text-align:left;padding:14px 16px}
@@ -726,7 +730,7 @@ function drawBoard() {
     const sameDay = ymd(planned) === todayStr();
     const big = past || !live || diff > 59 ? (sameDay ? '' : planned.getDate() + '.' + (planned.getMonth() + 1) + '. ') + hm(real) : (diff <= 0 ? 'Imm.' : diff + ' min');
     return `<button class="dep" data-act="openJourney" data-i="${i}"${past ? ' style="opacity:.5"' : ''}>${badge(d.category, d.number)}
-      <div class="dep-to"><span class="to">${esc(short(d.to))}</span>
+      <div class="dep-to"><span class="to-line"><span class="to">${esc(short(d.to))}</span>${past ? '' : bellHtml(bellKey(S.stop.id, d), i)}</span>
         <span class="small">Prévu ${hm(planned)}${d.stop.platform ? ' · quai ' + esc(d.stop.platform) : ''}</span>
         ${warnHtml(alertsFor([d.number], [S.stop.id, ...(d.passList || []).map((p) => p.station && p.station.id)], real, d.to))}</div>
       <div class="dep-r"><span class="big">${big}</span>${delay > 0 ? `<span class="st-late">+${delay} min</span>` : ''}</div></button>`;
@@ -824,7 +828,8 @@ function renderJourney() {
 
   main.innerHTML = `
     <header class="top back">${backBtn()}
-      <div class="row gap" style="min-width:0">${badge(d.category, d.number)}<h1 class="title" style="font-size:20px">direction ${esc(short(d.to))}</h1></div>
+      <div class="row gap" style="min-width:0;flex:1">${badge(d.category, d.number)}<h1 class="title" style="font-size:20px">direction ${esc(short(d.to))}</h1></div>
+      ${(parseISO(d.stop.departure) || 0) > Date.now() - 60000 ? `<button class="icon-btn bell ${hasBell(bellKey(S.stop.id, d)) ? 'on' : ''}" style="width:44px;height:44px;margin:0" data-act="bellJourney" aria-label="Suivre ce départ">${BELL(hasBell(bellKey(S.stop.id, d)))}</button>` : ''}
     </header>
     <div class="scroll stack">
       ${alerts.map((a) => `<button class="alert-banner" data-act="alertOne" data-id="${esc(a.id)}"><span style="color:var(--bad);margin-top:1px">${WARN_ICON.replace(/13/g, '18')}</span>
@@ -1297,6 +1302,71 @@ function renderInfos() {
   loadAlerts();
 }
 
+/* ---------- NOTIFICATIONS (Web Push via api/push et api/check) ---------- */
+const NT = { sid: store.get('nt_push_sid', null), bells: store.get('nt_bells', []).filter((b) => Date.parse(b.planned) > Date.now() - 3 * 3600e3) };
+store.set('nt_bells', NT.bells);
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const BELL = (on) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>`;
+const bellKey = (stopId, d) => [stopId, d.number || d.category, d.stop.departure, d.to].join('|');
+const hasBell = (key) => NT.bells.some((b) => b.key === key);
+const bellHtml = (key, i) => { const on = hasBell(key); return `<span class="bell ${on ? 'on' : ''}" role="button" tabindex="0" data-act="bell" data-i="${i}" aria-pressed="${on}" aria-label="${on ? 'Arrêter le suivi' : 'Suivre ce départ'}">${BELL(on)}</span>`; };
+function b64ToBytes(s) {
+  const b = atob((s + '='.repeat((4 - (s.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from([...b].map((c) => c.charCodeAt(0)));
+}
+async function pushApi(action, body) {
+  const r = await fetch('/api/push?action=' + action, body
+    ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || 'Erreur ' + r.status); e.resubscribe = j.resubscribe; throw e; }
+  return j;
+}
+async function enableNotifications() {
+  if (!pushSupported()) throw new Error(isIOS() ? 'Sur iPhone, ajoute d’abord l’app à l’écran d’accueil.' : 'Notifications non disponibles sur ce navigateur.');
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') throw new Error('Notifications refusées dans les réglages du téléphone.');
+  const reg = await navigator.serviceWorker.ready;
+  const { publicKey } = await pushApi('key');
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
+  const { sid } = await pushApi('subscribe', { subscription: sub.toJSON() });
+  NT.sid = sid; store.set('nt_push_sid', sid);
+  await syncCommutes();
+}
+async function disableNotifications() {
+  try { if (NT.sid) await pushApi('unsubscribe', { sid: NT.sid }); } catch {}
+  try { const reg = await navigator.serviceWorker.ready; const s = await reg.pushManager.getSubscription(); if (s) await s.unsubscribe(); } catch {}
+  NT.sid = null; NT.bells = []; store.set('nt_push_sid', null); store.set('nt_bells', []);
+}
+async function syncCommutes() {
+  if (!NT.sid) return;
+  try {
+    await pushApi('commutes', { sid: NT.sid, commutes: commutes.map((c) => ({ id: c.id, from: c.from, to: c.to, days: c.days, picks: c.picks.map((p) => ({ dep: p.dep, arr: p.arr, key: p.key, legs: p.legs })) })) });
+  } catch (e) { if (e.resubscribe) { NT.sid = null; store.set('nt_push_sid', null); } }
+}
+async function toggleBell(d, stop) {
+  const key = bellKey(stop.id, d);
+  const existing = NT.bells.find((b) => b.key === key);
+  try {
+    if (!NT.sid) { toast('Activation des notifications…'); await enableNotifications(); }
+    if (existing) {
+      await pushApi('unbell', { sid: NT.sid, wid: existing.wid });
+      NT.bells = NT.bells.filter((b) => b.key !== key);
+      toast('Suivi arrêté.');
+    } else {
+      const planned = parseISO(d.stop.departure);
+      const { wid } = await pushApi('bell', { sid: NT.sid, run: { stopId: stop.id, stopName: stop.name, line: String(d.number || d.category), cat: d.category, to: d.to, planned: planned.toISOString() } });
+      NT.bells.push({ key, wid, planned: planned.toISOString() });
+      toast('Suivi activé : tu seras prévenu des changements.');
+    }
+    store.set('nt_bells', NT.bells);
+  } catch (e) {
+    if (e.resubscribe) { NT.sid = null; store.set('nt_push_sid', null); }
+    toast(e.message);
+  }
+}
+
 /* ---------- RÉGLAGES ---------- */
 const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
 const getTheme = () => store.get('nt_theme', 'system');
@@ -1344,6 +1414,16 @@ function renderSettings() {
           ${opt('system', 'Système')}${opt('light', 'Clair')}${opt('dark', 'Sombre')}
         </div>
         <p class="small" style="margin:0">« Système » suit automatiquement le réglage clair/sombre de ton téléphone.</p>
+      </div>
+      <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+        <h2 class="label">Notifications</h2>
+        ${NT.sid
+          ? `<p style="margin:0;font-weight:800;color:var(--ok)">Activées sur cet appareil</p>
+             <p class="small" style="margin:0">Tu es prévenu des retards, avances, suppressions et déviations : pour tes trajets pendulaires dès 30 min avant le départ, et pour chaque départ suivi avec la cloche.</p>
+             <div class="row gap"><button class="ghost" data-act="notifTest">Envoyer un test</button><button class="ghost danger" data-act="notifOff">Désactiver</button></div>`
+          : `<p class="small" style="margin:0">Reçois une alerte en cas de retard, avance, suppression ou déviation : pour tes trajets pendulaires (dès 30 min avant le départ) et pour les départs que tu suis avec la cloche.</p>
+             ${pushSupported() ? '<button class="primary" data-act="notifOn">Activer les notifications</button>'
+               : `<p class="small" style="margin:0;font-weight:700">${isIOS() ? 'Sur iPhone, ajoute d’abord Not TPG à l’écran d’accueil (Partager → Sur l’écran d’accueil), puis ouvre-la depuis l’icône.' : 'Ce navigateur ne permet pas les notifications.'}</p>`}`}
       </div>
       <h2 class="label" style="margin:10px 4px -4px">À propos</h2>
       <div class="card list">
@@ -1393,6 +1473,18 @@ const ACT = {
   boardMore: (ds, el) => boardMore(ds.dir, el),
   alerts: (ds) => openAlerts(String(ds.ids || '').split(',').filter(Boolean)),
   alertOne: (ds) => openAlerts([ds.id]),
+  notifOn: async (ds, el) => {
+    el.disabled = true; el.textContent = 'Activation…';
+    try { await enableNotifications(); toast('Notifications activées.'); } catch (e) { toast(e.message); }
+    renderSettings();
+  },
+  notifOff: async () => { await disableNotifications(); toast('Notifications désactivées.'); renderSettings(); },
+  notifTest: async () => {
+    try { await pushApi('test', { sid: NT.sid }); toast('Notification de test envoyée.'); }
+    catch (e) { if (e.resubscribe) { NT.sid = null; store.set('nt_push_sid', null); renderSettings(); } toast(e.message); }
+  },
+  bell: (ds) => { const d = S.boardRows[+ds.i]; if (d) toggleBell(d, S.stop).then(() => drawBoard()); },
+  bellJourney: () => { if (S.journey) toggleBell(S.journey, S.stop).then(() => { if (S.screen === 'journey') renderJourney(); }); },
   theme: (ds, el) => {
     if (getTheme() === ds.v) return;
     store.set('nt_theme', ds.v);
@@ -1440,7 +1532,7 @@ const ACT = {
   delCommute: (ds) => {
     const cm = commutes[+ds.i];
     if (!confirm(`Supprimer le trajet ${short(cm.from)} → ${short(cm.to)} ?`)) return;
-    commutes.splice(+ds.i, 1); store.set('nt_commutes', commutes); renderCommutes();
+    commutes.splice(+ds.i, 1); store.set('nt_commutes', commutes); syncCommutes(); renderCommutes();
   },
   day: (ds, el) => {
     const d = S.draft, i = +ds.i;
@@ -1457,6 +1549,7 @@ const ACT = {
       start: d.start, end: d.end, picks: d.picks.slice().sort((a, b) => a - b).map((i) => d.cands[i])
     });
     store.set('nt_commutes', commutes);
+    syncCommutes();
     toast('Trajet enregistré.');
     history.state ? history.back() : go('commutes', false);
   }
@@ -1480,6 +1573,7 @@ document.addEventListener('visibilitychange', () => {
 applyTheme();
 go('home', false);
 loadAlerts();
+if (NT.sid) syncCommutes();
 setInterval(() => { if (document.visibilityState === 'visible') loadAlerts(); }, 60000);
 dataReady.then(() => { if (S.screen === 'board' && S.board.length) drawBoard(); if (S.screen === 'commutes') renderCommutes(); });
 locate();

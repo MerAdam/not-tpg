@@ -1,0 +1,9 @@
+{
+  "name": "not-tpg",
+  "private": true,
+  "description": "Not TPG — fonctions serveur (perturbations, notifications)",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

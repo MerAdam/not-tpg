@@ -1,6 +1,6 @@
 // Not TPG — service worker : ouverture rapide de l'app.
 // Les données temps réel (transport.opendata.ch) ne sont jamais mises en cache.
-const CACHE = 'not-tpg-v17';
+const CACHE = 'not-tpg-v18';
 const SHELL = ['./', './index.html', './manifest.json', './icon.png'];
 
 self.addEventListener('install', (e) => {
@@ -31,4 +31,20 @@ self.addEventListener('fetch', (e) => {
       })
       .catch(() => caches.match(e.request).then((r) => r || (e.request.mode === 'navigate' ? caches.match('./index.html') : Response.error())))
   );
+});
+
+// Notifications (envoyées par api/check et api/push)
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Not TPG', {
+    body: d.body || '', tag: d.tag, renotify: !!d.tag, icon: './icon.png', badge: './icon.png', data: { url: d.url || './' }
+  }));
+});
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    for (const c of list) if ('focus' in c) return c.focus();
+    return self.clients.openWindow(e.notification.data && e.notification.data.url || './');
+  }));
 });
