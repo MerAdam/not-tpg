@@ -176,6 +176,15 @@
   html.dark .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9)}
   html.dark #sheet .backdrop{background:rgba(0,0,0,.6)}
   html.dark .seg button.on{background:var(--border2)}
+  .info-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:50px;padding:0 16px;border-bottom:1px solid var(--line2);font-size:15px}
+  .info-row:last-child{border-bottom:0}
+  .info-row a{color:var(--accent);font-weight:800;text-decoration:none;text-align:right}
+  .seg button{transition:background-color .25s,color .25s}
+  /* transition de thème : cercle qui s'agrandit depuis le bouton touché */
+  ::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
+  ::view-transition-new(root){z-index:2}
+  /* repli (navigateurs sans View Transitions) : fondu des couleurs */
+  html.theming, html.theming *{transition:background-color .45s ease,color .45s ease,border-color .45s ease,fill .45s ease!important}
 </style>
 </head>
 <body>
@@ -1191,8 +1200,29 @@ function applyTheme() {
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', dark ? '#121316' : '#F4F3EF');
 }
+// Change de thème avec une animation : cercle depuis (x, y) si possible, sinon fondu
+function themeTransition(update, x, y) {
+  const wasDark = document.documentElement.classList.contains('dark');
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fade = () => {
+    const html = document.documentElement;
+    html.classList.add('theming'); update();
+    clearTimeout(themeTransition._t); themeTransition._t = setTimeout(() => html.classList.remove('theming'), 500);
+  };
+  if (reduce) { update(); return; }
+  if (!document.startViewTransition || x == null) { fade(); return; }
+  const vt = document.startViewTransition(update);
+  vt.ready.then(() => {
+    if (wasDark === document.documentElement.classList.contains('dark')) return; // rien ne change visuellement
+    const rad = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    document.documentElement.animate(
+      { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${rad}px at ${x}px ${y}px)`] },
+      { duration: 550, easing: 'cubic-bezier(.4,0,.2,1)', pseudoElement: '::view-transition-new(root)' }
+    );
+  }).catch(() => {});
+}
 if (darkMQ) {
-  const onChange = () => { if (getTheme() === 'system') applyTheme(); };
+  const onChange = () => { if (getTheme() === 'system') themeTransition(applyTheme); };
   darkMQ.addEventListener ? darkMQ.addEventListener('change', onChange) : darkMQ.addListener(onChange);
 }
 function renderSettings() {
@@ -1208,9 +1238,18 @@ function renderSettings() {
         </div>
         <p class="small" style="margin:0">« Système » suit automatiquement le réglage clair/sombre de ton téléphone.</p>
       </div>
-      <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:6px">
-        <h2 class="label">À propos</h2>
-        <p class="small" style="margin:0">Not TPG · horaires temps réel : transport.opendata.ch · arrêts : opentransportdata.swiss · couleurs des lignes : tpg.ch · tracés : Atlas RCT · fond de carte : © OpenStreetMap.</p>
+      <h2 class="label" style="margin:10px 4px -4px">À propos</h2>
+      <div class="card list">
+        ${[
+          ['Application', 'Not TPG', ''],
+          ['Horaires temps réel', 'transport.opendata.ch', 'https://transport.opendata.ch'],
+          ['Arrêts', 'opentransportdata.swiss', 'https://opentransportdata.swiss'],
+          ['Couleurs des lignes', 'tpg.ch', 'https://www.tpg.ch/fr/lignes'],
+          ['Tracés', 'Atlas RCT', 'https://atlas-rct.vercel.app'],
+          ['Fond de carte', '© OpenStreetMap', 'https://www.openstreetmap.org/copyright']
+        ].map(([k, v, url]) => `
+          <div class="info-row"><span class="muted">${k}</span>
+            ${url ? `<a href="${url}" target="_blank" rel="noopener">${v}</a>` : `<span style="font-weight:800">${v}</span>`}</div>`).join('')}
       </div>
     </div>`;
 }
@@ -1246,7 +1285,12 @@ const ACT = {
     el.innerHTML = STAR(on);
   },
   boardMore: (ds, el) => boardMore(ds.dir, el),
-  theme: (ds) => { store.set('nt_theme', ds.v); applyTheme(); renderSettings(); },
+  theme: (ds, el) => {
+    if (getTheme() === ds.v) return;
+    store.set('nt_theme', ds.v);
+    const r = el.getBoundingClientRect();
+    themeTransition(() => { applyTheme(); renderSettings(); }, r.left + r.width / 2, r.top + r.height / 2);
+  },
   openLines: () => openSheet(linesSheetHtml()),
   openTime: () => openSheet(timeSheetHtml()),
   arr: (ds) => { S.q.arrival = ds.v === '1'; renderResultsAndReload(); },
