@@ -172,7 +172,7 @@
   details.pass li{display:flex;gap:10px;font-size:14px;padding:4px 0;color:var(--muted)}
   details.pass li span:first-child{width:44px;font-variant-numeric:tabular-nums;font-weight:700}
   nav{position:relative;z-index:3;display:flex;background:var(--card);border-top:1px solid var(--line);padding:4px 8px calc(env(safe-area-inset-bottom) + 6px)}
-  .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:0;font-size:12px;font-weight:800;min-height:56px;color:var(--muted)}
+  .tab{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:0;font-size:11.5px;font-weight:800;min-height:56px;color:var(--muted)}
   .tab.on{color:var(--accent)}
   .next{width:100%;margin-top:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;text-align:left}
   #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:12px 16px;border-radius:12px;font-weight:700;font-size:14px;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
@@ -186,6 +186,25 @@
   }
   html.dark #sheet .backdrop{background:rgba(0,0,0,.6)}
   html.dark .seg button.on{background:var(--border2)}
+  /* carte */
+  .map-screen{position:relative;flex:1;display:flex;flex-direction:column;min-height:0}
+  #bigmap{flex:1;min-height:160px;background:var(--line2);z-index:0}
+  html.dark #bigmap .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9)}
+  #bigmap .leaflet-control-attribution{font-size:9px}
+  .map-search{position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:12px;right:12px;z-index:1000;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+  .map-search .sugg{max-height:46vh;overflow-y:auto}
+  .map-fab{position:absolute;right:12px;z-index:900;width:44px;height:44px;border-radius:22px;border:1px solid var(--line);background:var(--card);color:var(--ink);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+  .map-panel{max-height:56%;overflow-y:auto;background:var(--ground);border-radius:18px 18px 0 0;margin-top:-16px;position:relative;z-index:800;padding:12px 16px 16px;box-shadow:0 -4px 16px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:10px;flex-shrink:0;overscroll-behavior:contain}
+  .map-panel > *{flex-shrink:0}
+  .opt{display:flex;flex-direction:column;gap:8px;width:100%;text-align:left;padding:12px 14px}
+  .opt-top{display:flex;align-items:center;gap:8px;justify-content:space-between}
+  .tagb{font-size:11px;font-weight:900;border-radius:6px;padding:3px 7px;white-space:nowrap}
+  .tagb.near{background:var(--seg);color:var(--ink)}
+  .tagb.fast{background:var(--accent);color:var(--on-accent)}
+  .tagb.direct{background:var(--ok);color:var(--on-bad)}
+  .me-dot{width:16px;height:16px;border-radius:50%;background:#2563EB;border:3px solid #fff;box-shadow:0 0 0 6px rgba(37,99,235,.25)}
+  .stop-pin{width:14px;height:14px;border-radius:50%;background:var(--card);border:3px solid var(--ink)}
+  .dest-pin{width:20px;height:20px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--bad);border:3px solid #fff}
   .to-line{display:flex;align-items:center;gap:4px;min-width:0}
   .bell{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;margin:-6px 0;border-radius:16px;color:var(--faint);flex:none;cursor:pointer}
   .bell.on{color:var(--accent)}
@@ -251,6 +270,10 @@
     <button class="tab on" id="tabHome" data-tab="home">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/></svg>
       Accueil
+    </button>
+    <button class="tab" id="tabMap" data-tab="map">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>
+      Carte
     </button>
     <button class="tab" id="tabCommutes" data-tab="commutes">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>
@@ -517,18 +540,19 @@ function attachSuggest(input, box, onPick) {
 /* ---------- navigation ---------- */
 const SUB = ['board', 'results', 'trip', 'new', 'journey', 'tutos', 'tuto'];
 const PARENT = { new: 'commutes', trip: 'results', journey: 'board', tutos: 'settings', tuto: 'tutos' };
-const parentOf = (screen) => (screen === 'trip' && S.tripParent ? S.tripParent : PARENT[screen] || 'home');
+const parentOf = (screen) => (screen === 'trip' && S.tripParent ? S.tripParent : screen === 'board' && S.boardParent ? S.boardParent : PARENT[screen] || 'home');
 function go(screen, push = true) {
   clearTimeout(boardTimer);
   closeSheet();
   if (push && SUB.includes(screen)) history.pushState({ s: screen }, '');
   S.screen = screen;
-  const tab = screen === 'commutes' || screen === 'new' ? 'commutes' : screen === 'tutos' || screen === 'tuto' ? 'settings' : screen === 'settings' || screen === 'infos' ? screen : 'home';
+  const tab = screen === 'commutes' || screen === 'new' ? 'commutes' : screen === 'tutos' || screen === 'tuto' ? 'settings' : ['settings', 'infos', 'map'].includes(screen) ? screen : screen === 'trip' && S.tripParent === 'map' || screen === 'board' && S.boardParent === 'map' ? 'map' : 'home';
   $('#tabHome').classList.toggle('on', tab === 'home');
   $('#tabCommutes').classList.toggle('on', tab === 'commutes');
   $('#tabSettings').classList.toggle('on', tab === 'settings');
+  $('#tabMap').classList.toggle('on', tab === 'map');
   $('#tabInfos').classList.toggle('on', tab === 'infos');
-  ({ home: renderHome, board: renderBoard, results: renderResults, trip: renderTrip, commutes: renderCommutes, new: renderNew, journey: renderJourney, settings: renderSettings, infos: renderInfos, tutos: renderTutos, tuto: renderTuto })[screen]();
+  ({ home: renderHome, board: renderBoard, results: renderResults, trip: renderTrip, commutes: renderCommutes, new: renderNew, journey: renderJourney, settings: renderSettings, infos: renderInfos, tutos: renderTutos, tuto: renderTuto, map: renderMap })[screen]();
 }
 window.addEventListener('popstate', () => go(parentOf(S.screen), false));
 document.querySelector('nav').addEventListener('click', (e) => {
@@ -541,6 +565,312 @@ const FAV_STAR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentC
 /* Affichage des départs : 'min' (minutes restantes, retard inclus) ou 'time' (heure prévue + écart) */
 const depMode = () => store.get('nt_depmode', 'min');
 const fmtDelta = (delta) => (delta > 0 ? '+' : '−') + Math.abs(delta);
+/* ---------- CARTE ---------- */
+let leafletP = null;
+function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  if (leafletP) return leafletP;
+  leafletP = new Promise((resolve, reject) => {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    const js = document.createElement('script');
+    js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    js.onload = () => resolve(window.L);
+    js.onerror = () => { leafletP = null; reject(new Error('leaflet')); };
+    document.head.appendChild(js);
+  });
+  return leafletP;
+}
+const GENEVA = [46.2044, 6.1432];
+const M = { map: null, layers: null, origin: null, originAuto: true, dest: null, results: null, sel: null, loading: false, err: null, watch: null };
+const WALK_MS = 1.25; // vitesse de marche (m/s), pour les estimations
+const estWalk = (a, b) => Math.round((distM(a[0], a[1], b[0], b[1]) * 1.3) / WALK_MS); // secondes
+const minsTxt = (sec) => Math.max(1, Math.round(sec / 60)) + ' min';
+const pinIcon = (cls, html = '') => window.L.divIcon({ className: '', html: `<div class="${cls}">${html}</div>`, iconSize: [20, 20], iconAnchor: [10, 10] });
+
+async function walkApi(action, params) {
+  const r = await fetch('/api/walk?action=' + action + '&' + new URLSearchParams(params));
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
+  return j;
+}
+function nearestStops(pt, n, maxM) {
+  if (!STOPS) return [];
+  return STOPS.map((s) => ({ s, d: distM(pt[0], pt[1], s.lat, s.lon) })).filter((x) => x.d <= maxM)
+    .sort((a, b) => a.d - b.d).slice(0, n);
+}
+
+function renderMap() {
+  S.boardParent = null;
+  main.innerHTML = `
+    <div class="map-screen">
+      <div class="card map-search">
+        <label class="field" style="min-height:50px">${ICON.pin}<input id="mapDest" placeholder="Où veux-tu aller ?" value="${esc(M.dest ? M.dest.label : '')}" autocomplete="off" aria-label="Destination">
+          ${M.dest ? '<button class="icon-btn" data-act="mapClear" aria-label="Effacer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="color:var(--muted)"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' : ''}</label>
+        <div class="sugg" id="mapSugg"></div>
+      </div>
+      <div id="bigmap" role="application" aria-label="Carte"></div>
+      <button class="map-fab" data-act="mapLocate" aria-label="Me localiser" style="top:calc(env(safe-area-inset-top) + 76px)">${ICON.locate}</button>
+      <div class="map-panel" id="mapPanel"></div>
+    </div>`;
+  attachPlaceSearch($('#mapDest'), $('#mapSugg'), (place) => {
+    M.dest = place; M.sel = null; M.results = null;
+    $('#mapDest').value = place.label; $('#mapDest').blur();
+    renderMap(); mapPlan();
+  });
+  drawMapPanel();
+  dataReady.then(() => initBigMap());
+}
+
+async function initBigMap() {
+  let L;
+  try { L = await loadLeaflet(); } catch { const p = $('#mapPanel'); if (p) p.insertAdjacentHTML('afterbegin', '<p class="small">Impossible de charger la carte.</p>'); return; }
+  const el = $('#bigmap'); if (!el || !document.body.contains(el)) return;
+  if (M.map) { try { M.map.remove(); } catch {} }
+  const map = L.map(el, { zoomControl: false, attributionControl: true, tap: true });
+  M.map = map;
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+  M.layers = L.layerGroup().addTo(map);
+  map.setView(M.origin || GENEVA, M.origin ? 16 : 13);
+  map.on('click', (e) => {
+    if (M.originAuto && M.origin) return; // position GPS : on ne la remplace pas par un simple tap
+    M.origin = [e.latlng.lat, e.latlng.lng]; M.originAuto = false;
+    toast('Point de départ placé.'); M.results = null; M.sel = null;
+    drawMapLayers(); drawMapPanel(); if (M.dest) mapPlan();
+  });
+  setTimeout(() => map.invalidateSize(), 50);
+  drawMapLayers();
+  if (!M.origin) mapLocate(true);
+}
+
+function mapLocate(silent) {
+  if (!navigator.geolocation) { if (!silent) toast('Localisation indisponible.'); return; }
+  navigator.geolocation.getCurrentPosition((pos) => {
+    M.origin = [pos.coords.latitude, pos.coords.longitude]; M.originAuto = true;
+    store.set('nt_geo_denied', false);
+    if (M.map) M.map.setView(M.origin, Math.max(M.map.getZoom(), 16));
+    M.results = null; M.sel = null;
+    drawMapLayers(); drawMapPanel(); if (M.dest) mapPlan();
+  }, (err) => {
+    if (err && err.code === 1) store.set('nt_geo_denied', true);
+    M.err = err && err.code === 1 ? 'denied' : 'unavailable';
+    drawMapPanel();
+    if (!silent) toast(err && err.code === 1 ? 'Localisation bloquée : Réglages → Autorisations.' : 'Position introuvable.');
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
+}
+
+function drawMapLayers() {
+  const L = window.L; if (!M.map || !L) return;
+  M.layers.clearLayers();
+  const bounds = [];
+  if (M.origin) { L.marker(M.origin, { icon: pinIcon('me-dot'), interactive: false, zIndexOffset: 1000 }).addTo(M.layers); bounds.push(M.origin); }
+  // Arrêts proches (cliquables : ouvrent les départs)
+  const near = M.origin ? nearestStops(M.origin, 12, 700) : [];
+  const shown = new Set();
+  for (const { s } of near) {
+    shown.add(s.id);
+    const sel = M.sel && M.sel.stop.id === s.id;
+    L.marker([s.lat, s.lon], { icon: pinIcon('stop-pin', ''), opacity: M.sel && !sel ? 0.45 : 1 })
+      .bindTooltip(short(s.name), { direction: 'top', offset: [0, -8] })
+      .on('click', () => { const r = M.results && M.results.find((x) => x.stop.id === s.id); if (r) mapSelect(r); else openStopBoard(s); })
+      .addTo(M.layers);
+  }
+  if (M.results) for (const r of M.results) if (!shown.has(r.stop.id)) {
+    L.marker([r.stop.lat, r.stop.lon], { icon: pinIcon('stop-pin') }).on('click', () => mapSelect(r)).addTo(M.layers);
+  }
+  if (M.dest) { L.marker([M.dest.lat, M.dest.lon], { icon: pinIcon('dest-pin'), interactive: false }).addTo(M.layers); bounds.push([M.dest.lat, M.dest.lon]); }
+  if (M.sel) {
+    const st = [M.sel.stop.lat, M.sel.stop.lon];
+    const path = M.sel.walk && M.sel.walk.coords ? M.sel.walk.coords : [M.origin, st];
+    L.polyline(path, { color: '#2563EB', weight: 5, opacity: 0.85, dashArray: M.sel.walk && M.sel.walk.coords ? null : '2 9', lineCap: 'round' }).addTo(M.layers);
+    const c = lineStyle(M.sel.first.cat, M.sel.first.num);
+    L.marker(st, { icon: window.L.divIcon({ className: '', html: `<span class="badge-sm" style="background:${c.bg};color:${c.fg};box-shadow:0 0 0 3px #fff">${esc(M.sel.first.num || '')}</span>`, iconSize: [30, 22], iconAnchor: [15, 11] }), zIndexOffset: 900 }).addTo(M.layers);
+    M.map.fitBounds(L.latLngBounds(path.concat([st])), { padding: [70, 40], maxZoom: 18 });
+  } else if (M.results && M.results.length && M.origin) {
+    M.map.fitBounds(L.latLngBounds([M.origin, ...M.results.map((r) => [r.stop.lat, r.stop.lon])]), { padding: [80, 40], maxZoom: 17 });
+  }
+}
+
+// Recherche : arrêts tpg (liste locale) + adresses et lieux (Photon / OpenStreetMap)
+function attachPlaceSearch(input, box, onPick) {
+  let t, seq = 0;
+  const render = (stops, places) => {
+    box.innerHTML = stops.map((s) => `<button type="button" class="sugg-item" data-k="s" data-id="${esc(s.id)}"><span>${esc(s.name)}</span><span class="kind">Arrêt</span></button>`).join('') +
+      places.map((p, i) => `<button type="button" class="sugg-item" data-k="p" data-i="${i}"><span style="display:flex;flex-direction:column"><span>${esc(p.title)}</span><span class="small" style="font-weight:600">${esc(p.sub)}</span></span><span class="kind">${esc(p.kind)}</span></button>`).join('');
+    box._places = places;
+  };
+  input.addEventListener('input', () => {
+    clearTimeout(t);
+    const q = input.value.trim();
+    if (q.length < 2) { box.innerHTML = ''; return; }
+    const stops = STOPS ? searchStops(q).slice(0, 4) : [];
+    render(stops, box._places && box._q && q.startsWith(box._q) ? box._places : []);
+    if (q.length < 3) return;
+    const my = ++seq;
+    t = setTimeout(async () => {
+      try {
+        const c = M.origin || GENEVA;
+        const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&lang=fr&limit=6&lat=${c[0]}&lon=${c[1]}&bbox=5.85,46.05,6.4,46.45`);
+        const j = await r.json();
+        if (my !== seq) return;
+        const places = (j.features || []).map((f) => {
+          const p = f.properties || {}, [lon, lat] = f.geometry.coordinates;
+          const street = [p.street, p.housenumber].filter(Boolean).join(' ');
+          const title = p.name || street || p.city || '';
+          const sub = [p.name && street ? street : '', p.postcode, p.city || p.locality || p.district].filter(Boolean).join(', ');
+          const kind = p.osm_key === 'place' || p.type === 'street' ? 'Rue' : p.housenumber ? 'Adresse' : 'Lieu';
+          return { title, sub, kind, lat, lon };
+        }).filter((p) => p.title);
+        box._q = q;
+        render(STOPS ? searchStops(q).slice(0, 4) : [], places);
+      } catch {}
+    }, 350);
+  });
+  box.addEventListener('click', (e) => {
+    const b = e.target.closest('.sugg-item'); if (!b) return;
+    box.innerHTML = '';
+    if (b.dataset.k === 's') { const s = stopById(b.dataset.id); if (s) onPick({ label: short(s.name), lat: s.lat, lon: s.lon, stopId: s.id }); }
+    else { const p = box._places[+b.dataset.i]; onPick({ label: p.title + (p.sub ? ', ' + p.sub.split(',').pop().trim() : ''), lat: p.lat, lon: p.lon }); }
+  });
+}
+
+// Calcule, pour chaque arrêt proche, la meilleure liaison jusqu'à la destination
+async function mapPlan(force) {
+  if (!M.origin || !M.dest || M.loading) return;
+  if (M.results && !force) return;
+  M.loading = true; M.sel = null; drawMapPanel();
+  try {
+    const dest = [M.dest.lat, M.dest.lon];
+    const directWalk = estWalk(M.origin, dest);
+    // Arrêts d'arrivée : l'arrêt choisi, ou les 2 arrêts les plus proches de l'adresse
+    const destStops = M.dest.stopId ? [{ s: stopById(M.dest.stopId), d: 0 }] : nearestStops(dest, 2, 900);
+    let origins = nearestStops(M.origin, 6, 800);
+    if (origins.length < 3) origins = nearestStops(M.origin, 4, 1600);
+    if (!origins.length || !destStops.length) { M.results = []; M.walkOnly = directWalk; return; }
+    // Temps à pied réels (OpenRouteService), sinon estimation
+    let walks = origins.map((o) => estWalk(M.origin, [o.s.lat, o.s.lon])), real = false;
+    try {
+      const j = await walkApi('matrix', { from: M.origin.join(','), to: origins.map((o) => o.s.lat + ',' + o.s.lon).join('|') });
+      if (j.durations && j.durations.every((x) => x != null)) { walks = j.durations.map(Math.round); real = true; }
+    } catch {}
+    origins = origins.map((o, i) => ({ ...o, walk: walks[i] })).sort((a, b) => a.walk - b.walk).slice(0, 4);
+    const now = Date.now();
+    const results = [];
+    await Promise.all(origins.map(async (o) => {
+      let best = null;
+      for (const ds of destStops) {
+        if (!ds.s) continue;
+        const endWalk = M.dest.stopId ? 0 : estWalk([ds.s.lat, ds.s.lon], dest);
+        if (ds.s.id === o.s.id) continue;
+        const t = new Date(now + (o.walk + 60) * 1000);
+        try {
+          const j = await api(connQuery({ from: o.s.id, to: ds.s.id, date: ymd(t), time: hm(t), limit: 3 }));
+          for (const c of (j.connections || []).map(mapConn)) {
+            if (c.dep.getTime() < now + o.walk * 1000) continue;
+            const arrive = c.arr.getTime() + endWalk * 1000;
+            if (!best || arrive < best.arrive) best = { c, arrive, endWalk, destStop: ds.s };
+          }
+        } catch {}
+      }
+      if (best) {
+        const firstSec = (best.c.raw.sections || []).find((x) => x.journey);
+        const first = firstSec ? { cat: firstSec.journey.category, num: firstSec.journey.number, to: firstSec.journey.to } : { cat: '', num: '', to: '' };
+        results.push({ stop: o.s, walk: o.walk, walkReal: real, ...best, first });
+      }
+    }));
+    results.sort((a, b) => a.arrive - b.arrive);
+    if (results.length) {
+      results[0].fast = true;
+      const minWalk = Math.min(...results.map((r) => r.walk));
+      results.forEach((r) => { if (r.walk === minWalk) r.near = true; if (!r.c.transfers) r.direct = true; });
+    }
+    M.results = results;
+    M.walkOnly = results.length && now + directWalk * 1000 <= results[0].arrive ? directWalk : (!results.length ? directWalk : null);
+  } finally {
+    M.loading = false;
+    if (S.screen === 'map') { drawMapPanel(); drawMapLayers(); }
+  }
+}
+
+function drawMapPanel() {
+  const p = $('#mapPanel'); if (!p) return;
+  if (M.sel) return drawSelPanel(p);
+  let html = '';
+  if (!M.origin) {
+    html = M.err === 'denied'
+      ? `<p style="margin:0;font-weight:800">Localisation bloquée</p><p class="small" style="margin:0">Touche la carte pour placer ton point de départ, ou réactive la localisation dans <b>Réglages → Autorisations</b>.</p>`
+      : `<p class="small" style="margin:0">Recherche de ta position… Tu peux aussi <b>toucher la carte</b> pour placer ton point de départ.</p>`;
+  } else if (!M.dest) {
+    const near = nearestStops(M.origin, 4, 700);
+    html = `<h2 class="label" style="margin:0">Arrêts à proximité</h2>` + (near.length
+      ? `<div class="card list">${near.map(({ s, d }) => `<button class="row-btn" data-act="mapStop" data-id="${esc(s.id)}"><span style="display:flex;flex-direction:column"><span>${esc(short(s.name))}</span><span class="small">${Math.round(d)} m · ~${minsTxt(d * 1.3 / WALK_MS)} à pied</span></span>${ICON.chev}</button>`).join('')}</div>`
+      : '<p class="small" style="margin:0">Aucun arrêt tpg à moins de 700 m.</p>') +
+      '<p class="small" style="margin:0">Cherche une destination en haut pour voir les meilleures options depuis ici.</p>';
+  } else if (M.loading) {
+    html = '<p class="empty" style="padding:8px 0">Recherche des meilleures options…</p>';
+  } else if (M.results) {
+    const walkCard = M.walkOnly ? `<div class="card opt"><div class="opt-top"><span style="font-weight:800">À pied</span><span class="tagb near">Sans transport</span></div><span class="small">${minsTxt(M.walkOnly)} de marche · arrivée vers ${hm(new Date(Date.now() + M.walkOnly * 1000))}</span></div>` : '';
+    html = `<div class="opt-top"><h2 class="label" style="margin:0">Depuis ici → ${esc(M.dest.label)}</h2><button class="link" data-act="mapRefresh" style="min-height:32px">Actualiser</button></div>` +
+      (M.results.length ? M.results.map((r, i) => {
+        const wait = Math.max(0, Math.round((r.c.dep - Date.now()) / 60000));
+        const tags = [r.fast ? '<span class="tagb fast">+ rapide</span>' : '', r.near ? '<span class="tagb near">+ proche</span>' : '', r.direct ? '<span class="tagb direct">Direct</span>' : ''].join('');
+        return `<button class="card opt" data-act="mapSel" data-i="${i}">
+          ${tags.trim() ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${tags}</div>` : ''}
+          <span style="font-weight:900;font-size:16px;line-height:1.25">${esc(short(r.stop.name))}</span>
+          <div class="conn-legs">${r.c.legs.map((l) => badge(l.cat, l.num, true)).join('')}<span class="small">départ ${r.c.depStr} (dans ${wait} min)</span></div>
+          <div class="small">${r.walkReal ? '' : '~'}${minsTxt(r.walk)} à pied · arrivée ${hm(new Date(r.arrive))}${r.c.transfers ? ' · ' + r.c.transfers + ' changement' + (r.c.transfers > 1 ? 's' : '') : ''}</div>
+        </button>`;
+      }).join('') : '<div class="card empty-card">Aucune liaison trouvée depuis les arrêts proches.</div>') + walkCard;
+  }
+  p.innerHTML = html;
+}
+
+async function mapSelect(r) {
+  M.sel = { ...r, walkBase: r.walk, walk: null, deps: null };
+  drawMapPanel(); drawMapLayers();
+  const sel = M.sel;
+  walkApi('route', { from: M.origin.join(','), to: r.stop.lat + ',' + r.stop.lon })
+    .then((w) => { if (M.sel === sel) { sel.walk = w; drawMapLayers(); drawMapPanel(); } }).catch(() => {});
+  try {
+    const t = new Date(Date.now() + r.walk * 1000);
+    const j = await api(`/stationboard?id=${encodeURIComponent(r.stop.id)}&limit=40&datetime=${encodeURIComponent(ymd(t) + ' ' + hm(t))}`);
+    const want = String(r.first.num || '');
+    sel.deps = (j.stationboard || []).filter((d) => String(d.number || d.category) === want && sameDir(d.to, r.first.to)).slice(0, 5);
+  } catch { sel.deps = []; }
+  if (M.sel === sel) drawMapPanel();
+}
+function drawSelPanel(p) {
+  const r = M.sel;
+  const wSec = r.walk && r.walk.duration ? r.walk.duration : r.walkBase;
+  const leave = new Date(r.c.dep.getTime() - wSec * 1000);
+  const now = Date.now();
+  const leaveIn = Math.round((leave - now) / 60000);
+  p.innerHTML = `
+    <div class="opt-top"><button class="link" data-act="mapBack" style="min-height:32px;padding:0">‹ Toutes les options</button></div>
+    <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:8px">
+      <div style="font-weight:900;font-size:18px">${esc(short(r.stop.name))}</div>
+      <div class="small" style="display:flex;align-items:center;gap:6px">${ICON.walk} ${minsTxt(wSec)} à pied${r.walk && r.walk.distance ? ' · ' + Math.round(r.walk.distance) + ' m' : ''}</div>
+      <div class="conn-legs">${r.c.legs.map((l) => badge(l.cat, l.num, true)).join('')}<span class="small">${r.c.depStr} → ${r.c.arrStr}${r.endWalk ? ' + ' + minsTxt(r.endWalk) + ' à pied' : ''}</span></div>
+      <div style="font-weight:800;color:${leaveIn <= 2 ? 'var(--bad)' : 'var(--ink)'}">${leaveIn <= 0 ? 'Pars maintenant' : 'Pars dans ' + leaveIn + ' min'} · arrivée ${hm(new Date(r.arrive))}</div>
+      <button class="primary" data-act="mapTrip" style="height:44px">Voir le trajet complet</button>
+    </div>
+    <h2 class="label" style="margin:4px 4px 0">Prochains départs · ${badge(r.first.cat, r.first.num, true)} ${esc(short(r.first.to))}</h2>
+    <div class="card list">${r.deps === null ? '<p class="empty">Chargement…</p>' : r.deps.length ? r.deps.map((d) => {
+      const planned = parseISO(d.stop.departure);
+      const prog = parseISO(d.stop.prognosis && d.stop.prognosis.departure);
+      const real = prog || new Date(planned.getTime() + (d.stop.delay || 0) * 60000);
+      const diff = Math.round((real - now) / 60000);
+      const reachable = real.getTime() >= now + wSec * 1000;
+      return `<div class="dep" style="${reachable ? '' : 'opacity:.5'}">${badge(d.category, d.number)}<div class="dep-to"><span class="to">${esc(short(d.to))}</span><span class="small">${reachable ? 'Prévu ' + hm(planned) : 'Trop tôt pour l’attraper'}${d.stop.platform ? ' · quai ' + esc(d.stop.platform) : ''}</span></div><div class="dep-r"><span class="big">${diff <= 59 ? (diff <= 0 ? 'Imm.' : diff + ' min') : hm(real)}</span></div></div>`;
+    }).join('') : '<p class="empty">Aucun départ trouvé.</p>'}</div>
+    <button class="ghost" data-act="mapStop" data-id="${esc(r.stop.id)}" style="align-self:center">Tous les départs de cet arrêt</button>`;
+}
+function openStopBoard(s) {
+  S.stop = { id: s.id, name: s.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = [];
+  go('board'); S.boardParent = 'map'; $('#tabMap').classList.add('on'); $('#tabHome').classList.remove('on');
+}
+
 /* ---------- ACCUEIL ---------- */
 function renderHome() {
   const geoLabel = S.geo ? `Ma position (${short(S.geo.name)})` : 'Ma position';
@@ -1007,6 +1337,7 @@ async function refreshScreen() {
     case 'commutes': clearStatus(); renderCommutes(); await new Promise((r) => setTimeout(r, 700)); break;
     case 'home': clearStatus(); await fillNext(); break;
     case 'infos': await loadAlerts(true); break;
+    case 'map': await mapPlan(true); break;
     default: await new Promise((r) => setTimeout(r, 300));
   }
 }
@@ -1871,6 +2202,18 @@ const ACT = {
     if (S.screen === 'settings') renderSettings();
   },
   permHelp: (ds) => openSheet(permHelpHtml(ds.p)),
+  mapLocate: () => mapLocate(false),
+  mapClear: () => { M.dest = null; M.results = null; M.sel = null; renderMap(); },
+  mapRefresh: () => mapPlan(true),
+  mapSel: (ds) => { const r = M.results && M.results[+ds.i]; if (r) mapSelect(r); },
+  mapBack: () => { M.sel = null; drawMapPanel(); drawMapLayers(); },
+  mapStop: (ds) => { const s = stopById(ds.id); if (s) openStopBoard(s); },
+  mapTrip: () => {
+    const r = M.sel; if (!r) return;
+    S.trip = r.c; S.tripParent = 'map';
+    S.q = { from: r.stop.name, to: r.destStop.name, date: ymd(r.c.dep), time: r.c.depStr, arrival: false, direct: false, modes: { bus: true, tram: true, train: true } };
+    go('trip');
+  },
   openTutos: () => go('tutos'),
   replayWelcome: () => showWelcome(),
   openTuto: (ds) => { S.tuto = ds.id; go('tuto'); },
