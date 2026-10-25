@@ -29,7 +29,7 @@
   :root{
     --ground:#F4F3EF; --card:#FFFFFF; --ink:#15171C; --muted:#5E6470; --faint:#8A8F98;
     --line:#E4E2DC; --line2:#EFEDE8; --accent:#C2410C; --ok:#15803D; --late:#B45309; --bad:#B91C1C;
-    --border2:#D6D3CC; --sugg:#FAF9F6; --seg:#E9E7E1; --on-accent:#FFFFFF; color-scheme:light;
+    --border2:#D6D3CC; --sugg:#FAF9F6; --seg:#E9E7E1; --on-accent:#FFFFFF; --on-bad:#FFFFFF; --bad-soft:#FDECEC; color-scheme:light;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none}
@@ -171,11 +171,20 @@
   html.dark{
     --ground:#121316; --card:#1C1E22; --ink:#F1F1F2; --muted:#A2A7B0; --faint:#7C818B;
     --line:#2C2F35; --line2:#26292E; --accent:#F07A3A; --ok:#4ADE80; --late:#FBBF24; --bad:#F87171;
-    --border2:#3A3D44; --sugg:#22252A; --seg:#2A2D33; --on-accent:#1A0F08; color-scheme:dark;
+    --border2:#3A3D44; --sugg:#22252A; --seg:#2A2D33; --on-accent:#1A0F08; --on-bad:#2A0707; --bad-soft:#3A1E1E; color-scheme:dark;
   }
   html.dark .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9)}
   html.dark #sheet .backdrop{background:rgba(0,0,0,.6)}
   html.dark .seg button.on{background:var(--border2)}
+  .warn{display:inline-flex;align-items:center;gap:4px;width:max-content;background:var(--bad);color:var(--on-bad);border-radius:6px;padding:3px 8px;font-size:12px;font-weight:900;cursor:pointer;margin-top:3px}
+  .warn svg{flex:none}
+  .alert-card{display:flex;flex-direction:column;gap:8px;width:100%;text-align:left;padding:14px 16px}
+  .alert-card .a-title{font-size:16px;font-weight:800;line-height:1.3}
+  .alert-banner{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;padding:12px 14px;border-radius:14px;border:1.5px solid var(--bad);background:var(--bad-soft);color:var(--ink)}
+  .alert-banner .a-title{font-weight:800;font-size:15px;line-height:1.3}
+  .a-lines{display:flex;gap:4px;flex-wrap:wrap}
+  .a-tag{font-size:11px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:var(--bad)}
+  .a-text{font-size:15px;line-height:1.5;white-space:pre-line;margin:0}
   .info-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:50px;padding:0 16px;border-bottom:1px solid var(--line2);font-size:15px}
   .info-row:last-child{border-bottom:0}
   .info-row a{color:var(--accent);font-weight:800;text-decoration:none;text-align:right}
@@ -198,6 +207,10 @@
     <button class="tab" id="tabCommutes" data-tab="commutes">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>
       Pendulaire
+    </button>
+    <button class="tab" id="tabInfos" data-tab="infos">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.5h.01"/></svg>
+      Infos
     </button>
     <button class="tab" id="tabSettings" data-tab="settings">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
@@ -428,11 +441,12 @@ function go(screen, push = true) {
   closeSheet();
   if (push && SUB.includes(screen)) history.pushState({ s: screen }, '');
   S.screen = screen;
-  const tab = screen === 'commutes' || screen === 'new' ? 'commutes' : screen === 'settings' ? 'settings' : 'home';
+  const tab = screen === 'commutes' || screen === 'new' ? 'commutes' : screen === 'settings' || screen === 'infos' ? screen : 'home';
   $('#tabHome').classList.toggle('on', tab === 'home');
   $('#tabCommutes').classList.toggle('on', tab === 'commutes');
   $('#tabSettings').classList.toggle('on', tab === 'settings');
-  ({ home: renderHome, board: renderBoard, results: renderResults, trip: renderTrip, commutes: renderCommutes, new: renderNew, journey: renderJourney, settings: renderSettings })[screen]();
+  $('#tabInfos').classList.toggle('on', tab === 'infos');
+  ({ home: renderHome, board: renderBoard, results: renderResults, trip: renderTrip, commutes: renderCommutes, new: renderNew, journey: renderJourney, settings: renderSettings, infos: renderInfos })[screen]();
 }
 window.addEventListener('popstate', () => go(PARENT[S.screen] || 'home', false));
 document.querySelector('nav').addEventListener('click', (e) => {
@@ -709,7 +723,8 @@ function drawBoard() {
     const big = past || !live || diff > 59 ? (sameDay ? '' : planned.getDate() + '.' + (planned.getMonth() + 1) + '. ') + hm(real) : (diff <= 0 ? 'Imm.' : diff + ' min');
     return `<button class="dep" data-act="openJourney" data-i="${i}"${past ? ' style="opacity:.5"' : ''}>${badge(d.category, d.number)}
       <div class="dep-to"><span class="to">${esc(short(d.to))}</span>
-        <span class="small">Prévu ${hm(planned)}${d.stop.platform ? ' · quai ' + esc(d.stop.platform) : ''}</span></div>
+        <span class="small">Prévu ${hm(planned)}${d.stop.platform ? ' · quai ' + esc(d.stop.platform) : ''}</span>
+        ${warnHtml(alertsFor([d.number], [S.stop.id, ...(d.passList || []).map((p) => p.station && p.station.id)], real))}</div>
       <div class="dep-r"><span class="big">${big}</span>${delay > 0 ? `<span class="st-late">+${delay} min</span>` : ''}</div></button>`;
   }).join('');
   $('#deps').innerHTML = rows || '<p class="empty">Aucun départ pour ce filtre.</p>';
@@ -743,6 +758,12 @@ function renderJourney() {
       <div class="row gap" style="min-width:0">${badge(d.category, d.number)}<h1 class="title" style="font-size:20px">direction ${esc(short(d.to))}</h1></div>
     </header>
     <div class="scroll stack">
+      ${(() => {
+        const t0 = parseISO(d.stop.departure) || new Date();
+        const al = alertsFor([d.number], [S.stop.id, ...list.map((p) => p.station && p.station.id)], t0);
+        return al.map((a) => `<button class="alert-banner" data-act="alertOne" data-id="${esc(a.id)}"><span style="color:var(--bad);margin-top:1px">${WARN_ICON.replace(/13/g, '18')}</span>
+          <span class="stack" style="gap:2px"><span class="a-tag">Attention${CAUSES[a.cause] ? ' · ' + esc(CAUSES[a.cause]) : ''}</span><span class="a-title">${esc(a.title || 'Perturbation')}</span></span></button>`).join('');
+      })()}
       <p class="small" style="margin:0 4px">Depuis ${esc(short(S.stop.name))}${list.length ? ' · ' + list.length + ' arrêts' : ''}${d.operator ? ' · ' + esc(d.operator) : ''}</p>
       ${list.length
         ? `<div class="map-box" id="map"></div><div class="card" style="padding:6px 0;--c:${st.bg}">${rows}</div><p class="foot">Touche un arrêt pour voir ses départs. Tire vers le bas pour actualiser.</p>`
@@ -835,6 +856,7 @@ async function refreshScreen() {
     case 'results': S.res = []; await loadResults(S.q.time, 'replace'); break;
     case 'commutes': clearStatus(); renderCommutes(); await new Promise((r) => setTimeout(r, 700)); break;
     case 'home': clearStatus(); await fillNext(); break;
+    case 'infos': await loadAlerts(true); break;
     default: await new Promise((r) => setTimeout(r, 300));
   }
 }
@@ -958,6 +980,7 @@ function drawResults() {
         <div class="conn-legs">${c.legs.map((l) => badge(l.cat, l.num, true)).join('') || `<span class="small">À pied</span>`}
           <span class="muted sm">${c.transfers ? c.transfers + ' changement' + (c.transfers > 1 ? 's' : '') : 'direct'}</span>
           ${c.delay ? `<span class="st-late ml">+${c.delay} min</span>` : ''}</div>
+        ${warnHtml(connAlerts(c))}
       </button>`).join('') +
     (S.q.arrival ? '' : '<button class="ghost" data-act="later" style="align-self:center">Plus tard</button>');
 }
@@ -996,6 +1019,7 @@ function renderTrip() {
         <div class="leg-t"></div><div class="rail"></div>
         <div class="leg-b">
           <div class="mid">${badge(j.category, j.number, true)}<span style="font-weight:800">direction ${esc(short(j.to))}</span></div>
+          ${warnHtml(alertsFor([j.number], (j.passList || []).map((p) => p.station && p.station.id), dep || new Date()))}
           ${pass.length ? `<details class="pass"><summary>${pass.length} arrêt${pass.length > 1 ? 's' : ''} intermédiaire${pass.length > 1 ? 's' : ''}</summary>
             <ol>${pass.map((p) => { const t = parseISO(p.departure || p.arrival); return `<li><span>${t ? hm(t) : ''}</span><span>${esc(short(p.station && p.station.name))}</span></li>`; }).join('')}</ol></details>` : ''}
         </div>
@@ -1045,7 +1069,7 @@ function renderCommutes() {
           </div>
           <div class="cm-list">${cm.picks.map((p, j) => `
             <div class="cm-row"><span class="cm-time">${p.dep} → ${p.arr}</span>
-              <span class="cm-legs">${p.legs.map((l) => badge(l.cat, l.num, true)).join('')}</span>
+              <span class="cm-legs">${p.legs.map((l) => badge(l.cat, l.num, true)).join('')}${todayIn(cm) ? warnHtml(alertsFor(p.legs.map((l) => l.num), [], todayAt(p.dep))) : ''}</span>
               <span id="st-${i}-${j}" class="small">${todayIn(cm) ? '…' : ''}</span></div>`).join('')}
           </div>
           <div class="row gap">
@@ -1134,6 +1158,165 @@ function drawCands() {
     const i = Number(cb.dataset.ci);
     d.picks = cb.checked ? d.picks.concat([i]) : d.picks.filter((x) => x !== i);
   }));
+}
+
+/* ---------- PERTURBATIONS (SIRI-SX via api/alerts-*) ---------- */
+let ALERTS = [];
+const AL = store.get('nt_alerts', { planned: [], unplanned: [], plannedAt: 0, unplannedAt: 0 });
+let alertsError = null, alertsLoading = false, alertsSig = '';
+const WARN_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 16.5h-19z"/><path d="M12 10v4M12 17h.01"/></svg>';
+const CAUSES = {
+  constructionWork: 'Travaux', roadworks: 'Travaux', maintenanceWork: 'Travaux', accident: 'Accident', roadClosed: 'Route fermée',
+  technicalProblem: 'Problème technique', vehicleFailure: 'Véhicule en panne', demonstration: 'Manifestation', specialEvent: 'Événement',
+  procession: 'Cortège', march: 'Manifestation', congestion: 'Trafic dense', trafficJam: 'Trafic dense', weather: 'Météo',
+  heavySnowFall: 'Neige', flooding: 'Inondation', fire: 'Incendie', medicalEmergency: 'Urgence médicale', policeActivity: 'Intervention de police',
+  emergencyServicesCall: 'Intervention des secours', obstructionOnTheLine: 'Obstacle sur la voie', powerProblem: 'Panne de courant', undefinedProblem: 'Perturbation'
+};
+function mergeAlerts() {
+  const m = new Map();
+  for (const a of AL.planned || []) m.set(a.id || a.title, a);
+  for (const a of AL.unplanned || []) m.set(a.id || a.title, a); // version la plus fraîche
+  ALERTS = [...m.values()].filter((a) => a.title || a.text);
+  ALERTS.forEach((a) => { if (!a.id) { let h = 0; for (const c of (a.title || '') + JSON.stringify(a.periods)) h = (h * 31 + c.charCodeAt(0)) | 0; a.id = 'x' + (h >>> 0).toString(36); } });
+}
+mergeAlerts();
+async function loadAlerts(force) {
+  if (alertsLoading) return;
+  alertsLoading = true;
+  const now = Date.now();
+  const jobs = [];
+  if (force || now - (AL.unplannedAt || 0) > 55000) jobs.push(['unplanned', '/api/alerts-unplanned']);
+  if (now - (AL.plannedAt || 0) > 29 * 60000) jobs.push(['planned', '/api/alerts-planned']);
+  let err = null;
+  await Promise.all(jobs.map(async ([k, url]) => {
+    try {
+      const r = await fetch(url);
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
+      AL[k] = j.alerts || []; AL[k + 'At'] = Date.now();
+    } catch (e) { err = e.message; }
+  }));
+  alertsLoading = false;
+  alertsError = err;
+  store.set('nt_alerts', AL);
+  mergeAlerts();
+  const sig = ALERTS.map((a) => a.id + a.version).join('|') + '#' + (err ? 1 : 0);
+  if (sig !== alertsSig) { alertsSig = sig; onAlertsChanged(); }
+}
+function onAlertsChanged() {
+  switch (S.screen) {
+    case 'infos': renderInfos(); break;
+    case 'board': if (S.board.length) drawBoard(); break;
+    case 'results': drawResults(); break;
+    case 'commutes': renderCommutes(); break;
+    case 'journey': case 'trip': { const sc = main.querySelector('.scroll'), y = sc ? sc.scrollTop : 0; go(S.screen, false); const n = main.querySelector('.scroll'); if (n) n.scrollTop = y; break; }
+  }
+}
+const ts = (s) => (s ? Date.parse(s) : NaN);
+function activeAt(a, t) {
+  if (!a.periods || !a.periods.length) return true;
+  const x = t.getTime();
+  return a.periods.some(([s, e]) => (isNaN(ts(s)) || ts(s) <= x) && (isNaN(ts(e)) || ts(e) >= x));
+}
+function nextStart(a, t) {
+  const x = t.getTime();
+  const starts = (a.periods || []).map(([s]) => ts(s)).filter((v) => !isNaN(v) && v > x);
+  return starts.length ? Math.min(...starts) : null;
+}
+// Perturbations qui touchent une liaison (lignes, arrêts desservis, heure)
+function alertsFor(lines, stops, t) {
+  const L = (lines || []).map((x) => String(x || '').trim().toUpperCase()).filter(Boolean);
+  const st = new Set((stops || []).filter(Boolean).map(String));
+  return ALERTS.filter((a) => {
+    if (!activeAt(a, t || new Date())) return false;
+    if (a.lines && a.lines.length) {
+      if (!a.lines.some((l) => L.includes(l))) return false;
+      return !a.stops || !a.stops.length || !st.size || a.stops.some((s) => st.has(s));
+    }
+    return a.stops && a.stops.some((s) => st.has(s));
+  });
+}
+function warnHtml(list) {
+  if (!list || !list.length) return '';
+  return `<span class="warn" role="button" tabindex="0" data-act="alerts" data-ids="${esc(list.map((a) => a.id).join(','))}">${WARN_ICON}Attention${list.length > 1 ? ' (' + list.length + ')' : ''}</span>`;
+}
+const fmtDT = (s) => {
+  const d = new Date(s), today = new Date();
+  const same = ymd(d) === ymd(today);
+  const tom = new Date(today); tom.setDate(tom.getDate() + 1);
+  const day = same ? 'aujourd’hui' : ymd(d) === ymd(tom) ? 'demain' : DAYS_LONG[dayIdx(d)] + ' ' + d.getDate() + '.' + (d.getMonth() + 1) + '.';
+  return day + ' à ' + hm(d);
+};
+function periodLabel(a) {
+  const now = new Date();
+  const ps = (a.periods || []).filter(([s, e]) => isNaN(ts(e)) || ts(e) >= now.getTime());
+  if (!ps.length) return '';
+  const cur = ps.find(([s, e]) => (isNaN(ts(s)) || ts(s) <= now.getTime()));
+  if (cur) return isNaN(ts(cur[1])) ? 'En cours, fin non communiquée' : 'Jusqu’à ' + fmtDT(cur[1]);
+  const [s, e] = ps.sort((x, y) => ts(x[0]) - ts(y[0]))[0];
+  return 'Dès ' + fmtDT(s) + (isNaN(ts(e)) ? '' : ' jusqu’à ' + fmtDT(e)) + (ps.length > 1 ? ' (plusieurs périodes)' : '');
+}
+const lineBadges = (a, max = 8) => (a.lines || []).slice(0, max).map((l) => badge('B', l, true)).join('') + ((a.lines || []).length > max ? `<span class="small">+${a.lines.length - max}</span>` : '');
+function alertDetailHtml(a) {
+  const stopNames = (a.stopNames || []).map(short);
+  return `
+    <div class="stack" style="gap:10px;margin-bottom:18px">
+      <div class="row gap" style="flex-wrap:wrap">${lineBadges(a, 20)}${CAUSES[a.cause] ? `<span class="a-tag">${esc(CAUSES[a.cause])}</span>` : ''}${a.planned ? '<span class="small">· prévu</span>' : ''}</div>
+      <h2 style="margin:0;font-size:19px;line-height:1.3">${esc(a.title || 'Perturbation')}</h2>
+      ${periodLabel(a) ? `<p class="small" style="margin:0;font-weight:700">${esc(periodLabel(a))}</p>` : ''}
+      ${a.text ? `<p class="a-text">${esc(a.text)}</p>` : ''}
+      ${a.consequence ? `<p class="a-text"><b>Conséquences :</b> ${esc(a.consequence)}</p>` : ''}
+      ${a.recommendation ? `<p class="a-text"><b>Conseil :</b> ${esc(a.recommendation)}</p>` : ''}
+      ${a.duration ? `<p class="a-text"><b>Durée :</b> ${esc(a.duration)}</p>` : ''}
+      ${stopNames.length ? `<p class="small" style="margin:0"><b>Arrêts concernés :</b> ${esc(stopNames.join(', '))}</p>` : ''}
+    </div>`;
+}
+function openAlerts(ids) {
+  const list = ids.map((id) => ALERTS.find((a) => a.id === id)).filter(Boolean);
+  if (!list.length) return toast('Cette perturbation n’est plus en cours.');
+  openSheet(list.map(alertDetailHtml).join('<hr style="border:0;border-top:1px solid var(--line);margin:0 0 18px">') +
+    '<button class="primary w100" data-sheet="close">Fermer</button>');
+}
+
+function connAlerts(c) {
+  const seen = new Map();
+  for (const s of c.raw.sections || []) {
+    if (!s.journey) continue;
+    const t = parseISO(s.departure && s.departure.departure) || c.dep;
+    for (const a of alertsFor([s.journey.number], (s.journey.passList || []).map((p) => p.station && p.station.id), t)) seen.set(a.id, a);
+  }
+  return [...seen.values()];
+}
+function todayAt(hhmm) { const d = new Date(); const [h, m] = String(hhmm).split(':').map(Number); d.setHours(h || 0, m || 0, 0, 0); return d; }
+
+/* ---------- INFOS ---------- */
+function renderInfos() {
+  const now = new Date(), week = now.getTime() + 7 * 864e5;
+  const lineKey = (a) => (a.lines && a.lines.length ? a.lines.slice().sort((x, y) => x.localeCompare(y, 'fr', { numeric: true }))[0] : '~');
+  const byLine = (x, y) => lineKey(x).localeCompare(lineKey(y), 'fr', { numeric: true });
+  const current = ALERTS.filter((a) => activeAt(a, now)).sort(byLine);
+  const soon = ALERTS.filter((a) => !activeAt(a, now)).filter((a) => { const n = nextStart(a, now); return n && n <= week; })
+    .sort((x, y) => nextStart(x, now) - nextStart(y, now));
+  const card = (a) => `
+    <button class="card alert-card" data-act="alertOne" data-id="${esc(a.id)}">
+      <div class="row gap" style="justify-content:space-between;width:100%">
+        <span class="a-lines">${lineBadges(a) || '<span class="small">Réseau tpg</span>'}</span>
+        ${CAUSES[a.cause] ? `<span class="a-tag">${esc(CAUSES[a.cause])}</span>` : ''}
+      </div>
+      <span class="a-title">${esc(a.title || 'Perturbation')}</span>
+      ${periodLabel(a) ? `<span class="small">${esc(periodLabel(a))}</span>` : ''}
+    </button>`;
+  const upd = Math.max(AL.unplannedAt || 0, AL.plannedAt || 0);
+  main.innerHTML = `
+    <header class="top"><h1 class="brand sm">Infos trafic</h1></header>
+    <div class="scroll stack">
+      ${alertsError && !ALERTS.length ? `<div class="card empty-card">Impossible de charger les perturbations pour le moment.<br><span class="small">${esc(alertsError)}</span></div>` : ''}
+      <h2 class="label" style="margin:4px 4px 0">En cours${current.length ? ' · ' + current.length : ''}</h2>
+      ${current.length ? current.map(card).join('') : `<div class="card empty-card">${upd ? 'Aucune perturbation en cours sur le réseau tpg.' : 'Chargement…'}</div>`}
+      ${soon.length ? `<h2 class="label" style="margin:10px 4px 0">À venir · 7 jours</h2>${soon.map(card).join('')}` : ''}
+      <p class="foot">${upd ? 'Mis à jour à ' + hm(new Date(upd)) + ' · ' : ''}Source : opentransportdata.swiss (SIRI-SX). Tire vers le bas pour actualiser.</p>
+    </div>`;
+  if (Date.now() - (AL.unplannedAt || 0) > 55000) loadAlerts();
 }
 
 /* ---------- RÉGLAGES ---------- */
@@ -1230,6 +1413,8 @@ const ACT = {
     el.innerHTML = STAR(on);
   },
   boardMore: (ds, el) => boardMore(ds.dir, el),
+  alerts: (ds) => openAlerts(String(ds.ids || '').split(',').filter(Boolean)),
+  alertOne: (ds) => openAlerts([ds.id]),
   theme: (ds, el) => {
     if (getTheme() === ds.v) return;
     store.set('nt_theme', ds.v);
@@ -1297,6 +1482,8 @@ document.addEventListener('visibilitychange', () => {
 });
 applyTheme();
 go('home', false);
+loadAlerts();
+setInterval(() => { if (document.visibilityState === 'visible') loadAlerts(); }, 60000);
 dataReady.then(() => { if (S.screen === 'board' && S.board.length) drawBoard(); if (S.screen === 'commutes') renderCommutes(); });
 locate();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
