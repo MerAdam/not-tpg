@@ -1,0 +1,2 @@
+https://transport.opendata.ch/v1/connections?from=Gen%C3%A8ve,%20gare%20Cornavin&to=Gen%C3%A8ve,%20Bel-Air&date=2026-10-25&time=14:44&limit=4
+https://transport.opendata.ch/v1/connections?from=Gen%C3%A8ve,%20gare%20Cornavin&to=Gen%C3%A8ve,%20Bel-Air&limit=4
