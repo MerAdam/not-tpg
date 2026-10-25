@@ -583,7 +583,7 @@ function loadLeaflet() {
   return leafletP;
 }
 const GENEVA = [46.2044, 6.1432];
-const M = { map: null, layers: null, origin: null, originAuto: true, dest: null, results: null, sel: null, loading: false, err: null, watch: null };
+const M = { map: null, layers: null, origin: null, originAuto: true, dest: null, results: null, sel: null, loading: false, err: null, watch: null, walkStop: null };
 const WALK_MS = 1.25; // vitesse de marche (m/s), pour les estimations
 const MARGIN = 180; // arriver à l'arrêt 3 min avant le bus
 const estWalk = (a, b) => Math.round((distM(a[0], a[1], b[0], b[1]) * 1.3) / WALK_MS); // secondes
@@ -616,7 +616,7 @@ function renderMap() {
       <div class="map-panel" id="mapPanel"></div>
     </div>`;
   attachPlaceSearch($('#mapDest'), $('#mapSugg'), (place) => {
-    M.dest = place; M.sel = null; M.results = null;
+    M.dest = place; M.sel = null; M.results = null; M.walkStop = null;
     $('#mapDest').value = place.label; $('#mapDest').blur();
     renderMap(); mapPlan();
   });
@@ -638,11 +638,12 @@ async function initBigMap() {
     if (M.originAuto && M.origin) return; // position GPS : on ne la remplace pas par un simple tap
     M.origin = [e.latlng.lat, e.latlng.lng]; M.originAuto = false;
     toast('Point de départ placé.'); M.results = null; M.sel = null;
-    drawMapLayers(); drawMapPanel(); if (M.dest) mapPlan();
+    drawMapLayers(); drawMapPanel(); if (M.walkStop) walkToStop(); else if (M.dest) mapPlan();
   });
   setTimeout(() => map.invalidateSize(), 50);
   drawMapLayers();
   if (!M.origin) mapLocate(true);
+  else if (M.walkStop) walkToStop();
 }
 
 function mapLocate(silent) {
@@ -652,7 +653,8 @@ function mapLocate(silent) {
     store.set('nt_geo_denied', false);
     if (M.map) M.map.setView(M.origin, Math.max(M.map.getZoom(), 16));
     M.results = null; M.sel = null;
-    drawMapLayers(); drawMapPanel(); if (M.dest) mapPlan();
+    drawMapLayers(); drawMapPanel();
+    if (M.walkStop) walkToStop(); else if (M.dest) mapPlan();
   }, (err) => {
     if (err && err.code === 1) store.set('nt_geo_denied', true);
     M.err = err && err.code === 1 ? 'denied' : 'unavailable';
@@ -687,6 +689,12 @@ function drawMapLayers() {
     L.polyline(path, { color: '#2563EB', weight: 5, opacity: 0.85, dashArray: M.sel.walk && M.sel.walk.coords ? null : '2 9', lineCap: 'round' }).addTo(M.layers);
     const c = lineStyle(M.sel.first.cat, M.sel.first.num);
     L.marker(st, { icon: window.L.divIcon({ className: '', html: `<span class="badge-sm" style="background:${c.bg};color:${c.fg};box-shadow:0 0 0 3px #fff">${esc(M.sel.first.num || '')}</span>`, iconSize: [30, 22], iconAnchor: [15, 11] }), zIndexOffset: 900 }).addTo(M.layers);
+    M.map.fitBounds(L.latLngBounds(path.concat([st])), { padding: [70, 40], maxZoom: 18 });
+  } else if (M.walkStop && M.origin) {
+    const w = M.walkStop, st = [w.stop.lat, w.stop.lon];
+    const path = w.route && w.route.coords ? w.route.coords : [M.origin, st];
+    L.polyline(path, { color: '#2563EB', weight: 5, opacity: 0.85, dashArray: w.route ? null : '2 9', lineCap: 'round' }).addTo(M.layers);
+    L.marker(st, { icon: pinIcon('dest-pin'), interactive: false, zIndexOffset: 900 }).addTo(M.layers);
     M.map.fitBounds(L.latLngBounds(path.concat([st])), { padding: [70, 40], maxZoom: 18 });
   } else if (M.results && M.results.length && M.origin) {
     M.map.fitBounds(L.latLngBounds([M.origin, ...M.results.map((r) => [r.stop.lat, r.stop.lon])]), { padding: [80, 40], maxZoom: 17 });
@@ -803,8 +811,53 @@ function leaveTxt(dep, walkSec) {
   const m = Math.round((dep.getTime() - (walkSec + MARGIN) * 1000 - Date.now()) / 60000);
   return m <= 0 ? '<b>pars maintenant</b>' : `pars dans <b>${m} min</b>`;
 }
+// « Y aller » : itinéraire à pied jusqu'à un arrêt, puis ses prochains départs
+async function walkToStop() {
+  const w = M.walkStop; if (!w || !M.origin) return;
+  w.route = null; w.deps = null; drawMapPanel(); drawMapLayers();
+  try { w.route = await walkApi('route', { from: M.origin.join(','), to: w.stop.lat + ',' + w.stop.lon }); } catch { w.route = null; w.failed = true; }
+  if (M.walkStop !== w) return;
+  drawMapLayers(); drawMapPanel();
+  const sec = w.route ? w.route.duration : estWalk(M.origin, [w.stop.lat, w.stop.lon]);
+  try {
+    const t = new Date(Date.now() + sec * 1000);
+    const j = await api(`/stationboard?id=${encodeURIComponent(w.stop.id)}&limit=12&datetime=${encodeURIComponent(ymd(t) + ' ' + hm(t))}`);
+    w.deps = j.stationboard || [];
+  } catch { w.deps = []; }
+  if (M.walkStop === w && S.screen === 'map') drawMapPanel();
+}
+function drawWalkPanel(p) {
+  const w = M.walkStop, now = Date.now();
+  if (!M.origin) { p.innerHTML = `<p style="margin:0;font-weight:800">${esc(short(w.stop.name))}</p><p class="small" style="margin:0">${M.err === 'denied' ? 'Localisation bloquée : touche la carte pour placer ton point de départ, ou réactive-la dans Réglages → Autorisations.' : 'Recherche de ta position…'}</p>`; return; }
+  const sec = w.route ? w.route.duration : estWalk(M.origin, [w.stop.lat, w.stop.lon]);
+  const dist = w.route ? Math.round(w.route.distance) : Math.round(distM(M.origin[0], M.origin[1], w.stop.lat, w.stop.lon) * 1.3);
+  const arrive = new Date(now + sec * 1000);
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const nav = ios ? `https://maps.apple.com/?saddr=${M.origin.join(',')}&daddr=${w.stop.lat},${w.stop.lon}&dirflg=w`
+    : `https://www.google.com/maps/dir/?api=1&origin=${M.origin.join(',')}&destination=${w.stop.lat},${w.stop.lon}&travelmode=walking`;
+  const deps = w.deps === null ? '<p class="empty">Chargement…</p>' : w.deps.length ? w.deps.slice(0, 8).map((d) => {
+    const planned = parseISO(d.stop.departure);
+    const prog = parseISO(d.stop.prognosis && d.stop.prognosis.departure);
+    const real = prog || new Date(planned.getTime() + (d.stop.delay || 0) * 60000);
+    const ok = real.getTime() >= arrive.getTime() + MARGIN * 1000;
+    const diff = Math.round((real - now) / 60000);
+    return `<div class="dep" style="${ok ? '' : 'opacity:.5'}">${badge(d.category, d.number)}<div class="dep-to"><span class="to">${esc(short(d.to))}</span><span class="small">${ok ? 'Prévu ' + hm(planned) : 'Trop tôt pour l’attraper'}${d.stop.platform ? ' · quai ' + esc(d.stop.platform) : ''}</span></div><div class="dep-r"><span class="big">${diff <= 59 ? (diff <= 0 ? 'Imm.' : diff + ' min') : hm(real)}</span></div></div>`;
+  }).join('') : '<p class="empty">Aucun départ trouvé.</p>';
+  p.innerHTML = `
+    <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:8px">
+      <div class="small" style="font-weight:800;color:var(--accent)">À pied jusqu’à l’arrêt</div>
+      <div style="font-weight:900;font-size:18px">${esc(short(w.stop.name))}</div>
+      <div style="display:flex;align-items:center;gap:6px;font-weight:800">${ICON.walk}${minsTxt(sec)} · ${dist} m · arrivée vers ${hm(arrive)}</div>
+      ${w.route ? '' : `<div class="small">${w.failed ? 'Chemin par les rues indisponible : trajet estimé à vol d’oiseau.' : 'Calcul du chemin…'}</div>`}
+      <div class="row gap"><a class="primary" href="${nav}" target="_blank" rel="noopener" style="flex:1;display:flex;align-items:center;justify-content:center;text-decoration:none;height:44px">Guidage GPS</a>
+        <button class="ghost" data-act="mapStop" data-id="${esc(w.stop.id)}" style="height:44px">Départs</button></div>
+    </div>
+    <h2 class="label" style="margin:4px 4px 0">Départs à ton arrivée</h2>
+    <div class="card list">${deps}</div>`;
+}
 function drawMapPanel() {
   const p = $('#mapPanel'); if (!p) return;
+  if (M.walkStop) return drawWalkPanel(p);
   if (M.sel) return drawSelPanel(p);
   let html = '';
   if (!M.origin) {
@@ -1019,6 +1072,7 @@ function renderBoard() {
   const f = S.stop, fav = isFav(f.id);
   main.innerHTML = `
     <header class="top back">${backBtn()}<h1 class="title" style="flex:1">${esc(short(f.name))}</h1>
+      <button class="pill" data-act="goToStop" style="height:36px;flex:none;gap:6px">${ICON.walk}Y aller</button>
       <button class="icon-btn star ${fav ? 'on' : ''}" data-act="favToggle" aria-pressed="${fav}" aria-label="${fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}">${STAR(fav)}</button>
     </header>
     <div class="controls"><div class="chips" id="pills"></div></div>
@@ -1357,7 +1411,7 @@ async function refreshScreen() {
     case 'commutes': clearStatus(); renderCommutes(); await new Promise((r) => setTimeout(r, 700)); break;
     case 'home': clearStatus(); await fillNext(); break;
     case 'infos': await loadAlerts(true); break;
-    case 'map': await mapPlan(true); break;
+    case 'map': if (M.walkStop) await walkToStop(); else await mapPlan(true); break;
     default: await new Promise((r) => setTimeout(r, 300));
   }
 }
@@ -2234,7 +2288,14 @@ const ACT = {
   },
   permHelp: (ds) => openSheet(permHelpHtml(ds.p)),
   mapLocate: () => mapLocate(false),
-  mapClear: () => { M.dest = null; M.results = null; M.sel = null; renderMap(); },
+  mapClear: () => { M.dest = null; M.results = null; M.sel = null; M.walkStop = null; renderMap(); },
+  goToStop: () => {
+    const st = stopById(S.stop.id) || null;
+    if (!st) return toast('Position de cet arrêt inconnue.');
+    M.walkStop = { stop: st, route: null, deps: null }; M.dest = { label: short(st.name), lat: st.lat, lon: st.lon, stopId: st.id };
+    M.sel = null; M.results = null;
+    S.boardParent = null; go('map');
+  },
   mapRefresh: () => mapPlan(true),
   mapSel: (ds) => { const r = M.results && M.results[+ds.i]; if (r) mapSelect(r); },
   mapBack: () => { M.sel = null; drawMapPanel(); drawMapLayers(); },
