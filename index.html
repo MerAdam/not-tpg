@@ -42,6 +42,8 @@
   #main{flex:1;display:flex;flex-direction:column;min-height:0}
   .scroll{flex:1;overflow-y:auto;padding:0 16px 24px;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain}
   .stack{display:flex;flex-direction:column;gap:12px}
+  .map-box{height:240px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#E8E6E0;position:relative;z-index:0}
+  .map-box .leaflet-control-attribution{font-size:9px}
   .stack > *{flex-shrink:0} /* sinon les cartes se tassent au lieu de défiler */
   .top{padding:calc(env(safe-area-inset-top) + 18px) 16px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
   .top.back{padding-left:8px;justify-content:flex-start;gap:4px}
@@ -709,9 +711,65 @@ function renderJourney() {
     <div class="scroll stack">
       <p class="small" style="margin:0 4px">Depuis ${esc(short(S.stop.name))}${list.length ? ' · ' + list.length + ' arrêts' : ''}${d.operator ? ' · ' + esc(d.operator) : ''}</p>
       ${list.length
-        ? `<div class="card" style="padding:6px 0;--c:${st.bg}">${rows}</div><p class="foot">Touche un arrêt pour voir ses départs. Tire vers le bas pour actualiser.</p>`
+        ? `<div class="map-box" id="map"></div><div class="card" style="padding:6px 0;--c:${st.bg}">${rows}</div><p class="foot">Touche un arrêt pour voir ses départs. Tire vers le bas pour actualiser.</p>`
         : '<div class="card empty-card">Le parcours de cette course n’est pas disponible.</div>'}
     </div>`;
+  if (!list.length) return;
+  const pts = list.map((p) => coordOf(p.station));
+  drawMap([{ pts: pts.filter(Boolean), color: st.bg, walk: false }], { first: pts[0] });
+}
+
+/* ---------- carte (Leaflet + fond CARTO/OpenStreetMap) ---------- */
+let leafletP = null, mapInst = null;
+function coordOf(st) {
+  if (!st) return null;
+  const c = st.coordinate;
+  if (c && c.x && c.y) return [c.x, c.y]; // transport.opendata.ch : x = latitude, y = longitude
+  if (STOPS && st.id) { const s = STOPS.find((x) => x.id === String(st.id)); if (s) return [s.lat, s.lon]; }
+  return null;
+}
+function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  if (leafletP) return leafletP;
+  leafletP = new Promise((resolve, reject) => {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    const js = document.createElement('script');
+    js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    js.onload = () => resolve(window.L);
+    js.onerror = () => { leafletP = null; reject(new Error('leaflet')); };
+    document.head.appendChild(js);
+  });
+  return leafletP;
+}
+async function drawMap(segs, opt = {}) {
+  const box = $('#map'); if (!box) return;
+  const all = segs.flatMap((s) => s.pts);
+  if (all.length < 2) { box.remove(); return; }
+  let L;
+  try { L = await loadLeaflet(); } catch { box.remove(); return; }
+  if (!document.body.contains(box)) return; // l'écran a changé entre-temps
+  if (mapInst) { mapInst.remove(); mapInst = null; }
+  const map = L.map(box, { zoomControl: false, attributionControl: true, tap: false });
+  mapInst = map;
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19, subdomains: 'abcd',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>'
+  }).addTo(map);
+  for (const s of segs) {
+    if (s.walk) L.polyline(s.pts, { color: s.color, weight: 4, dashArray: '2 8', lineCap: 'round' }).addTo(map);
+    else {
+      L.polyline(s.pts, { color: '#FFFFFF', weight: 9, opacity: 0.9 }).addTo(map);
+      L.polyline(s.pts, { color: s.color, weight: 5 }).addTo(map);
+      s.pts.forEach((p, i) => L.circleMarker(p, {
+        radius: i === 0 || i === s.pts.length - 1 ? 6 : 4, color: s.color, weight: 3,
+        fillColor: '#FFFFFF', fillOpacity: 1
+      }).addTo(map));
+    }
+  }
+  if (opt.first) L.circleMarker(opt.first, { radius: 8, color: '#FFFFFF', weight: 3, fillColor: segs[0].color, fillOpacity: 1 }).addTo(map);
+  map.fitBounds(L.latLngBounds(all), { padding: [24, 24] });
 }
 
 /* ---------- tirer pour actualiser ---------- */
@@ -750,6 +808,7 @@ async function refreshScreen() {
   }
   main.addEventListener('touchstart', (e) => {
     if (busy || e.touches.length !== 1 || sheet.classList.contains('open')) return;
+    if (e.target.closest('.map-box')) return; // on déplace la carte, pas la page
     sc = e.target.closest('.scroll');
     if (!sc || sc.scrollTop > 0) { sc = null; return; }
     startY = e.touches[0].clientY; dy = 0; armed = false;
@@ -908,8 +967,21 @@ function renderTrip() {
       </div></header>
     <div class="scroll stack">
       <p class="small" style="margin:0 4px">${c.dur} min · ${c.transfers ? c.transfers + ' changement' + (c.transfers > 1 ? 's' : '') : 'direct'}${S.q.date !== todayStr() ? ' · ' + esc(dateLabel(S.q.date)) : ''}</p>
+      <div class="map-box" id="map"></div>
       <div class="card" style="padding:4px 0 8px">${parts}</div>
     </div>`;
+  // Carte : chaque trajet en couleur de ligne, la marche en pointillé
+  const segs = [];
+  for (const s of secs) {
+    if (s.journey) {
+      const pts = (s.journey.passList || []).map((p) => coordOf(p.station)).filter(Boolean);
+      if (pts.length > 1) segs.push({ pts, color: lineStyle(s.journey.category, s.journey.number).bg, walk: false });
+    } else {
+      const a = coordOf(s.departure && s.departure.station), b = coordOf(s.arrival && s.arrival.station);
+      if (a && b) segs.push({ pts: [a, b], color: '#8A8F98', walk: true });
+    }
+  }
+  drawMap(segs);
 }
 
 /* ---------- TRAJETS PENDULAIRES ---------- */
