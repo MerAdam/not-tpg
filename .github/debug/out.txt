@@ -1,0 +1,10 @@
+200 25153 https://tiles.openfreemap.org/styles/positron
+200 43079 https://tiles.openfreemap.org/styles/liberty
+200 48713 https://tiles.openfreemap.org/styles/bright
+200 20959 https://tiles.openfreemap.org/styles/dark
+200 22234 https://tiles.openfreemap.org/styles/fiord
+200 803086 https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js
+200 65534 https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css
+200 10451 https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js
+200 66798 https://basemaps.cartocdn.com/gl/positron-gl-style/style.json
+200 67090 https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json
