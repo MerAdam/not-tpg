@@ -297,8 +297,10 @@ const shiftReady = (async () => {
     const first = Math.min(...(j.stationboard || []).map((d) => parseISO(d.stop.departure).getTime()));
     if (!isFinite(first)) return;
     const diff = Math.round((first - now.getTime()) / 60000);
-    API_SHIFT = diff >= 45 && diff <= 75 ? -60 : diff <= -45 && diff >= -75 ? 60 : 0;
-    store.set('nt_api_shift', { v: API_SHIFT, at: Date.now() });
+    const v = diff >= 45 && diff <= 75 ? -60 : diff <= -45 && diff >= -75 ? 60 : diff >= -15 && diff <= 20 ? 0 : null;
+    if (v === null) { if (saved) API_SHIFT = saved.v; return; } // mesure peu fiable (nuit) : on garde la dernière valeur
+    API_SHIFT = v;
+    store.set('nt_api_shift', { v, at: Date.now() });
   } catch {}
 })();
 function shiftPath(path) {

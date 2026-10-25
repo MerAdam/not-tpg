@@ -3,7 +3,7 @@
 //  - trajets pendulaires : de 30 min avant le départ jusqu'au départ, les jours choisis ;
 //  - cloches : un départ précis, jusqu'à son passage à l'arrêt.
 // Un verrou Redis garantit au plus une exécution par minute, même si l'adresse est appelée plus souvent.
-const { redis, pipeline } = require('./_redis');
+const { redis, pipeline, getJSON, setJSON } = require('./_redis');
 const { send } = require('./_webpush');
 const { parse: parseInfoTrafic } = require('./_infotrafic');
 
@@ -24,15 +24,85 @@ function zurich(now = new Date()) {
 }
 
 // Décalage d'heure de l'API (voir index.html) : mesuré sur Bel-Air à chaque vérification
+// Renvoie -60, 0 ou 60, ou null si la mesure n'est pas fiable (nuit, API indisponible)
 async function measureShift() {
   try {
     const z = zurich();
+    if (z.min < 360 || z.min > 1380) return null; // la nuit, Bel-Air est trop peu desservi pour mesurer
     const j = await (await fetch(`${API}/stationboard?id=8587387&limit=6&datetime=${encodeURIComponent(z.date + ' ' + m2t(z.min))}`)).json();
     const first = Math.min(...(j.stationboard || []).map((d) => parseISO(d.stop.departure).getTime()));
-    if (!isFinite(first)) return 0;
+    if (!isFinite(first)) return null;
     const diff = Math.round((first - Date.now()) / 60000);
-    return diff >= 45 && diff <= 75 ? -60 : diff <= -45 && diff >= -75 ? 60 : 0;
-  } catch { return 0; }
+    if (diff >= 45 && diff <= 75) return -60;
+    if (diff <= -45 && diff >= -75) return 60;
+    return diff >= -15 && diff <= 20 ? 0 : null;
+  } catch { return null; }
+}
+
+// Décalage UTC de Genève en minutes (60 en hiver, 120 en été)
+function zurichOffset(now = new Date()) {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Zurich', timeZoneName: 'shortOffset' }).formatToParts(now);
+  const m = (p.find((x) => x.type === 'timeZoneName') || {}).value.match(/GMT([+-]\d+)(?::(\d+))?/);
+  return m ? Number(m[1]) * 60 + Math.sign(Number(m[1])) * Number(m[2] || 0) : 60;
+}
+
+async function broadcast(payload) {
+  const keys = [];
+  let cursor = '0';
+  do {
+    const [next, batch] = await redis('SCAN', cursor, 'MATCH', 'sub:*', 'COUNT', 500);
+    cursor = next; keys.push(...batch);
+  } while (cursor !== '0');
+  if (!keys.length) return 0;
+  const subs = await pipeline(keys.map((k) => ['GET', k]));
+  let ok = 0;
+  await Promise.all(subs.map(async (v, i) => {
+    if (!v) return;
+    const r = await send(JSON.parse(v), payload);
+    if (r === 'ok') ok++;
+    if (r === 'gone') await redis('DEL', keys[i]);
+  }));
+  return ok;
+}
+
+// Suivi du changement d'heure et du décalage de l'API. Après un passage à l'heure
+// d'été ou d'hiver, une notification confirme à tous les appareils que l'app s'est adaptée.
+async function timeTick() {
+  const st = (await getJSON('timecheck')) || {};
+  const off = zurichOffset();
+  let dirty = false;
+  if (st.off == null) { st.off = off; dirty = true; }
+  else if (st.off !== off) {
+    st.pending = off > st.off ? 'été' : 'hiver';
+    st.off = off; dirty = true;
+  }
+  if (!st.shiftAt || Date.now() - st.shiftAt > 10 * 60000 || st.pending) {
+    const m = await measureShift();
+    if (m != null) {
+      const prev = st.shift;
+      st.shift = m; st.shiftAt = Date.now(); dirty = true;
+      if (st.pending) {
+        const saison = st.pending; delete st.pending;
+        await broadcast({
+          title: `Passage à l’heure d’${saison}`,
+          body: m
+            ? 'Not TPG s’est adapté : l’horaire en ligne est décalé d’une heure, l’app compense automatiquement. Tes départs, itinéraires et notifications sont à la bonne heure.'
+            : 'Not TPG s’est adapté : les horaires sont à la bonne heure, aucune correction n’est nécessaire.',
+          tag: 'changement-heure'
+        });
+      } else if (prev != null && prev !== m) {
+        await broadcast({
+          title: 'Horaires',
+          body: m
+            ? 'L’horaire en ligne s’est décalé d’une heure : Not TPG compense automatiquement.'
+            : 'L’horaire en ligne est revenu à la bonne heure : Not TPG a désactivé sa correction.',
+          tag: 'changement-heure'
+        });
+      }
+    }
+  }
+  if (dirty) await setJSON('timecheck', st);
+  return st.shift || 0;
 }
 function shiftDT(date, time, delta) {
   if (!delta) return [date, time];
@@ -75,6 +145,7 @@ module.exports = async (req, res) => {
     const lock = await redis('SET', 'check:lock', String(started), 'NX', 'EX', 50);
     if (lock !== 'OK') return res.status(200).json({ skipped: 'déjà vérifié il y a moins d’une minute' });
 
+    const SHIFT = await timeTick();
     const wids = (await redis('SMEMBERS', 'watches')) || [];
     if (!wids.length) return res.status(200).json({ watches: 0 });
     const raw = await pipeline(wids.map((w) => ['GET', `watch:${w}`]));
@@ -109,7 +180,6 @@ module.exports = async (req, res) => {
     } catch {}
 
     // Requêtes partagées entre utilisateurs
-    const SHIFT = await measureShift();
     const connCache = new Map(), boardCache = new Map();
     const getConns = (from, to, time) => {
       const k = [from, to, time].join('|');
