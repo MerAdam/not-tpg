@@ -127,7 +127,8 @@ async function buildFromGtfs() {
     all.set(r[i.stop_id], {
       id: r[i.stop_id], name: r[i.stop_name], lat: +r[i.stop_lat], lon: +r[i.stop_lon],
       parent: i.parent_station != null ? r[i.parent_station] : '',
-      didok: i.didok != null ? r[i.didok] : ''
+      didok: i.didok != null ? r[i.didok] : '',
+      plat: i.platform_code != null ? (r[i.platform_code] || '').trim() : ''
     });
   });
 
@@ -198,6 +199,13 @@ async function buildFromGtfs() {
     out.set(didok, e);
   }
   const stops = [...out.values()].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  // Position exacte de chaque quai (lettre) des arrêts tpg
+  const quays = {};
+  for (const q of all.values()) {
+    if (!q.plat || !q.didok || !out.has(q.didok)) continue;
+    (quays[q.didok] ||= {})[q.plat.toUpperCase()] = [+(+q.lat).toFixed(6), +(+q.lon).toFixed(6)];
+  }
+  report.counts.quays = Object.values(quays).reduce((n, o) => n + Object.keys(o).length, 0);
   report.counts.stops = stops.length;
 
   const gtfsColors = {};
@@ -208,7 +216,7 @@ async function buildFromGtfs() {
   }
   report.colors.gtfs = Object.keys(gtfsColors).length;
   const lineNames = [...new Set([...routes.values()].map((r) => r.short.toUpperCase()).filter(Boolean))];
-  return { stops, gtfsColors, lineNames, patterns: patternsOut };
+  return { stops, gtfsColors, lineNames, patterns: patternsOut, quays };
 }
 
 // ---------- tpg.ch ----------
@@ -301,6 +309,10 @@ async function main() {
   if (gtfs && gtfs.stops.length >= MIN_STOPS) {
     writeFileSync(`${OUT}/stops.json`, JSON.stringify({ generated: new Date().toISOString(), source: report.gtfsUrl, stops: gtfs.stops }));
     note(`stops.json : ${gtfs.stops.length} arrêts`);
+    if (report.counts.quays > 300) {
+      writeFileSync(`${OUT}/quays.json`, JSON.stringify({ generated: new Date().toISOString(), quays: gtfs.quays }));
+      note(`quays.json : ${report.counts.quays} quais`);
+    }
     if (report.counts.patterns > 50) {
       writeFileSync(`${OUT}/patterns.json`, JSON.stringify({ generated: new Date().toISOString(), lines: gtfs.patterns }));
       note(`patterns.json : ${report.counts.patterns} parcours`);

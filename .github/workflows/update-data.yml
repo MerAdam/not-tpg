@@ -1,4 +1,4 @@
-name: Mise à jour des données (arrêts et couleurs tpg)
+name: Mise à jour des données (arrêts, quais, couleurs et tracés tpg)
 
 on:
   workflow_dispatch:
@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - scripts/build-data.mjs
+      - scripts/build-shapes-osm.mjs
       - .github/workflows/update-data.yml
   schedule:
     - cron: '17 3 1 * *'   # le 1er de chaque mois
@@ -29,6 +30,9 @@ jobs:
           node-version: 20
       - name: Générer les données
         run: node scripts/build-data.mjs
+      - name: Tracés des lignes (OpenStreetMap)
+        continue-on-error: true
+        run: node scripts/build-shapes-osm.mjs
       - name: Enregistrer les changements
         run: |
           git config user.name "github-actions[bot]"
