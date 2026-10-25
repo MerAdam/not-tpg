@@ -1,0 +1,5 @@
+https://vectortiles.geo.admin.ch/styles/ch.swisstopo.basemap.vt/style.json
+https://vectortiles.geo.admin.ch/styles/ch.swisstopo.lightbasemap.vt/style.json
+https://vectortiles.geo.admin.ch/styles/ch.swisstopo.imagerybasemap.vt/style.json
+https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/15/17025/11597.jpeg
+https://tiles.openfreemap.org/styles/liberty

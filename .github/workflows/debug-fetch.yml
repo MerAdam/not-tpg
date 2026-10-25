@@ -1,0 +1,17 @@
+name: Debug (temporaire)
+on:
+  push:
+    branches: [main]
+    paths: [.github/debug/request.txt]
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          while read -r url; do echo "$(curl -s -o /dev/null -w '%{http_code} %{size_download} %{content_type}' -H 'Origin: https://trulynot-tpg.vercel.app' -D - "$url" | tr -d '\r' | grep -i 'access-control-allow-origin' | head -1) $(curl -s -o /dev/null -w '%{http_code} %{size_download}' "$url") $url" >> .github/debug/out.txt; done < .github/debug/request.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/debug && git commit -m "debug: réponse" && git pull --rebase origin main && git push origin HEAD:main || true
