@@ -724,7 +724,7 @@ function drawBoard() {
     return `<button class="dep" data-act="openJourney" data-i="${i}"${past ? ' style="opacity:.5"' : ''}>${badge(d.category, d.number)}
       <div class="dep-to"><span class="to">${esc(short(d.to))}</span>
         <span class="small">Prévu ${hm(planned)}${d.stop.platform ? ' · quai ' + esc(d.stop.platform) : ''}</span>
-        ${warnHtml(alertsFor([d.number], [S.stop.id, ...(d.passList || []).map((p) => p.station && p.station.id)], real))}</div>
+        ${warnHtml(alertsFor([d.number], [S.stop.id, ...(d.passList || []).map((p) => p.station && p.station.id)], real, d.to))}</div>
       <div class="dep-r"><span class="big">${big}</span>${delay > 0 ? `<span class="st-late">+${delay} min</span>` : ''}</div></button>`;
   }).join('');
   $('#deps').innerHTML = rows || '<p class="empty">Aucun départ pour ce filtre.</p>';
@@ -760,9 +760,9 @@ function renderJourney() {
     <div class="scroll stack">
       ${(() => {
         const t0 = parseISO(d.stop.departure) || new Date();
-        const al = alertsFor([d.number], [S.stop.id, ...list.map((p) => p.station && p.station.id)], t0);
+        const al = alertsFor([d.number], [S.stop.id, ...list.map((p) => p.station && p.station.id)], t0, d.to);
         return al.map((a) => `<button class="alert-banner" data-act="alertOne" data-id="${esc(a.id)}"><span style="color:var(--bad);margin-top:1px">${WARN_ICON.replace(/13/g, '18')}</span>
-          <span class="stack" style="gap:2px"><span class="a-tag">Attention${CAUSES[a.cause] ? ' · ' + esc(CAUSES[a.cause]) : ''}</span><span class="a-title">${esc(a.title || 'Perturbation')}</span></span></button>`).join('');
+          <span class="stack" style="gap:2px"><span class="a-tag">Attention${causeLabel(a) ? ' · ' + esc(causeLabel(a)) : ''}</span><span class="a-title">${esc(a.title || 'Perturbation')}</span></span></button>`).join('');
       })()}
       <p class="small" style="margin:0 4px">Depuis ${esc(short(S.stop.name))}${list.length ? ' · ' + list.length + ' arrêts' : ''}${d.operator ? ' · ' + esc(d.operator) : ''}</p>
       ${list.length
@@ -1019,7 +1019,7 @@ function renderTrip() {
         <div class="leg-t"></div><div class="rail"></div>
         <div class="leg-b">
           <div class="mid">${badge(j.category, j.number, true)}<span style="font-weight:800">direction ${esc(short(j.to))}</span></div>
-          ${warnHtml(alertsFor([j.number], (j.passList || []).map((p) => p.station && p.station.id), dep || new Date()))}
+          ${warnHtml(alertsFor([j.number], (j.passList || []).map((p) => p.station && p.station.id), dep || new Date(), j.to))}
           ${pass.length ? `<details class="pass"><summary>${pass.length} arrêt${pass.length > 1 ? 's' : ''} intermédiaire${pass.length > 1 ? 's' : ''}</summary>
             <ol>${pass.map((p) => { const t = parseISO(p.departure || p.arrival); return `<li><span>${t ? hm(t) : ''}</span><span>${esc(short(p.station && p.station.name))}</span></li>`; }).join('')}</ol></details>` : ''}
         </div>
@@ -1160,47 +1160,31 @@ function drawCands() {
   }));
 }
 
-/* ---------- PERTURBATIONS (SIRI-SX via api/alerts-*) ---------- */
+/* ---------- PERTURBATIONS (info trafic tpg via api/infotrafic) ---------- */
 let ALERTS = [];
-const AL = store.get('nt_alerts', { planned: [], unplanned: [], plannedAt: 0, unplannedAt: 0 });
+const AL = (() => { const v = store.get('nt_alerts2', null); return v && Array.isArray(v.list) ? v : { list: [], at: 0 }; })();
 let alertsError = null, alertsLoading = false, alertsSig = '';
 const WARN_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 16.5h-19z"/><path d="M12 10v4M12 17h.01"/></svg>';
-const CAUSES = {
-  constructionWork: 'Travaux', roadworks: 'Travaux', maintenanceWork: 'Travaux', accident: 'Accident', roadClosed: 'Route fermée',
-  technicalProblem: 'Problème technique', vehicleFailure: 'Véhicule en panne', demonstration: 'Manifestation', specialEvent: 'Événement',
-  procession: 'Cortège', march: 'Manifestation', congestion: 'Trafic dense', trafficJam: 'Trafic dense', weather: 'Météo',
-  heavySnowFall: 'Neige', flooding: 'Inondation', fire: 'Incendie', medicalEmergency: 'Urgence médicale', policeActivity: 'Intervention de police',
-  emergencyServicesCall: 'Intervention des secours', obstructionOnTheLine: 'Obstacle sur la voie', powerProblem: 'Panne de courant', undefinedProblem: 'Perturbation'
-};
-function mergeAlerts() {
-  const m = new Map();
-  for (const a of AL.planned || []) m.set(a.id || a.title, a);
-  for (const a of AL.unplanned || []) m.set(a.id || a.title, a); // version la plus fraîche
-  ALERTS = [...m.values()].filter((a) => a.title || a.text);
-  ALERTS.forEach((a) => { if (!a.id) { let h = 0; for (const c of (a.title || '') + JSON.stringify(a.periods)) h = (h * 31 + c.charCodeAt(0)) | 0; a.id = 'x' + (h >>> 0).toString(36); } });
-}
+const causeLabel = (a) => a.cause || '';
+function mergeAlerts() { ALERTS = (AL.list || []).filter((a) => a.title || a.text); }
 mergeAlerts();
+// Info trafic tpg (api/infotrafic, cache 60 s côté serveur)
 async function loadAlerts(force) {
   if (alertsLoading) return;
+  if (!force && Date.now() - (AL.at || 0) < 55000) return;
   alertsLoading = true;
-  const now = Date.now();
-  const jobs = [];
-  if (force || now - (AL.unplannedAt || 0) > 55000) jobs.push(['unplanned', '/api/alerts-unplanned']);
-  if (now - (AL.plannedAt || 0) > 29 * 60000) jobs.push(['planned', '/api/alerts-planned']);
   let err = null;
-  await Promise.all(jobs.map(async ([k, url]) => {
-    try {
-      const r = await fetch(url);
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
-      AL[k] = j.alerts || []; AL[k + 'At'] = Date.now();
-    } catch (e) { err = e.message; }
-  }));
+  try {
+    const r = await fetch('/api/infotrafic');
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
+    AL.list = j.alerts || []; AL.at = Date.now();
+    store.set('nt_alerts2', AL);
+  } catch (e) { err = e.message; }
   alertsLoading = false;
   alertsError = err;
-  store.set('nt_alerts', AL);
   mergeAlerts();
-  const sig = ALERTS.map((a) => a.id + a.version).join('|') + '#' + (err ? 1 : 0);
+  const sig = ALERTS.map((x) => x.id).join('|') + '#' + (err ? 1 : 0);
   if (sig !== alertsSig) { alertsSig = sig; onAlertsChanged(); }
 }
 function onAlertsChanged() {
@@ -1223,14 +1207,23 @@ function nextStart(a, t) {
   const starts = (a.periods || []).map(([s]) => ts(s)).filter((v) => !isNaN(v) && v > x);
   return starts.length ? Math.min(...starts) : null;
 }
-// Perturbations qui touchent une liaison (lignes, arrêts desservis, heure)
-function alertsFor(lines, stops, t) {
+// Perturbations qui touchent une liaison : même ligne, même direction (si la perturbation
+// n'en concerne qu'une), arrêts desservis si connus, et liaison dans les prochaines 24 h
+const sameDir = (dir, to) => {
+  if (!dir || !to) return true;
+  const a = fold(dir).replace(/ /g, ''), b = fold(to).replace(/ /g, '');
+  return a.includes(b) || b.includes(a);
+};
+function alertsFor(lines, stops, t, to) {
   const L = (lines || []).map((x) => String(x || '').trim().toUpperCase()).filter(Boolean);
   const st = new Set((stops || []).filter(Boolean).map(String));
+  const when = t || new Date();
+  if (when.getTime() > Date.now() + 24 * 3600e3 || when.getTime() < Date.now() - 6 * 3600e3) return [];
   return ALERTS.filter((a) => {
-    if (!activeAt(a, t || new Date())) return false;
+    if (!activeAt(a, when)) return false;
     if (a.lines && a.lines.length) {
       if (!a.lines.some((l) => L.includes(l))) return false;
+      if (!sameDir(a.direction, to)) return false;
       return !a.stops || !a.stops.length || !st.size || a.stops.some((s) => st.has(s));
     }
     return a.stops && a.stops.some((s) => st.has(s));
@@ -1258,17 +1251,16 @@ function periodLabel(a) {
 }
 const lineBadges = (a, max = 8) => (a.lines || []).slice(0, max).map((l) => badge('B', l, true)).join('') + ((a.lines || []).length > max ? `<span class="small">+${a.lines.length - max}</span>` : '');
 function alertDetailHtml(a) {
-  const stopNames = (a.stopNames || []).map(short);
   return `
     <div class="stack" style="gap:10px;margin-bottom:18px">
-      <div class="row gap" style="flex-wrap:wrap">${lineBadges(a, 20)}${CAUSES[a.cause] ? `<span class="a-tag">${esc(CAUSES[a.cause])}</span>` : ''}${a.planned ? '<span class="small">· prévu</span>' : ''}</div>
+      <div class="row gap" style="flex-wrap:wrap">${lineBadges(a, 20)}${causeLabel(a) ? `<span class="a-tag">${esc(causeLabel(a))}</span>` : ''}</div>
       <h2 style="margin:0;font-size:19px;line-height:1.3">${esc(a.title || 'Perturbation')}</h2>
       ${periodLabel(a) ? `<p class="small" style="margin:0;font-weight:700">${esc(periodLabel(a))}</p>` : ''}
       ${a.text ? `<p class="a-text">${esc(a.text)}</p>` : ''}
       ${a.consequence ? `<p class="a-text"><b>Conséquences :</b> ${esc(a.consequence)}</p>` : ''}
       ${a.recommendation ? `<p class="a-text"><b>Conseil :</b> ${esc(a.recommendation)}</p>` : ''}
       ${a.duration ? `<p class="a-text"><b>Durée :</b> ${esc(a.duration)}</p>` : ''}
-      ${stopNames.length ? `<p class="small" style="margin:0"><b>Arrêts concernés :</b> ${esc(stopNames.join(', '))}</p>` : ''}
+      ${a.direction ? `<p class="small" style="margin:0"><b>Direction :</b> ${esc(a.direction)}</p>` : '<p class="small" style="margin:0"><b>Direction :</b> les deux</p>'}
     </div>`;
 }
 function openAlerts(ids) {
@@ -1283,7 +1275,7 @@ function connAlerts(c) {
   for (const s of c.raw.sections || []) {
     if (!s.journey) continue;
     const t = parseISO(s.departure && s.departure.departure) || c.dep;
-    for (const a of alertsFor([s.journey.number], (s.journey.passList || []).map((p) => p.station && p.station.id), t)) seen.set(a.id, a);
+    for (const a of alertsFor([s.journey.number], (s.journey.passList || []).map((p) => p.station && p.station.id), t, s.journey.to)) seen.set(a.id, a);
   }
   return [...seen.values()];
 }
@@ -1301,12 +1293,12 @@ function renderInfos() {
     <button class="card alert-card" data-act="alertOne" data-id="${esc(a.id)}">
       <div class="row gap" style="justify-content:space-between;width:100%">
         <span class="a-lines">${lineBadges(a) || '<span class="small">Réseau tpg</span>'}</span>
-        ${CAUSES[a.cause] ? `<span class="a-tag">${esc(CAUSES[a.cause])}</span>` : ''}
+        ${causeLabel(a) ? `<span class="a-tag">${esc(causeLabel(a))}</span>` : ''}
       </div>
       <span class="a-title">${esc(a.title || 'Perturbation')}</span>
       ${periodLabel(a) ? `<span class="small">${esc(periodLabel(a))}</span>` : ''}
     </button>`;
-  const upd = Math.max(AL.unplannedAt || 0, AL.plannedAt || 0);
+  const upd = AL.at || 0;
   main.innerHTML = `
     <header class="top"><h1 class="brand sm">Infos trafic</h1></header>
     <div class="scroll stack">
@@ -1314,9 +1306,9 @@ function renderInfos() {
       <h2 class="label" style="margin:4px 4px 0">En cours${current.length ? ' · ' + current.length : ''}</h2>
       ${current.length ? current.map(card).join('') : `<div class="card empty-card">${upd ? 'Aucune perturbation en cours sur le réseau tpg.' : 'Chargement…'}</div>`}
       ${soon.length ? `<h2 class="label" style="margin:10px 4px 0">À venir · 7 jours</h2>${soon.map(card).join('')}` : ''}
-      <p class="foot">${upd ? 'Mis à jour à ' + hm(new Date(upd)) + ' · ' : ''}Source : opentransportdata.swiss (SIRI-SX). Tire vers le bas pour actualiser.</p>
+      <p class="foot">${upd ? 'Mis à jour à ' + hm(new Date(upd)) + ' · ' : ''}Source : info trafic tpg.ch. Tire vers le bas pour actualiser.</p>
     </div>`;
-  if (Date.now() - (AL.unplannedAt || 0) > 55000) loadAlerts();
+  loadAlerts();
 }
 
 /* ---------- RÉGLAGES ---------- */
