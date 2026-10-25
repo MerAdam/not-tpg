@@ -115,23 +115,12 @@ async function buildFromGtfs() {
   });
   report.counts.routes = routes.size;
 
-  const tripKind = new Map();
+  const tripKind = new Map(), tripLine = new Map();
   await readTable('trips.txt', (r, i) => {
     const rt = routes.get(r[i.route_id]);
-    if (rt) tripKind.set(r[i.trip_id], rt.kind);
+    if (rt) { tripKind.set(r[i.trip_id], rt.kind); tripLine.set(r[i.trip_id], rt.short.toUpperCase()); }
   });
   report.counts.trips = tripKind.size;
-
-  const stopKinds = new Map(); // stop_id -> Set(kind)
-  await readTable('stop_times.txt', (r, i) => {
-    const k = tripKind.get(r[i.trip_id]);
-    if (!k) return;
-    const id = r[i.stop_id];
-    let s = stopKinds.get(id);
-    if (!s) stopKinds.set(id, (s = new Set()));
-    s.add(k);
-  });
-  report.counts.stopIdsUsed = stopKinds.size;
 
   const all = new Map();
   await readTable('stops.txt', (r, i) => {
@@ -141,6 +130,61 @@ async function buildFromGtfs() {
       didok: i.didok != null ? r[i.didok] : ''
     });
   });
+
+  const didokOf = (id) => {
+    const quay = all.get(id);
+    const d = ((quay && quay.didok) || String(id).replace(/^Parent/i, '').split(':')[0]).trim();
+    return /^\d{6,9}$/.test(d) ? d : null;
+  };
+  const toMin = (t) => { const p = String(t || '').split(':').map(Number); return p.length >= 2 ? p[0] * 60 + p[1] + (p[2] || 0) / 60 : NaN; };
+
+  // Parcours types par ligne (suite d'arrêts + minutes depuis le départ), pour
+  // afficher le parcours complet d'une course, arrêts déjà passés compris.
+  const patterns = new Map(); // ligne -> Map(clé -> { s, o, n })
+  let curTrip = null, curRows = [], flushed = 0;
+  const flush = () => {
+    const rows = curRows; curRows = [];
+    if (!curTrip || rows.length < 2) return;
+    flushed++;
+    rows.sort((a, b) => a.q - b.q);
+    const seq = [], off = [], t0 = rows[0].t;
+    for (const r of rows) {
+      const d = didokOf(r.id);
+      if (!d || seq[seq.length - 1] === d) continue;
+      seq.push(d); off.push(Math.max(0, Math.round(r.t - t0)));
+    }
+    if (seq.length < 2) return;
+    const line = tripLine.get(curTrip);
+    let m = patterns.get(line); if (!m) patterns.set(line, (m = new Map()));
+    const key = seq.join(',');
+    const e = m.get(key);
+    if (e) e.n++; else m.set(key, { s: seq, o: off, n: 1 });
+  };
+
+  const stopKinds = new Map(); // stop_id -> Set(kind)
+  await readTable('stop_times.txt', (r, i) => {
+    const trip = r[i.trip_id];
+    const k = tripKind.get(trip);
+    if (!k) return;
+    const id = r[i.stop_id];
+    let s = stopKinds.get(id);
+    if (!s) stopKinds.set(id, (s = new Set()));
+    s.add(k);
+    if (trip !== curTrip) { flush(); curTrip = trip; }
+    curRows.push({ id, q: Number(r[i.stop_sequence]), t: toMin(r[i.departure_time] || r[i.arrival_time]) });
+  });
+  flush();
+  report.counts.stopIdsUsed = stopKinds.size;
+  report.counts.patternTrips = flushed;
+
+  const patternsOut = {};
+  for (const [line, m] of patterns) {
+    const list = [...m.values()].sort((a, b) => b.n - a.n);
+    const min = Math.max(2, Math.round(list[0].n * 0.02));
+    patternsOut[line] = list.filter((p) => p.n >= min).slice(0, 12);
+  }
+  report.counts.patternLines = Object.keys(patternsOut).length;
+  report.counts.patterns = Object.values(patternsOut).reduce((a, l) => a + l.length, 0);
 
   const out = new Map();
   for (const [id, kinds] of stopKinds) {
@@ -164,7 +208,7 @@ async function buildFromGtfs() {
   }
   report.colors.gtfs = Object.keys(gtfsColors).length;
   const lineNames = [...new Set([...routes.values()].map((r) => r.short.toUpperCase()).filter(Boolean))];
-  return { stops, gtfsColors, lineNames };
+  return { stops, gtfsColors, lineNames, patterns: patternsOut };
 }
 
 // ---------- tpg.ch ----------
@@ -257,6 +301,10 @@ async function main() {
   if (gtfs && gtfs.stops.length >= MIN_STOPS) {
     writeFileSync(`${OUT}/stops.json`, JSON.stringify({ generated: new Date().toISOString(), source: report.gtfsUrl, stops: gtfs.stops }));
     note(`stops.json : ${gtfs.stops.length} arrêts`);
+    if (report.counts.patterns > 50) {
+      writeFileSync(`${OUT}/patterns.json`, JSON.stringify({ generated: new Date().toISOString(), lines: gtfs.patterns }));
+      note(`patterns.json : ${report.counts.patterns} parcours`);
+    }
   } else note('stops.json non mis à jour (résultat incomplet)');
 
   const tpgch = await colorsFromTpgCh();
