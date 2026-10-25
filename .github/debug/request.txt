@@ -1,2 +1,0 @@
-https://trulynot-tpg.vercel.app/api/walk?action=route&from=46.2045,6.1252&to=46.2043,6.1271
-https://trulynot-tpg.vercel.app/api/walk?action=matrix&from=46.2045,6.1252&to=46.2043,6.1271|46.2069,6.1395
