@@ -768,13 +768,66 @@ function mapLocate(silent) {
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
 }
 
+// Tracé d'un trajet complet : marche (bleu pointillé), chaque ligne à sa couleur, changements à pied
+const WALK_STYLE = { color: '#2563EB', weight: 5, opacity: 0.9, dashArray: '1 10', lineCap: 'round', lineJoin: 'round' };
+function walkLine(path) { const L = window.L; L.polyline(path, WALK_STYLE).addTo(M.layers); }
+function ptOfStation(st) {
+  if (!st) return null;
+  const id = String(st.id || '').replace(/^Parent/i, '').split(':')[0];
+  const s = id && stopById(id);
+  if (s) return [s.lat, s.lon];
+  const c = st.coordinate;
+  if (c && c.x && c.y) { let a = +c.x, b = +c.y; if (a < b) [a, b] = [b, a]; if (a > 44 && a < 49 && b > 4 && b < 12) return [a, b]; }
+  return null;
+}
+function lineBadgeIcon(cat, num) {
+  const c = lineStyle(cat, num);
+  return window.L.divIcon({ className: '', html: `<span class="badge-sm" style="background:${c.bg};color:${c.fg};box-shadow:0 0 0 3px #fff">${esc(num || cat || '')}</span>`, iconSize: [30, 22], iconAnchor: [15, 11] });
+}
+function drawTripOnMap(sel) {
+  const L = window.L, all = [];
+  const stop0 = [sel.stop.lat, sel.stop.lon];
+  // 1) À pied jusqu'au premier arrêt
+  const w1 = sel.walk && sel.walk.coords ? sel.walk.coords : [M.origin, stop0];
+  walkLine(w1); all.push(...w1);
+  let prevEnd = null;
+  const secs = (sel.c.raw && sel.c.raw.sections) || [];
+  secs.forEach((s, k) => {
+    const a = ptOfStation(s.departure && s.departure.station), b = ptOfStation(s.arrival && s.arrival.station);
+    if (!s.journey) { // marche entre deux arrêts (changement)
+      const path = [a || prevEnd, b].filter(Boolean);
+      if (path.length === 2) { walkLine(path); all.push(...path); }
+      prevEnd = b || prevEnd;
+      return;
+    }
+    const pts = (s.journey.passList || []).map((p) => ptOfStation(p.station)).filter(Boolean);
+    const path = pts.length >= 2 ? pts : [a, b].filter(Boolean);
+    // Changement sur un autre quai / arrêt voisin : petit bout à pied
+    if (prevEnd && path[0] && distM(prevEnd[0], prevEnd[1], path[0][0], path[0][1]) > 15) walkLine([prevEnd, path[0]]);
+    const c = lineStyle(s.journey.category, s.journey.number);
+    L.polyline(path, { color: '#FFFFFF', weight: 9, opacity: 0.95, lineJoin: 'round', lineCap: 'round' }).addTo(M.layers);
+    L.polyline(path, { color: c.bg, weight: 5.5, lineJoin: 'round', lineCap: 'round' }).addTo(M.layers);
+    path.slice(1, -1).forEach((p) => L.circleMarker(p, { radius: 3, color: c.bg, weight: 2, fillColor: '#fff', fillOpacity: 1 }).addTo(M.layers));
+    if (path[0]) L.marker(path[0], { icon: lineBadgeIcon(s.journey.category, s.journey.number), zIndexOffset: 900 + k }).addTo(M.layers);
+    all.push(...path);
+    prevEnd = path[path.length - 1];
+  });
+  // 3) À pied de l'arrêt d'arrivée jusqu'à l'adresse
+  if (M.dest && prevEnd && sel.endWalk) {
+    const end = [M.dest.lat, M.dest.lon];
+    const w2 = sel.endRoute && sel.endRoute.coords ? sel.endRoute.coords : [prevEnd, end];
+    walkLine(w2); all.push(...w2);
+  }
+  if (prevEnd) L.circleMarker(prevEnd, { radius: 6, color: '#fff', weight: 3, fillColor: '#15171C', fillOpacity: 1 }).addTo(M.layers);
+  return all.length ? all : [stop0];
+}
 function drawMapLayers() {
   const L = window.L; if (!M.map || !L) return;
   M.layers.clearLayers();
   const bounds = [];
   if (M.origin) { L.marker(M.origin, { icon: pinIcon('me-dot'), interactive: false, zIndexOffset: 1000 }).addTo(M.layers); bounds.push(M.origin); }
   // Arrêts proches (cliquables : ouvrent les départs)
-  const near = M.origin ? nearestStops(M.origin, 12, 700) : [];
+  const near = M.origin && !M.sel ? nearestStops(M.origin, 12, 700) : []; // trajet choisi : on n'affiche que lui
   const shown = new Set();
   for (const { s } of near) {
     shown.add(s.id);
@@ -784,21 +837,17 @@ function drawMapLayers() {
       .on('click', () => { const r = M.results && M.results.find((x) => x.stop.id === s.id); if (r) mapSelect(r); else openStopBoard(s); })
       .addTo(M.layers);
   }
-  if (M.results) for (const r of M.results) if (!shown.has(r.stop.id)) {
+  if (M.results && !M.sel) for (const r of M.results) if (!shown.has(r.stop.id)) {
     L.marker([r.stop.lat, r.stop.lon], { icon: pinIcon('stop-pin') }).on('click', () => mapSelect(r)).addTo(M.layers);
   }
   if (M.dest) { L.marker([M.dest.lat, M.dest.lon], { icon: pinIcon('dest-pin'), interactive: false }).addTo(M.layers); bounds.push([M.dest.lat, M.dest.lon]); }
   if (M.sel) {
-    const st = [M.sel.stop.lat, M.sel.stop.lon];
-    const path = M.sel.walk && M.sel.walk.coords ? M.sel.walk.coords : [M.origin, st];
-    L.polyline(path, { color: '#2563EB', weight: 5, opacity: 0.85, dashArray: M.sel.walk && M.sel.walk.coords ? null : '2 9', lineCap: 'round' }).addTo(M.layers);
-    const c = lineStyle(M.sel.first.cat, M.sel.first.num);
-    L.marker(st, { icon: window.L.divIcon({ className: '', html: `<span class="badge-sm" style="background:${c.bg};color:${c.fg};box-shadow:0 0 0 3px #fff">${esc(M.sel.first.num || '')}</span>`, iconSize: [30, 22], iconAnchor: [15, 11] }), zIndexOffset: 900 }).addTo(M.layers);
-    M.map.fitBounds(L.latLngBounds(path.concat([st])), { paddingTopLeft: [40, 90], paddingBottomRight: [40, sheetPad()], maxZoom: 18 });
+    const all = drawTripOnMap(M.sel);
+    M.map.fitBounds(L.latLngBounds(all), { paddingTopLeft: [40, 90], paddingBottomRight: [40, sheetPad()], maxZoom: 18 });
   } else if (M.walkStop && M.origin) {
     const w = M.walkStop, st = [w.stop.lat, w.stop.lon];
     const path = w.route && w.route.coords ? w.route.coords : [M.origin, st];
-    L.polyline(path, { color: '#2563EB', weight: 5, opacity: 0.85, dashArray: w.route ? null : '2 9', lineCap: 'round' }).addTo(M.layers);
+    walkLine(path);
     L.marker(st, { icon: pinIcon('dest-pin'), interactive: false, zIndexOffset: 900 }).addTo(M.layers);
     M.map.fitBounds(L.latLngBounds(path.concat([st])), { paddingTopLeft: [40, 90], paddingBottomRight: [40, sheetPad()], maxZoom: 18 });
   } else if (M.results && M.results.length && M.origin) {
@@ -1009,6 +1058,10 @@ async function mapSelect(r) {
   const sel = M.sel;
   walkApi('route', { from: M.origin.join(','), to: r.stop.lat + ',' + r.stop.lon })
     .then((w) => { if (M.sel === sel) { sel.walk = w; drawMapLayers(); drawMapPanel(); } }).catch(() => {});
+  if (r.endWalk && r.destStop && M.dest) {
+    walkApi('route', { from: r.destStop.lat + ',' + r.destStop.lon, to: M.dest.lat + ',' + M.dest.lon })
+      .then((w) => { if (M.sel === sel) { sel.endRoute = w; drawMapLayers(); } }).catch(() => {});
+  }
   try {
     const t = new Date(Date.now() + r.walk * 1000);
     const j = await api(`/stationboard?id=${encodeURIComponent(r.stop.id)}&limit=40&datetime=${encodeURIComponent(ymd(t) + ' ' + hm(t))}`);
