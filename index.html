@@ -199,6 +199,40 @@
   .a-lines{display:flex;gap:4px;flex-wrap:wrap}
   .a-tag{font-size:11px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:var(--bad)}
   .a-text{font-size:15px;line-height:1.5;white-space:pre-line;margin:0}
+  /* tutoriels */
+  .tuto-viewer{display:flex;flex-direction:column;flex:1;min-height:0}
+  .tuto-track{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  .tuto-track::-webkit-scrollbar{display:none}
+  .tuto-slide{flex:0 0 100%;scroll-snap-align:center;padding:0 16px 8px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;box-sizing:border-box}
+  .tuto-slide h2{margin:0;font-size:21px;font-weight:900;line-height:1.25}
+  .tuto-slide p{margin:0;font-size:15.5px;line-height:1.5;color:var(--muted)}
+  .tuto-slide p b{color:var(--ink)}
+  .tuto-nav{display:flex;align-items:center;gap:10px;padding:10px 16px 14px}
+  .dots{flex:1;display:flex;justify-content:center;gap:6px}
+  .dots i{width:7px;height:7px;border-radius:4px;background:var(--border2);transition:width .2s,background .2s}
+  .dots i.on{width:20px;background:var(--accent)}
+  .mock{position:relative;background:var(--ground);border:1px solid var(--line);border-radius:22px;padding:14px;display:flex;flex-direction:column;gap:8px;overflow:hidden;min-height:170px;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+  .mock .card{border-radius:12px}
+  .m-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line2);font-size:14px}
+  .m-row:last-child{border-bottom:0}
+  .m-to{flex:1;min-width:0;display:flex;flex-direction:column;font-weight:800}
+  .m-to small{font-weight:600;color:var(--muted);font-size:12px}
+  .m-big{font-weight:900;font-size:17px;text-align:right;display:flex;flex-direction:column;align-items:flex-end}
+  .m-title{font-size:20px;font-weight:900;display:flex;align-items:center;justify-content:space-between}
+  .m-field{display:flex;align-items:center;gap:8px;padding:10px 12px;font-weight:700;font-size:14px;border-bottom:1px solid var(--line2)}
+  .m-field:last-child{border-bottom:0}
+  .m-field .label{width:74px}
+  .m-btn{background:var(--accent);color:var(--on-accent);border-radius:10px;padding:10px;text-align:center;font-weight:800;font-size:14px}
+  .tap{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:var(--accent);opacity:.35;pointer-events:none;animation:tap 1.6s ease-out infinite}
+  .tap::after{content:"";position:absolute;inset:9px;border-radius:50%;background:var(--accent);opacity:1}
+  @keyframes tap{0%{transform:scale(.6);opacity:.55}70%{transform:scale(1.5);opacity:0}100%{opacity:0}}
+  @media (prefers-reduced-motion: reduce){.tap{animation:none}}
+  .tuto-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 16px;border:0;border-bottom:1px solid var(--line2);background:none}
+  .tuto-item:last-child{border-bottom:0}
+  .tuto-num{width:32px;height:32px;border-radius:16px;background:var(--seg);display:inline-flex;align-items:center;justify-content:center;font-weight:900;flex:none}
+  #welcome{position:fixed;inset:0;z-index:30;background:var(--ground);display:none;flex-direction:column;padding-top:env(safe-area-inset-top)}
+  #welcome.open{display:flex}
+  #welcome .tuto-viewer{max-width:560px;width:100%;margin:0 auto}
   .info-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:50px;padding:0 16px;border-bottom:1px solid var(--line2);font-size:15px}
   .info-row:last-child{border-bottom:0}
   .info-row a{color:var(--accent);font-weight:800;text-decoration:none;text-align:right}
@@ -481,20 +515,20 @@ function attachSuggest(input, box, onPick) {
 }
 
 /* ---------- navigation ---------- */
-const SUB = ['board', 'results', 'trip', 'new', 'journey'];
-const PARENT = { new: 'commutes', trip: 'results', journey: 'board' };
+const SUB = ['board', 'results', 'trip', 'new', 'journey', 'tutos', 'tuto'];
+const PARENT = { new: 'commutes', trip: 'results', journey: 'board', tutos: 'settings', tuto: 'tutos' };
 const parentOf = (screen) => (screen === 'trip' && S.tripParent ? S.tripParent : PARENT[screen] || 'home');
 function go(screen, push = true) {
   clearTimeout(boardTimer);
   closeSheet();
   if (push && SUB.includes(screen)) history.pushState({ s: screen }, '');
   S.screen = screen;
-  const tab = screen === 'commutes' || screen === 'new' ? 'commutes' : screen === 'settings' || screen === 'infos' ? screen : 'home';
+  const tab = screen === 'commutes' || screen === 'new' ? 'commutes' : screen === 'tutos' || screen === 'tuto' ? 'settings' : screen === 'settings' || screen === 'infos' ? screen : 'home';
   $('#tabHome').classList.toggle('on', tab === 'home');
   $('#tabCommutes').classList.toggle('on', tab === 'commutes');
   $('#tabSettings').classList.toggle('on', tab === 'settings');
   $('#tabInfos').classList.toggle('on', tab === 'infos');
-  ({ home: renderHome, board: renderBoard, results: renderResults, trip: renderTrip, commutes: renderCommutes, new: renderNew, journey: renderJourney, settings: renderSettings, infos: renderInfos })[screen]();
+  ({ home: renderHome, board: renderBoard, results: renderResults, trip: renderTrip, commutes: renderCommutes, new: renderNew, journey: renderJourney, settings: renderSettings, infos: renderInfos, tutos: renderTutos, tuto: renderTuto })[screen]();
 }
 window.addEventListener('popstate', () => go(parentOf(S.screen), false));
 document.querySelector('nav').addEventListener('click', (e) => {
@@ -1466,6 +1500,143 @@ async function toggleBell(d, stop) {
   }
 }
 
+/* ---------- TUTORIELS ---------- */
+const TUTO_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6M9 11h5"/></svg>';
+const tap = (x, y) => `<span class="tap" style="left:${x}%;top:${y}%"></span>`;
+const mock = (inner, taps = '') => `<div class="mock" aria-hidden="true">${inner}${taps}</div>`;
+const mRow = (line, to, sub, big, extra = '') => `<div class="m-row">${badge('B', line)}<div class="m-to"><span>${to}</span><small>${sub}</small>${extra}</div><div class="m-big">${big}</div></div>`;
+const mPill = (t, on) => `<span class="pill ${on ? 'set' : ''}" style="height:30px;font-size:12px;padding:0 9px;white-space:nowrap">${t} ${CARET}</span>`;
+const mWarn = (n) => `<span class="warn" style="margin-top:4px">${WARN_ICON}Attention${n ? ' (' + n + ')' : ''}</span>`;
+const mJ = (t, name, cls = '', extra = '') => `<div class="jrow ${cls}" style="padding:0 8px;grid-template-columns:50px 14px 1fr"><div class="leg-t" style="font-size:14px;padding-top:7px">${t}</div><div class="rail"><span class="node" style="margin-top:10px"></span></div><div class="stn" style="font-size:14px;padding:6px 0"><span class="stn-name">${name}</span>${extra}</div></div>`;
+
+const TUTOS = [
+  { id: 'install', title: 'Installer l’app sur ton téléphone', slides: [
+    { t: 'Pourquoi l’installer ?', p: 'Ajoutée à l’écran d’accueil, Not TPG s’ouvre <b>en plein écran</b> comme une vraie app, garde tes favoris et peut t’envoyer des <b>notifications</b>. Sur iPhone, c’est même <b>obligatoire</b> pour les notifications.',
+      i: () => mock(`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:10px 6px">${['#5A1E82','#00A828','#F5A300'].map((c) => `<span style="aspect-ratio:1;border-radius:14px;background:${c};opacity:.25"></span>`).join('')}<span style="aspect-ratio:1;border-radius:14px;background:#C2410C;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px">NT</span></div><p class="small" style="text-align:center;margin:0">Not TPG sur ton écran d’accueil</p>`, tap(88, 34)) },
+    { t: 'Sur iPhone (Safari)', p: 'Ouvre le site dans <b>Safari</b>, touche le bouton <b>Partager</b> (le carré avec une flèche), puis <b>« Sur l’écran d’accueil »</b> et <b>Ajouter</b>.',
+      i: () => mock(`<div class="card list"><div class="m-field">${ICON.plus}<span>Sur l’écran d’accueil</span></div><div class="m-field" style="color:var(--muted)">Copier</div><div class="m-field" style="color:var(--muted)">Ajouter aux favoris</div></div><div style="display:flex;justify-content:center;padding-top:4px"><span style="width:40px;height:40px;border-radius:10px;border:2px solid var(--accent);display:inline-flex;align-items:center;justify-content:center;color:var(--accent)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4M5 12v8h14v-8"/></svg></span></div>`, tap(50, 87) + tap(35, 22)) },
+    { t: 'Sur Android (Chrome)', p: 'Ouvre le site dans <b>Chrome</b>, touche le menu <b>⋮</b> en haut à droite, puis <b>« Ajouter à l’écran d’accueil »</b> (ou « Installer l’application »).',
+      i: () => mock(`<div style="display:flex;justify-content:flex-end;font-size:22px;font-weight:900;padding-right:6px">⋮</div><div class="card list" style="margin-left:30%"><div class="m-field" style="color:var(--muted)">Nouvel onglet</div><div class="m-field">${ICON.plus}<span>Ajouter à l’écran d’accueil</span></div><div class="m-field" style="color:var(--muted)">Partager…</div></div>`, tap(94, 13) + tap(70, 52)) }
+  ] },
+  { id: 'arrets', title: 'Rechercher un arrêt et le mettre en favori', slides: [
+    { t: 'Rechercher un arrêt', p: 'Sur l’accueil, dans <b>Mes arrêts</b>, tape le nom d’un arrêt dans <b>« Rechercher un arrêt… »</b>. Seuls les arrêts des tpg sont proposés. Pas besoin des accents : « belair » trouve Bel-Air.',
+      i: () => mock(`<div class="card list"><div class="m-field"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="color:var(--accent)" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>belair</div><div class="m-field" style="background:var(--sugg)">Genève, Bel-Air<span class="kind">Tram</span></div><div class="m-field" style="background:var(--sugg)">Chêne-Bourg, Petit-Bel-Air<span class="kind">Bus</span></div></div>`, tap(40, 44)) },
+    { t: 'Ajouter aux favoris', p: 'L’arrêt s’ouvre avec ses départs. Touche l’<b>étoile</b> en haut à droite : elle devient jaune et l’arrêt apparaît dans <b>Mes arrêts</b>, avec une petite étoile.',
+      i: () => mock(`<div class="m-title">Bel-Air <span class="star on" style="display:inline-flex">${STAR(true)}</span></div><div class="card list">${mRow('12', 'Moillesulaz', 'Prévu 14:32 · quai B', '3 min')}${mRow('18', 'CERN', 'Prévu 14:35 · quai A', '6 min')}</div>`, tap(93, 17)) },
+    { t: 'Réorganiser tes favoris', p: 'Touche <b>Modifier</b> au-dessus de la liste : la flèche ↑ fait monter un arrêt, la corbeille le retire. Touche <b>Terminé</b> quand c’est fini.',
+      i: () => mock(`<div style="display:flex;justify-content:space-between"><span class="label">Mes arrêts</span><span style="color:var(--accent);font-weight:800;font-size:13px">Terminé</span></div><div class="card list">${['Bel-Air', 'Plainpalais', 'Jean-Jacques'].map((n, k) => `<div class="m-field" style="justify-content:space-between"><span class="fav-name">${FAV_STAR}<span>${n}</span></span><span style="display:flex;gap:6px;color:var(--muted)">${k ? ICON.up : ''}<span style="color:var(--bad);display:inline-flex">${ICON.trash}</span></span></div>`).join('')}</div>`, tap(83, 55)) }
+  ] },
+  { id: 'departs', title: 'Lire les départs', slides: [
+    { t: 'La liste des départs', p: 'Chaque ligne montre le <b>numéro</b> aux couleurs tpg, la <b>destination</b>, l’heure prévue, le <b>quai</b>, et le temps avant le départ. La liste est triée dans l’<b>ordre réel de passage</b> et se met à jour toute seule.',
+      i: () => mock(`<div class="card list">${mRow('7', 'Vessy, Grands-Esserts', 'Prévu 14:54 · quai L', '2 min')}${mRow('9', 'Thônex, Belle-Terre', 'Prévu 15:02 · quai L', '10 min')}${mRow('9', 'Vernier, Lignon Tours', 'Prévu 15:02 · quai K', '13 min')}</div>`) },
+    { t: 'MN ou HR', p: 'Le badge <b>MN / HR</b> change l’affichage. <b>MN</b> : minutes restantes, retard ou avance déjà compris. <b>HR</b> : l’heure prévue, avec en dessous l’écart et l’heure réelle (<span class="st-early">−4 · 14:26</span>, <span class="st-late">+3 · 14:33</span>).',
+      i: () => mock(`<div style="display:flex;gap:6px">${mPill('Toutes les lignes')}${mPill('Maintenant')}${mPill('HR', true)}</div><div class="card list">${mRow('7', 'Vessy, Grands-Esserts', 'Quai L', '14:30<span class="st-early" style="font-size:12px">−4 · 14:26</span>')}${mRow('9', 'Vernier, Lignon Tours', 'Quai K', '14:33<span class="st-late" style="font-size:12px">+3 · 14:36</span>')}</div>`, tap(88, 14)) },
+    { t: 'Filtrer les lignes', p: 'Touche <b>« Toutes les lignes »</b> et choisis une ou plusieurs lignes. Le filtre est <b>mémorisé pour cet arrêt</b> : la prochaine fois, il s’ouvrira déjà filtré.',
+      i: () => mock(`<h3 style="margin:0;font-size:16px">Lignes</h3><div class="chips"><span class="chip">Toutes</span>${['1', '7', '15'].map((l, k) => { const c = lineStyle('B', l); return `<span class="chip line-chip" style="${k === 1 ? `background:${c.bg};color:${c.fg};border-color:${c.bg}` : `border-color:${c.bg}`}">${l}</span>`; }).join('')}</div>`, tap(52, 55)) },
+    { t: 'Plus tôt, plus tard, autre jour', p: '<b>« Maintenant »</b> permet de choisir une <b>date et une heure</b>. Les boutons <b>Départs précédents</b> et <b>Départs suivants</b> chargent la suite. Tire la liste <b>vers le bas</b> pour actualiser.',
+      i: () => mock(`<div style="display:flex;justify-content:center"><span class="ghost" style="display:inline-flex;align-items:center;height:32px;font-size:13px">Départs précédents</span></div><div class="card list">${mRow('7', 'Vessy, Grands-Esserts', 'Prévu 14:54 · quai L', '2 min')}</div><div style="display:flex;justify-content:center"><span class="ghost" style="display:inline-flex;align-items:center;height:32px;font-size:13px">Départs suivants</span></div>`, tap(50, 16) + tap(50, 84)) }
+  ] },
+  { id: 'parcours', title: 'Voir le parcours d’un départ', slides: [
+    { t: 'Ouvrir un départ', p: 'Touche un départ dans la liste pour voir <b>tout son parcours</b>, du premier au dernier arrêt, avec l’heure de passage à chacun.',
+      i: () => mock(`<div class="card list">${mRow('10', 'Genève-Aéroport', 'Prévu 14:40 · quai C', '5 min')}${mRow('18', 'CERN', 'Prévu 14:42 · quai A', '7 min')}</div>`, tap(45, 30)) },
+    { t: 'Où en est le bus', p: 'Les arrêts <b>déjà desservis sont grisés</b>. Ton arrêt est marqué <b>« tu es ici »</b>. Touche un autre arrêt pour ouvrir ses départs.',
+      i: () => mock(`<div class="card" style="padding:4px 0;--c:${lineStyle('B', '10').bg}">${mJ('14:31', 'Rive', 'first past')}${mJ('14:35', 'Bel-Air', 'past')}${mJ('14:40', 'Cornavin', 'here', ' <span class="small">· tu es ici</span>')}${mJ('14:42', 'Prairie', 'last')}</div>`) },
+    { t: 'Arrêts non desservis', p: 'En cas de travaux ou de déviation, les arrêts sautés sont <b>barrés</b> avec l’étiquette <span class="stop-tag skip">Non desservi</span>, et les arrêts déplacés ont l’étiquette <span class="stop-tag moved">Déplacé</span>.',
+      i: () => mock(`<div class="alert-banner" style="padding:8px 10px"><span style="color:var(--bad)">${WARN_ICON}</span><span class="a-title" style="font-size:13px">La ligne est déviée entre Cornavin et Bouchet.</span></div><div class="card" style="padding:4px 0;--c:${lineStyle('B', '10').bg}">${mJ('14:40', 'Cornavin', 'first here')}${mJ('14:42', 'Prairie', 'iss-skip', '<span class="stop-tag skip">Non desservi</span>')}${mJ('14:43', 'Dôle', 'iss-skip last', '<span class="stop-tag skip">Non desservi</span>')}</div>`) }
+  ] },
+  { id: 'itineraire', title: 'Chercher un itinéraire', slides: [
+    { t: 'Départ et destination', p: 'Sur l’accueil, le départ est <b>ta position</b> par défaut : tu peux le changer. Tape ta destination, puis <b>Rechercher un itinéraire</b>. La flèche ⇅ inverse les deux.',
+      i: () => mock(`<div class="card list"><div class="m-field"><span class="label sm">Départ</span>Ma position (Plainpalais)</div><div class="m-field"><span class="label sm">Destination</span>Gare Cornavin</div></div><div class="m-btn">Rechercher un itinéraire</div>`, tap(50, 78)) },
+    { t: 'Choisir l’heure et filtrer', p: 'En haut des résultats : <b>Départ / Arrivée</b>, la <b>date</b> et l’<b>heure</b>, et les filtres <b>Bus, Tram, Train, Direct</b>. « Plus tôt » et « Plus tard » chargent d’autres liaisons.',
+      i: () => mock(`<div style="display:flex;gap:6px;align-items:center"><span class="seg" style="display:inline-flex"><button class="on" style="height:28px;font-size:12px">Départ</button><button style="height:28px;font-size:12px">Arrivée</button></span><span class="pill" style="height:30px;font-size:12.5px">14:50</span></div><div class="chips">${['Bus', 'Tram', 'Train'].map((x) => `<span class="chip on-dark" style="height:30px;font-size:12.5px">${x}</span>`).join('')}<span class="chip" style="height:30px;font-size:12.5px">Direct</span></div><div class="card" style="padding:10px 12px"><b style="font-size:16px">14:52 – 15:08</b><div style="display:flex;gap:4px;margin-top:6px">${badge('B', '15', true)}<span class="small">direct · 16 min</span></div></div>`, tap(66, 34)) },
+    { t: 'Le détail d’une liaison', p: 'Touche une liaison pour voir chaque <b>étape</b> : lignes, quais, arrêts intermédiaires, temps de marche et changements.',
+      i: () => mock(`<div class="card" style="padding:4px 0;--c:${lineStyle('B', '15').bg}">${mJ('14:52', 'Plainpalais', 'first')}${mJ('', `${badge('B', '15', true)} <span style="font-weight:800">Nations</span>`)}${mJ('15:08', 'Gare Cornavin', 'last')}</div>`) }
+  ] },
+  { id: 'pendulaire', title: 'Créer un trajet pendulaire', slides: [
+    { t: 'Un nouveau trajet', p: 'Dans l’onglet <b>Pendulaire</b>, touche <b>+ Nouveau</b>. Choisis le départ, l’arrivée, les <b>jours</b> (plusieurs possibles) et la <b>plage horaire</b>.',
+      i: () => mock(`<div class="card list"><div class="m-field"><span class="label sm">Départ</span>Plainpalais</div><div class="m-field"><span class="label sm">Arrivée</span>Bel-Air</div></div><div style="display:flex;justify-content:space-between">${DAYS.map((d, k) => `<span class="day ${k < 5 ? 'on' : ''}" style="width:32px;height:32px;font-size:11px;display:inline-flex;align-items:center;justify-content:center">${d}</span>`).join('')}</div><div style="display:flex;gap:8px;align-items:center"><span class="time-in" style="flex:1;display:flex;align-items:center;justify-content:center;height:34px">07:00</span>et<span class="time-in" style="flex:1;display:flex;align-items:center;justify-content:center;height:34px">08:00</span></div>`, tap(30, 63)) },
+    { t: 'Choisir tes liaisons', p: 'Touche <b>Voir les liaisons</b>, coche celles que tu prends d’habitude, puis <b>Enregistrer</b>. Le trajet reste enregistré tant que tu ne le supprimes pas.',
+      i: () => mock(`<div class="card list">${[['07:24', '07:31', true], ['07:30', '07:37', false], ['07:36', '07:43', true]].map(([a, b, on]) => `<div class="m-field"><span style="width:18px;height:18px;border-radius:5px;border:2px solid var(--accent);background:${on ? 'var(--accent)' : 'transparent'};flex:none"></span><b style="width:100px">${a} → ${b}</b>${badge('B', '12', true)}</div>`).join('')}</div><div class="m-btn">Enregistrer le trajet</div>`, tap(10, 22)) },
+    { t: 'Chaque jour en un coup d’œil', p: 'L’onglet montre l’<b>état du jour</b> de chaque liaison : <span class="st-ok">À l’heure</span>, <span class="st-late">+3 min</span>… Touche une liaison pour son détail. <b>Créer le retour</b> inverse le trajet.',
+      i: () => mock(`<div class="card" style="padding:12px"><b style="font-size:15px">Plainpalais → Bel-Air</b><div class="small">Lu–Ve · 07:00–08:00 · 2 liaisons</div>${[['07:24 → 07:31', '<span class="st-ok">À l’heure</span>'], ['07:36 → 07:43', '<span class="st-late">+3 min</span>']].map(([a, b]) => `<div class="m-field" style="padding:8px 0"><b style="width:110px">${a}</b>${badge('B', '12', true)}<span style="margin-left:auto">${b}</span></div>`).join('')}</div>`) }
+  ] },
+  { id: 'notifs', title: 'Les notifications', slides: [
+    { t: 'Activer les notifications', p: 'Dans <b>Réglages → Notifications</b>, touche <b>Activer</b> et accepte la demande du téléphone. « Envoyer un test » permet de vérifier. Sur iPhone, l’app doit être <b>installée sur l’écran d’accueil</b>.',
+      i: () => mock(`<div class="card" style="padding:12px;display:flex;flex-direction:column;gap:8px"><span class="label">Notifications</span><span class="small">Reçois une alerte en cas de retard, avance, suppression ou déviation.</span><div class="m-btn">Activer les notifications</div></div>`, tap(50, 72)) },
+    { t: 'Trajets pendulaires', p: 'Les jours prévus, <b>dès 30 minutes avant</b> chaque liaison de tes trajets, tu es prévenu <b>uniquement en cas de changement</b> : retard ou avance, suppression, déviation.',
+      i: () => mock(`<div class="card" style="padding:12px;display:flex;gap:10px;align-items:flex-start"><span style="width:34px;height:34px;border-radius:9px;background:#C2410C;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;flex:none">NT</span><span style="display:flex;flex-direction:column;gap:2px"><b style="font-size:14px">12 · 07:36 Plainpalais → Bel-Air</b><span class="small">Retard : +4 min (départ à 07:40).</span></span></div>`) },
+    { t: 'Suivre un départ avec la cloche', p: 'Touche la <b>cloche</b> à côté d’une destination pour suivre <b>ce départ précis</b>. Tu seras prévenu de tout changement jusqu’à son passage, puis le suivi s’arrête tout seul.',
+      i: () => mock(`<div class="card list">${mRow('7', `<span style="display:inline-flex;align-items:center;gap:4px">Vessy, Grands-Esserts <span class="bell on" style="width:22px;height:22px;margin:0">${BELL(true)}</span></span>`, 'Prévu 04:18 · quai L', '6 min')}${mRow('9', `<span style="display:inline-flex;align-items:center;gap:4px">Lignon Tours <span class="bell" style="width:22px;height:22px;margin:0">${BELL(false)}</span></span>`, 'Prévu 04:25 · quai K', '13 min')}</div>`, tap(67, 22)) }
+  ] },
+  { id: 'infos', title: 'Infos trafic', slides: [
+    { t: 'L’onglet Infos', p: 'L’onglet <b>Infos</b> liste toutes les <b>perturbations en cours</b> sur le réseau tpg, mises à jour chaque minute. Touche une carte pour lire le détail.',
+      i: () => mock(`${[['10', 'Travaux', 'La ligne est déviée en direction de Genève-Aéroport-Terminal.'], ['2', 'Travaux', 'Arrêt Place des Eaux-Vives non desservi.']].map(([l, c, t]) => `<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:4px"><div style="display:flex;justify-content:space-between">${badge('B', l, true)}<span class="a-tag">${c}</span></div><b style="font-size:13.5px">${t}</b></div>`).join('')}`, tap(50, 30)) },
+    { t: 'Le « Attention » rouge', p: 'Quand une perturbation touche un départ (<b>même ligne, même direction</b>), un badge <b>Attention</b> rouge apparaît. Touche-le pour voir directement l’explication.',
+      i: () => mock(`<div class="card list">${mRow('10', 'Genève-Aéroport', 'Prévu 14:40 · quai C', '5 min', mWarn())}${mRow('10', 'Rive', 'Prévu 14:41 · quai D', '6 min')}</div>`, tap(36, 44)) }
+  ] }
+];
+const WELCOME = { id: 'welcome', title: 'Bienvenue', slides: [
+  { t: 'Bienvenue dans Not TPG', p: 'Les <b>horaires tpg en temps réel</b>, tes arrêts favoris, tes trajets de tous les jours et les infos trafic, dans une app simple et rapide.',
+    i: () => mock(`<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0"><span style="width:64px;height:64px;border-radius:16px;background:#C2410C;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:24px">NT</span><b style="font-size:20px">Not TPG</b><div style="display:flex;gap:4px">${['1', '7', '12', '15', '18'].map((l) => badge('B', l, true)).join('')}</div></div>`) },
+  { t: 'Tes arrêts, en un geste', p: 'Recherche un arrêt, ouvre ses départs et touche l’<b>étoile</b> pour l’ajouter à <b>Mes arrêts</b> sur l’accueil.',
+    i: () => TUTOS[1].slides[1].i() },
+  { t: 'Trajets pendulaires', p: 'Enregistre tes trajets de tous les jours dans l’onglet <b>Pendulaire</b> : tu vois leur état chaque jour, et tu peux être <b>prévenu par notification</b> en cas de retard ou de déviation.',
+    i: () => TUTOS[5].slides[2].i() },
+  { t: 'Besoin d’aide ?', p: 'Retrouve des <b>tutoriels détaillés</b> à tout moment dans <b>Réglages → Tutoriels</b>. Bon voyage !',
+    i: () => mock(`<div class="card list"><div class="m-field" style="justify-content:space-between"><span class="fav-name"><span style="color:var(--accent);display:inline-flex">${TUTO_ICON}</span><span>Tutoriels</span></span>${ICON.chev}</div></div><div class="card list">${TUTOS.slice(0, 4).map((g, k) => `<div class="m-field"><span class="tuto-num" style="width:24px;height:24px;font-size:12px">${k + 1}</span>${g.title}</div>`).join('')}</div>`, tap(50, 18)) }
+] };
+
+function tutoViewer(guide, opts = {}) {
+  return `<div class="tuto-viewer" data-guide="${guide.id}">
+      <div class="tuto-track">${guide.slides.map((sl) => `<section class="tuto-slide">${sl.i()}<h2>${sl.t}</h2><p>${sl.p}</p></section>`).join('')}</div>
+      <div class="tuto-nav">
+        <button class="ghost" data-tnav="prev" style="visibility:hidden">Précédent</button>
+        <div class="dots">${guide.slides.map((_, k) => `<i class="${k ? '' : 'on'}"></i>`).join('')}</div>
+        <button class="primary" data-tnav="next" style="height:40px;padding:0 16px;font-size:14px">${guide.slides.length > 1 ? 'Suivant' : (opts.doneLabel || 'Terminer')}</button>
+      </div>
+    </div>`;
+}
+function mountViewer(root, guide, onDone, opts = {}) {
+  const track = root.querySelector('.tuto-track'), dots = [...root.querySelectorAll('.dots i')];
+  const prev = root.querySelector('[data-tnav="prev"]'), next = root.querySelector('[data-tnav="next"]');
+  const n = guide.slides.length;
+  let idx = 0;
+  const update = () => {
+    dots.forEach((d, k) => d.classList.toggle('on', k === idx));
+    prev.style.visibility = idx ? 'visible' : 'hidden';
+    next.textContent = idx === n - 1 ? (opts.doneLabel || 'Terminer') : 'Suivant';
+  };
+  track.addEventListener('scroll', () => {
+    const k = Math.round(track.scrollLeft / track.clientWidth);
+    if (k !== idx) { idx = Math.max(0, Math.min(n - 1, k)); update(); }
+  }, { passive: true });
+  const goTo = (k) => track.scrollTo({ left: k * track.clientWidth, behavior: 'smooth' });
+  prev.addEventListener('click', () => goTo(idx - 1));
+  next.addEventListener('click', () => (idx === n - 1 ? onDone() : goTo(idx + 1)));
+}
+function renderTutos() {
+  main.innerHTML = `
+    <header class="top back">${backBtn()}<h1 class="title">Tutoriels</h1></header>
+    <div class="scroll stack">
+      <div class="card list">${TUTOS.map((g, k) => `<button class="tuto-item" data-act="openTuto" data-id="${g.id}"><span class="tuto-num">${k + 1}</span><span style="flex:1;font-weight:800;font-size:16px">${g.title}</span>${ICON.chev}</button>`).join('')}</div>
+      <button class="ghost" data-act="replayWelcome" style="align-self:center">Revoir l’écran de bienvenue</button>
+    </div>`;
+}
+function renderTuto() {
+  const g = TUTOS.find((x) => x.id === S.tuto) || TUTOS[0];
+  main.innerHTML = `<header class="top back">${backBtn()}<h1 class="title" style="font-size:20px">${g.title}</h1></header>${tutoViewer(g)}`;
+  mountViewer(main.querySelector('.tuto-viewer'), g, () => (history.state ? history.back() : go('tutos', false)));
+}
+function showWelcome() {
+  let el = $('#welcome');
+  if (!el) { el = document.createElement('div'); el.id = 'welcome'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); document.body.appendChild(el); }
+  el.innerHTML = `<div style="display:flex;justify-content:flex-end;padding:10px 12px 0;max-width:560px;width:100%;margin:0 auto"><button class="link" data-wclose>Passer</button></div>${tutoViewer(WELCOME, { doneLabel: 'C’est parti' })}`;
+  el.classList.add('open');
+  const close = () => { el.classList.remove('open'); el.innerHTML = ''; store.set('nt_welcome_done', true); };
+  el.querySelector('[data-wclose]').addEventListener('click', close);
+  mountViewer(el.querySelector('.tuto-viewer'), WELCOME, close, { doneLabel: 'C’est parti' });
+}
+
 /* ---------- RÉGLAGES ---------- */
 const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
 const getTheme = () => store.get('nt_theme', 'system');
@@ -1524,6 +1695,9 @@ function renderSettings() {
              ${pushSupported() ? '<button class="primary" data-act="notifOn">Activer les notifications</button>'
                : `<p class="small" style="margin:0;font-weight:700">${isIOS() ? 'Sur iPhone, ajoute d’abord Not TPG à l’écran d’accueil (Partager → Sur l’écran d’accueil), puis ouvre-la depuis l’icône.' : 'Ce navigateur ne permet pas les notifications.'}</p>`}`}
       </div>
+      <div class="card list">
+        <button class="row-btn" data-act="openTutos" style="border-bottom:0"><span class="fav-name"><span style="color:var(--accent);display:inline-flex">${TUTO_ICON}</span><span>Tutoriels</span></span>${ICON.chev}</button>
+      </div>
       <h2 class="label" style="margin:10px 4px -4px">À propos</h2>
       <div class="card list">
         ${[
@@ -1572,6 +1746,9 @@ const ACT = {
   boardMore: (ds, el) => boardMore(ds.dir, el),
   alerts: (ds) => openAlerts(String(ds.ids || '').split(',').filter(Boolean)),
   alertOne: (ds) => openAlerts([ds.id]),
+  openTutos: () => go('tutos'),
+  replayWelcome: () => showWelcome(),
+  openTuto: (ds) => { S.tuto = ds.id; go('tuto'); },
   notifOn: async (ds, el) => {
     el.disabled = true; el.textContent = 'Activation…';
     try { await enableNotifications(); toast('Notifications activées.'); } catch (e) { toast(e.message); }
@@ -1672,6 +1849,7 @@ document.addEventListener('visibilitychange', () => {
 });
 applyTheme();
 go('home', false);
+if (!store.get('nt_welcome_done', false)) dataReady.then(() => setTimeout(showWelcome, 400));
 loadAlerts();
 if (NT.sid) syncCommutes();
 setInterval(() => { if (document.visibilityState === 'visible') loadAlerts(); }, 60000);
