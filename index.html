@@ -628,9 +628,12 @@ async function fillNext() {
   } catch { const st = $('#nextSt'); if (st) st.textContent = ''; }
 }
 
-async function locate() {
-  if (!navigator.geolocation) return toast('Localisation indisponible sur cet appareil.');
-  navigator.geolocation.getCurrentPosition(async (pos) => {
+// silent : au démarrage, pas de message si la position n'est pas disponible
+async function locate(opts = {}) {
+  if (!navigator.geolocation) { if (!opts.silent) toast('Localisation indisponible sur cet appareil.'); return Promise.resolve('unsupported'); }
+  return new Promise((resolve) => navigator.geolocation.getCurrentPosition(async (pos) => {
+    resolve('ok');
+    store.set('nt_geo_denied', false);
     const { latitude: lat, longitude: lon } = pos.coords;
     await dataReady;
     let s = null;
@@ -645,7 +648,16 @@ async function locate() {
       } catch {}
     }
     if (s) { S.geo = { id: s.id, name: s.name }; S.fromText = ''; if (S.screen === 'home') renderHome(); }
-  }, () => toast('Localisation refusée : saisis ton départ à la main.'), { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+  }, (err) => {
+    const code = err && err.code;
+    const msg = code === 1 ? 'Localisation bloquée. Pour la réactiver : Réglages → Autorisations.'
+      : code === 2 ? 'Position introuvable : vérifie que la localisation du téléphone est activée.'
+      : 'La position met trop de temps à arriver. Réessaie dans un instant.';
+    if (code === 1) store.set('nt_geo_denied', true);
+    if (!opts.silent || code === 1 && !store.get('nt_geo_warned', false)) { toast(msg); if (code === 1) store.set('nt_geo_warned', true); }
+    resolve(code === 1 ? 'denied' : code === 2 ? 'unavailable' : 'timeout');
+    if (S.screen === 'settings') renderSettings();
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }));
 }
 
 /* ---------- DÉPARTS D'UN ARRÊT ---------- */
@@ -1637,6 +1649,102 @@ function showWelcome() {
   mountViewer(el.querySelector('.tuto-viewer'), WELCOME, close, { doneLabel: 'C’est parti' });
 }
 
+/* ---------- AUTORISATIONS ---------- */
+const UA = navigator.userAgent;
+const platform = () => (/SamsungBrowser/i.test(UA) ? 'samsung' : /iPhone|iPad|iPod/.test(UA) ? 'ios' : /Android/i.test(UA) ? (/Samsung|SM-[A-Z]/i.test(UA) ? 'android-samsung' : 'android') : 'desktop');
+async function permState(name) {
+  try {
+    if (name === 'notifications') {
+      if (!pushSupported()) return 'unsupported';
+      const n = Notification.permission; // 'granted' | 'denied' | 'default'
+      return n === 'default' ? 'prompt' : n;
+    }
+    if (!navigator.geolocation) return 'unsupported';
+    if (navigator.permissions && navigator.permissions.query) return (await navigator.permissions.query({ name })).state;
+  } catch {}
+  return 'unknown';
+}
+const PERM_LABEL = {
+  granted: ['Autorisée', 'var(--ok)'], denied: ['Bloquée', 'var(--bad)'], prompt: ['Pas encore demandée', 'var(--muted)'],
+  unsupported: ['Non disponible', 'var(--muted)'], unknown: ['Inconnue', 'var(--muted)']
+};
+async function fillPermRows() {
+  const el = $('#permRows'); if (!el) return;
+  let [geo, notif] = await Promise.all([permState('geolocation'), permState('notifications')]);
+  // Certains navigateurs (Samsung Internet notamment) refusent sans rien demander
+  // tout en indiquant « pas encore demandée » : on se fie au dernier refus réel.
+  if (geo !== 'granted' && geo !== 'unsupported' && store.get('nt_geo_denied', false)) geo = 'denied';
+  const row = (key, icon, title, state) => {
+    const [label, color] = PERM_LABEL[state] || PERM_LABEL.unknown;
+    const action = state === 'granted' || state === 'unsupported' ? ''
+      : state === 'denied' ? `<button class="ghost" data-act="permHelp" data-p="${key}">Comment réactiver ?</button>`
+      : `<button class="ghost" data-act="permAsk" data-p="${key}">Autoriser</button>`;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line2)">
+      <span style="color:var(--muted);display:inline-flex">${icon}</span>
+      <span style="flex:1;display:flex;flex-direction:column"><b style="font-size:15px">${title}</b><span style="font-size:13px;font-weight:800;color:${color}">${label}</span></span>
+      ${action}</div>`;
+  };
+  el.innerHTML = row('geo', ICON.locate, 'Localisation', geo) + row('notif', BELL(false), 'Notifications', notif) +
+    `<button class="link" data-act="permHelp" data-p="geo" style="align-self:flex-start;padding:0">Aide : la localisation ne marche pas</button>`;
+  // Mise à jour si l'autorisation change pendant que la page est ouverte
+  try {
+    if (navigator.permissions && !fillPermRows.watching) {
+      fillPermRows.watching = true;
+      const st = await navigator.permissions.query({ name: 'geolocation' });
+      st.onchange = () => { if (S.screen === 'settings') fillPermRows(); };
+    }
+  } catch {}
+}
+function permHelpHtml(kind) {
+  const p = platform();
+  const host = location.host;
+  const steps = {
+    geo: {
+      samsung: [
+        'Vérifie que la <b>Position</b> est activée dans le volet rapide (glisse depuis le haut de l’écran).',
+        'Ouvre les <b>Paramètres</b> du téléphone → <b>Applications</b> → <b>Samsung Internet</b> (et <b>Not TPG</b> si elle apparaît) → <b>Autorisations</b> → <b>Position</b> → <b>Autoriser seulement pendant l’utilisation</b>.',
+        `Dans <b>Samsung Internet</b> : menu <b>≡</b> → <b>Paramètres</b> → <b>Sites et téléchargements</b> → <b>Autorisations de site</b> → <b>Position</b> → retire <b>${host}</b> des sites bloqués.`,
+        'Ferme complètement Not TPG puis rouvre-la, et touche <b>Autoriser</b> ci-dessus.'
+      ],
+      'android-samsung': [
+        'Vérifie que la <b>Position</b> est activée dans le volet rapide (glisse depuis le haut de l’écran).',
+        'Ouvre les <b>Paramètres</b> du téléphone → <b>Applications</b> → <b>Not TPG</b> (ou <b>Chrome</b>) → <b>Autorisations</b> → <b>Position</b> → <b>Autoriser seulement pendant l’utilisation</b>.',
+        `Dans <b>Chrome</b> : <b>⋮</b> → <b>Paramètres</b> → <b>Paramètres des sites</b> → <b>Position</b> → <b>${host}</b> → <b>Autoriser</b>.`,
+        'Ferme complètement Not TPG puis rouvre-la, et touche <b>Autoriser</b> ci-dessus.'
+      ],
+      android: [
+        'Vérifie que la <b>Localisation</b> est activée dans le volet rapide.',
+        'Ouvre les <b>Paramètres</b> du téléphone → <b>Applications</b> → <b>Not TPG</b> (ou <b>Chrome</b>) → <b>Autorisations</b> → <b>Position</b> → <b>Autoriser seulement si l’app est en cours d’utilisation</b>.',
+        `Dans <b>Chrome</b> : <b>⋮</b> → <b>Paramètres</b> → <b>Paramètres des sites</b> → <b>Position</b> → <b>${host}</b> → <b>Autoriser</b>.`,
+        'Ferme complètement Not TPG puis rouvre-la.'
+      ],
+      ios: [
+        '<b>Réglages</b> → <b>Confidentialité et sécurité</b> → <b>Service de localisation</b> : vérifie qu’il est <b>activé</b>.',
+        'Dans la même liste, touche <b>Sites Safari</b> (ou <b>Safari</b>) → choisis <b>Lorsque l’app est active</b>.',
+        '<b>Réglages</b> → <b>Safari</b> (ou <b>Applications → Safari</b>) → <b>Localisation</b> → <b>Demander</b> ou <b>Autoriser</b>.',
+        'Ferme complètement Not TPG puis rouvre-la.'
+      ],
+      desktop: [`Clique sur l’icône à gauche de l’adresse <b>${host}</b> → <b>Position</b> → <b>Autoriser</b>, puis recharge la page.`]
+    },
+    notif: {
+      samsung: ['<b>Paramètres</b> du téléphone → <b>Notifications</b> → <b>Notifications des applis</b> → active <b>Not TPG</b> (ou <b>Samsung Internet</b>).', `Dans <b>Samsung Internet</b> : <b>≡</b> → <b>Paramètres</b> → <b>Sites et téléchargements</b> → <b>Notifications</b> → autorise <b>${host}</b>.`],
+      'android-samsung': ['<b>Paramètres</b> du téléphone → <b>Notifications</b> → <b>Notifications des applis</b> → active <b>Not TPG</b> (ou <b>Chrome</b>).', `Dans <b>Chrome</b> : <b>⋮</b> → <b>Paramètres</b> → <b>Paramètres des sites</b> → <b>Notifications</b> → <b>${host}</b> → <b>Autoriser</b>.`],
+      android: ['<b>Paramètres</b> du téléphone → <b>Applications</b> → <b>Not TPG</b> (ou <b>Chrome</b>) → <b>Notifications</b> → activer.', `Dans <b>Chrome</b> : <b>⋮</b> → <b>Paramètres</b> → <b>Paramètres des sites</b> → <b>Notifications</b> → <b>${host}</b> → <b>Autoriser</b>.`],
+      ios: ['L’app doit être <b>ajoutée à l’écran d’accueil</b> et ouverte depuis son icône.', '<b>Réglages</b> → <b>Notifications</b> → <b>Not TPG</b> → <b>Autoriser les notifications</b>.'],
+      desktop: [`Clique sur l’icône à gauche de l’adresse <b>${host}</b> → <b>Notifications</b> → <b>Autoriser</b>.`]
+    }
+  };
+  const list = steps[kind][p] || steps[kind].android;
+  const title = kind === 'geo' ? 'Réactiver la localisation' : 'Réactiver les notifications';
+  const intro = kind === 'geo'
+    ? 'Une fois bloquée, une app web ne peut plus redemander l’autorisation elle-même : il faut la réactiver dans les réglages du téléphone.'
+    : 'Une fois bloquées, les notifications doivent être réactivées dans les réglages du téléphone.';
+  return `<h2>${title}</h2>
+    <p class="small" style="margin:0 0 14px">${intro}</p>
+    <ol style="margin:0 0 18px;padding-left:20px;display:flex;flex-direction:column;gap:10px;font-size:15px;line-height:1.45">${list.map((x) => `<li>${x}</li>`).join('')}</ol>
+    <button class="primary w100" data-sheet="close">OK</button>`;
+}
+
 /* ---------- RÉGLAGES ---------- */
 const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
 const getTheme = () => store.get('nt_theme', 'system');
@@ -1685,6 +1793,10 @@ function renderSettings() {
         </div>
         <p class="small" style="margin:0">« Système » suit automatiquement le réglage clair/sombre de ton téléphone.</p>
       </div>
+      <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:4px">
+        <h2 class="label" style="margin-bottom:4px">Autorisations</h2>
+        <div id="permRows" class="stack" style="gap:0"><p class="small" style="margin:0">Vérification…</p></div>
+      </div>
       <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
         <h2 class="label">Notifications</h2>
         ${NT.sid
@@ -1711,6 +1823,7 @@ function renderSettings() {
             ${url ? `<a href="${url}" target="_blank" rel="noopener">${v}</a>` : `<span style="font-weight:800">${v}</span>`}</div>`).join('')}
       </div>
     </div>`;
+  fillPermRows();
 }
 
 /* ---------- actions (clics) ---------- */
@@ -1746,6 +1859,18 @@ const ACT = {
   boardMore: (ds, el) => boardMore(ds.dir, el),
   alerts: (ds) => openAlerts(String(ds.ids || '').split(',').filter(Boolean)),
   alertOne: (ds) => openAlerts([ds.id]),
+  permAsk: async (ds, el) => {
+    el.disabled = true;
+    if (ds.p === 'geo') {
+      el.textContent = 'Demande…';
+      const r = await locate();
+      if (r === 'ok') toast('Localisation autorisée.');
+    } else {
+      try { await enableNotifications(); toast('Notifications activées.'); } catch (e) { toast(e.message); }
+    }
+    if (S.screen === 'settings') renderSettings();
+  },
+  permHelp: (ds) => openSheet(permHelpHtml(ds.p)),
   openTutos: () => go('tutos'),
   replayWelcome: () => showWelcome(),
   openTuto: (ds) => { S.tuto = ds.id; go('tuto'); },
@@ -1854,7 +1979,7 @@ loadAlerts();
 if (NT.sid) syncCommutes();
 setInterval(() => { if (document.visibilityState === 'visible') loadAlerts(); }, 60000);
 dataReady.then(() => { if (S.screen === 'board' && S.board.length) drawBoard(); if (S.screen === 'commutes') renderCommutes(); });
-locate();
+locate({ silent: true });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
