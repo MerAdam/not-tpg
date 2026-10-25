@@ -1,0 +1,33 @@
+name: Debug info-trafic tpg
+on:
+  push:
+    branches: [debug-tpg]
+    paths: [.github/workflows/scrape-debug.yml]
+permissions:
+  contents: write
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Télécharger la page info-trafic
+        run: |
+          mkdir -p dbg
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128 Safari/537.36"
+          curl -sSL -A "$UA" -o dbg/page.html -w "%{http_code} %{url_effective}\n" https://www.tpg.ch/fr/voyager/info-trafic/info-trafic > dbg/status.txt || true
+          wc -c dbg/page.html >> dbg/status.txt || true
+          grep -oE '(https?:)?//[^"'"'"' <>]+|"/[a-zA-Z0-9_/.?=&-]*(api|json|perturb|trafic|info|disrupt|alert|event|situation)[a-zA-Z0-9_/.?=&-]*"' dbg/page.html | sort -u > dbg/urls.txt || true
+          grep -oE '<script[^>]+src="[^"]+"' dbg/page.html | sort -u > dbg/scripts.txt || true
+          python3 - <<'PY'
+          import re
+          h=open('dbg/page.html',encoding='utf-8',errors='ignore').read()
+          i=h.find('Eaux-Vives')
+          open('dbg/around.txt','w').write(h[max(0,i-6000):i+3000] if i>=0 else 'NOT FOUND\n'+h[:5000])
+          m=re.findall(r'drupal-settings-json[^>]*>(.*?)</script>',h,re.S)
+          open('dbg/drupal.json','w').write(m[0][:20000] if m else '')
+          PY
+      - name: Enregistrer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dbg && git commit -m "debug" && git push origin HEAD:debug-tpg || true
