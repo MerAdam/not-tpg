@@ -851,7 +851,34 @@ function shapeFor(line, stops) {
     if (!best || score < best.score) best = { score, mean, max, back, c, pr };
   }
   if (!best || best.mean > 60 || best.max > 250 || best.back > Math.max(1, stops.length * 0.15)) return null;
-  return slicePath(best.c.t, best.pr[0].pos, best.pr[best.pr.length - 1].pos);
+  return { full: best.c.t, path: slicePath(best.c.t, best.pr[0].pos, best.pr[best.pr.length - 1].pos) };
+}
+// Tracé d'un trajet en bus/tram : arrêts placés sur le bon quai (celui qui est sur le parcours
+// de la ligne), puis tracé réel entre la montée et la descente
+function legGeometry(s) {
+  const pl = s.journey.passList || [];
+  const items = pl.map((p, i) => ({ st: p.station, plat: i === 0 ? s.departure.platform : i === pl.length - 1 ? s.arrival.platform : p.platform }))
+    .map((x) => ({ ...x, pt: ptOfStation(x.st, x.plat) })).filter((x) => x.pt);
+  if (items.length < 2) {
+    const a = ptOfStation(s.departure && s.departure.station, s.departure && s.departure.platform);
+    const b = ptOfStation(s.arrival && s.arrival.station, s.arrival && s.arrival.platform);
+    const pts = [a, b].filter(Boolean);
+    return { pts, path: pts };
+  }
+  const m = shapeFor(s.journey.number, items.map((x) => x.pt));
+  if (!m) { const pts = items.map((x) => x.pt); return { pts, path: pts }; }
+  // Pour chaque arrêt : le quai le plus proche du parcours ; à défaut, le point du parcours le plus proche
+  const pts = items.map((x) => {
+    const id = stationId(x.st);
+    const cands = Object.values((QUAYS && QUAYS[id]) || {});
+    let best = null;
+    for (const c of cands) { const pr = projectOn(c, m.full); if (!best || pr.dist < best.dist) best = { pt: c, dist: pr.dist }; }
+    if (best && best.dist <= 35) return best.pt;
+    return pointAt(m.full, projectOn(x.pt, m.full).pos);
+  });
+  const a = projectOn(pts[0], m.full).pos, b = projectOn(pts[pts.length - 1], m.full).pos;
+  const path = b > a ? [pts[0], ...slicePath(m.full, a, b), pts[pts.length - 1]] : pts;
+  return { pts, path };
 }
 function lineBadgeIcon(cat, num) {
   const c = lineStyle(cat, num);
@@ -874,15 +901,18 @@ function drawTripOnMap(sel) {
       prevEnd = b || prevEnd;
       return;
     }
-    const pl = s.journey.passList || [];
-    // Arrêts desservis, au quai exact (premier et dernier : quai de montée et de descente)
-    const stopsPts = pl.map((p, i) => ptOfStation(p.station, i === 0 ? s.departure.platform : i === pl.length - 1 ? s.arrival.platform : p.platform)).filter(Boolean);
-    const pts = stopsPts.length >= 2 ? stopsPts : [a, b].filter(Boolean);
-    // Tracé réel de la ligne (OpenStreetMap) entre la montée et la descente, sinon arrêts reliés
-    const shape = shapeFor(s.journey.number, pts);
-    const path = shape ? [pts[0], ...shape, pts[pts.length - 1]] : pts;
-    // Changement sur un autre quai / arrêt voisin : petit bout à pied
-    if (prevEnd && path[0] && distM(prevEnd[0], prevEnd[1], path[0][0], path[0][1]) > 15) walkLine([prevEnd, path[0]]);
+    const { pts, path } = legGeometry(s);
+    // Changement sur un autre quai / arrêt voisin : bout à pied (par les rues si possible)
+    if (prevEnd && path[0] && distM(prevEnd[0], prevEnd[1], path[0][0], path[0][1]) > 15) {
+      const tk = prevEnd.join(',') + '>' + path[0].join(',');
+      const r = sel.xfer && sel.xfer[tk];
+      walkLine(r && r.coords ? r.coords : [prevEnd, path[0]]);
+      if (!sel.xfer) sel.xfer = {};
+      if (!(tk in sel.xfer)) {
+        sel.xfer[tk] = null;
+        walkApi('route', { from: prevEnd.join(','), to: path[0].join(',') }).then((w) => { sel.xfer[tk] = w; if (M.sel === sel) drawMapLayers(); }).catch(() => {});
+      }
+    }
     const c = lineStyle(s.journey.category, s.journey.number);
     L.polyline(path, { color: '#FFFFFF', weight: 9, opacity: 0.95, lineJoin: 'round', lineCap: 'round' }).addTo(M.layers);
     L.polyline(path, { color: c.bg, weight: 5.5, lineJoin: 'round', lineCap: 'round' }).addTo(M.layers);
@@ -922,7 +952,9 @@ function drawMapLayers() {
   if (M.dest) { L.marker([M.dest.lat, M.dest.lon], { icon: pinIcon('dest-pin'), interactive: false }).addTo(M.layers); bounds.push([M.dest.lat, M.dest.lon]); }
   if (M.sel) {
     const all = drawTripOnMap(M.sel);
-    M.map.fitBounds(L.latLngBounds(all), { paddingTopLeft: [40, 90], paddingBottomRight: [40, sheetPad()], maxZoom: 18 });
+    // Cadrage seulement aux premiers tracés, pour ne pas faire sauter la carte ensuite
+    M.sel._fits = (M.sel._fits || 0) + 1;
+    if (M.sel._fits <= 2) M.map.fitBounds(L.latLngBounds(all), { paddingTopLeft: [40, 90], paddingBottomRight: [40, sheetPad()], maxZoom: 18 });
   } else if (M.walkStop && M.origin) {
     const w = M.walkStop, st = [w.stop.lat, w.stop.lon];
     const path = w.route && w.route.coords ? w.route.coords : [M.origin, st];
@@ -1137,7 +1169,8 @@ async function mapSelect(r) {
   const sel = M.sel;
   await loadMapData();
   const s0 = (r.c.raw.sections || [])[0];
-  const quay = (s0 && ptOfStation(s0.departure && s0.departure.station, s0.departure && s0.departure.platform)) || [r.stop.lat, r.stop.lon];
+  const g0 = s0 && s0.journey ? legGeometry(s0) : null;
+  const quay = (g0 && g0.pts[0]) || (s0 && ptOfStation(s0.departure && s0.departure.station, s0.departure && s0.departure.platform)) || [r.stop.lat, r.stop.lon];
   sel.quay = quay;
   if (M.sel === sel) drawMapLayers(); // quais et tracés maintenant disponibles
   walkApi('route', { from: M.origin.join(','), to: quay.join(',') })
