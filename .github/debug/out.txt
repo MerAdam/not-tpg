@@ -1,0 +1,5 @@
+access-control-allow-origin: * 200 139527 https://vectortiles.geo.admin.ch/styles/ch.swisstopo.basemap.vt/style.json
+access-control-allow-origin: * 200 100415 https://vectortiles.geo.admin.ch/styles/ch.swisstopo.lightbasemap.vt/style.json
+access-control-allow-origin: * 200 51853 https://vectortiles.geo.admin.ch/styles/ch.swisstopo.imagerybasemap.vt/style.json
+access-control-allow-origin: * 200 30930 https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/15/17025/11597.jpeg
+access-control-allow-origin: * 200 43079 https://tiles.openfreemap.org/styles/liberty
