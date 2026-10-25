@@ -1,2 +1,0 @@
-https://transport.opendata.ch/v1/stationboard?id=8592844&limit=5
-https://transport.opendata.ch/v1/stationboard?id=8592844&limit=5&datetime=2026-10-25%2012:43

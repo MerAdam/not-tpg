@@ -283,7 +283,41 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
 
+/* Correction d'heure : depuis le passage à l'heure d'hiver, l'API horaire décale d'une heure
+   les heures qu'on lui demande. On mesure ce décalage sur un arrêt très desservi (Bel-Air)
+   et on le compense dans toutes les requêtes. Si l'API est corrigée, le décalage revient à 0. */
+let API_SHIFT = 0;
+const shiftReady = (async () => {
+  const saved = store.get('nt_api_shift', null);
+  if (saved && Date.now() - saved.at < 3600e3) { API_SHIFT = saved.v; return; }
+  try {
+    const now = new Date();
+    const r = await fetch(`${API}/stationboard?id=8587387&limit=6&datetime=${encodeURIComponent(ymd(now) + ' ' + hm(now))}`);
+    const j = await r.json();
+    const first = Math.min(...(j.stationboard || []).map((d) => parseISO(d.stop.departure).getTime()));
+    if (!isFinite(first)) return;
+    const diff = Math.round((first - now.getTime()) / 60000);
+    API_SHIFT = diff >= 45 && diff <= 75 ? -60 : diff <= -45 && diff >= -75 ? 60 : 0;
+    store.set('nt_api_shift', { v: API_SHIFT, at: Date.now() });
+  } catch {}
+})();
+function shiftPath(path) {
+  if (!API_SHIFT) return path;
+  const move = (dateStr, timeStr) => { const d = new Date(dateStr + 'T' + timeStr); d.setMinutes(d.getMinutes() + API_SHIFT); return [ymd(d), hm(d)]; };
+  path = path.replace(/datetime=([^&]+)/, (m, v) => {
+    const [ds, ts] = decodeURIComponent(v).split(' ');
+    if (!ts) return m;
+    const [a, b] = move(ds, ts); return 'datetime=' + encodeURIComponent(a + ' ' + b);
+  });
+  const dm = path.match(/([?&])date=(\d{4}-\d\d-\d\d)/), tm = path.match(/([?&])time=(\d\d:\d\d)/);
+  if (dm && tm) {
+    const [a, b] = move(dm[2], tm[2]);
+    path = path.replace(dm[0], dm[1] + 'date=' + a).replace(tm[0], tm[1] + 'time=' + b);
+  }
+  return path;
+}
 async function api(path) {
+  if (/datetime=|[?&]time=/.test(path)) { await shiftReady; path = shiftPath(path); }
   const r = await fetch(API + path);
   if (!r.ok) throw new Error('HTTP ' + r.status);
   return r.json();
@@ -700,11 +734,10 @@ async function boardMore(dir, btn) {
 async function loadBoard() {
   clearTimeout(boardTimer);
   let q = `/stationboard?id=${encodeURIComponent(S.stop.id)}&limit=80`;
-  if (!boardLive()) {
-    const date = S.boardDate || todayStr();
-    const time = S.boardTime || (S.boardDate ? '05:00' : hm(new Date()));
-    q += `&datetime=${encodeURIComponent(date + ' ' + time)}`;
-  }
+  // Toujours une heure explicite (même en temps réel), pour pouvoir corriger le décalage de l'API
+  const date = S.boardDate || todayStr();
+  const time = S.boardTime || (S.boardDate ? '05:00' : hm(new Date()));
+  q += `&datetime=${encodeURIComponent(date + ' ' + time)}`;
   try {
     const j = await api(q);
     S.board = j.stationboard || [];

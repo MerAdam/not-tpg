@@ -23,6 +23,24 @@ function zurich(now = new Date()) {
   return { date: `${p.year}-${p.month}-${p.day}`, min: Number(p.hour) * 60 + Number(p.minute), dow: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(p.weekday) };
 }
 
+// Décalage d'heure de l'API (voir index.html) : mesuré sur Bel-Air à chaque vérification
+async function measureShift() {
+  try {
+    const z = zurich();
+    const j = await (await fetch(`${API}/stationboard?id=8587387&limit=6&datetime=${encodeURIComponent(z.date + ' ' + m2t(z.min))}`)).json();
+    const first = Math.min(...(j.stationboard || []).map((d) => parseISO(d.stop.departure).getTime()));
+    if (!isFinite(first)) return 0;
+    const diff = Math.round((first - Date.now()) / 60000);
+    return diff >= 45 && diff <= 75 ? -60 : diff <= -45 && diff >= -75 ? 60 : 0;
+  } catch { return 0; }
+}
+function shiftDT(date, time, delta) {
+  if (!delta) return [date, time];
+  const [y, mo, d] = date.split('-').map(Number);
+  const t = new Date(Date.UTC(y, mo - 1, d) + (t2m(time) + delta) * 60000);
+  return [t.toISOString().slice(0, 10), m2t(t.getUTCHours() * 60 + t.getUTCMinutes())];
+}
+
 async function api(path) {
   const r = await fetch(API + path);
   if (!r.ok) throw new Error('API ' + r.status);
@@ -91,15 +109,16 @@ module.exports = async (req, res) => {
     } catch {}
 
     // Requêtes partagées entre utilisateurs
+    const SHIFT = await measureShift();
     const connCache = new Map(), boardCache = new Map();
     const getConns = (from, to, time) => {
       const k = [from, to, time].join('|');
-      if (!connCache.has(k)) connCache.set(k, api(`/connections?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&date=${z.date}&time=${time}&limit=4`).then((j) => j.connections || []).catch(() => null));
+      if (!connCache.has(k)) connCache.set(k, api((([dd, tt]) => `/connections?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&date=${dd}&time=${tt}&limit=4`)(shiftDT(z.date, time, SHIFT))).then((j) => j.connections || []).catch(() => null));
       return connCache.get(k);
     };
     const getBoard = (stopId, time) => {
       const k = stopId + '|' + time;
-      if (!boardCache.has(k)) boardCache.set(k, api(`/stationboard?id=${encodeURIComponent(stopId)}&limit=15&datetime=${encodeURIComponent(time)}`).then((j) => j.stationboard || []).catch(() => null));
+      if (!boardCache.has(k)) boardCache.set(k, api(`/stationboard?id=${encodeURIComponent(stopId)}&limit=15&datetime=${encodeURIComponent(shiftDT(...time.split(' '), SHIFT).join(' '))}`).then((j) => j.stationboard || []).catch(() => null));
       return boardCache.get(k);
     };
 
