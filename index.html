@@ -710,7 +710,11 @@ const GENEVA = [46.2044, 6.1432];
 const M = { map: null, layers: null, origin: null, originAuto: true, dest: null, results: null, sel: null, loading: false, err: null, watch: null, walkStop: null };
 const WALK_MS = 1.25; // vitesse de marche (m/s), pour les estimations
 const MARGIN = 180; // arriver à l'arrêt 3 min avant le bus
-const estWalk = (a, b) => Math.round((distM(a[0], a[1], b[0], b[1]) * 1.3) / WALK_MS); // secondes
+// Vitesse de marche choisie dans les réglages : multiplie tous les temps à pied (base ≈ 5 km/h)
+const WALK_SPEEDS = { slow: { f: 1.25, label: 'Lente', kmh: 4 }, normal: { f: 1, label: 'Normale', kmh: 5 }, fast: { f: 0.83, label: 'Rapide', kmh: 6 } };
+const walkSpeed = () => WALK_SPEEDS[store.get('nt_walkspeed', 'normal')] ? store.get('nt_walkspeed', 'normal') : 'normal';
+const walkF = () => WALK_SPEEDS[walkSpeed()].f;
+const estWalk = (a, b) => Math.round((distM(a[0], a[1], b[0], b[1]) * 1.3) / WALK_MS * walkF()); // secondes
 const minsTxt = (sec) => Math.max(1, Math.round(sec / 60)) + ' min';
 const pinIcon = (cls, html = '') => window.L.divIcon({ className: '', html: `<div class="${cls}">${html}</div>`, iconSize: [20, 20], iconAnchor: [10, 10] });
 
@@ -718,12 +722,15 @@ async function walkApi(action, params) {
   const r = await fetch('/api/walk?action=' + action + '&' + new URLSearchParams(params));
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
+  const f = walkF();
+  if (Array.isArray(j.durations)) j.durations = j.durations.map((x) => x == null ? x : x * f);
+  if (typeof j.duration === 'number') j.duration *= f;
   return j;
 }
 // Arrêts à ≤ 12 min à pied réels (pas à vol d'oiseau), triés par temps de marche. Mis en cache par point de départ.
 const NEAR_MAX = 720;
 async function nearbyByWalk(pt) {
-  const key = pt.map((x) => x.toFixed(4)).join(',');
+  const key = pt.map((x) => x.toFixed(4)).join(',') + walkSpeed();
   if (M.near && M.near.key === key) return M.near.p;
   const p = (async () => {
     const cands = nearestStops(pt, 24, 1100);
@@ -744,7 +751,7 @@ async function nearbyByWalk(pt) {
   p.then((l) => { if (M.near && M.near.key === key) { M.near.list = l; drawMapLayers(); drawMapPanel(); } });
   return p;
 }
-function nearList() { return M.origin && M.near && M.near.key === M.origin.map((x) => x.toFixed(4)).join(',') ? M.near.list : null; }
+function nearList() { return M.origin && M.near && M.near.key === M.origin.map((x) => x.toFixed(4)).join(',') + walkSpeed() ? M.near.list : null; }
 function nearestStops(pt, n, maxM) {
   if (!STOPS) return [];
   return STOPS.map((s) => ({ s, d: distM(pt[0], pt[1], s.lat, s.lon) })).filter((x) => x.d <= maxM)
@@ -2293,7 +2300,7 @@ const TUTOS = [
       i: () => mock(`<div class="card" style="padding:4px 0;--c:${lineStyle('B', '15').bg}">${mJ('14:52', 'Plainpalais', 'first')}${mJ('', `${badge('B', '15', true)} <span style="font-weight:800">Nations</span>`)}${mJ('15:08', 'Gare Cornavin', 'last')}</div>`) }
   ] },
   { id: 'carte', title: 'Utiliser la carte', slides: [
-    { t: 'Autour de toi', p: 'L’onglet <b>Carte</b> se centre sur <b>ta position</b> (point bleu) et montre les arrêts tpg autour de toi. En dessous, les <b>arrêts à proximité</b> avec la distance et le temps à pied. Sans localisation, <b>touche la carte</b> pour placer ton point de départ.',
+    { t: 'Autour de toi', p: 'L’onglet <b>Carte</b> se centre sur <b>ta position</b> (point bleu) et montre les arrêts tpg autour de toi. En dessous, les <b>arrêts à moins de 12 min à pied</b> (par les rues, pas à vol d’oiseau), avec le temps et la distance. Tu peux régler ta <b>vitesse de marche</b> dans <b>Réglages</b>. Sans localisation, <b>touche la carte</b> pour placer ton point de départ.',
       i: () => mock(mMap(mStop(70, 45) + mStop(195, 62) + mStop(90, 115) + mDot(140, 80)) + `<div class="card list"><div class="m-field" style="flex-direction:column;align-items:flex-start;gap:0"><span>Champel, gare/Peschier</span><span class="small">131 m · 2 min à pied</span></div></div>`) },
     { t: 'Où veux-tu aller ?', p: 'Tape ta destination en haut : un <b>arrêt tpg</b>, une <b>adresse</b> (« Rue de Carouge 12 ») ou un <b>lieu</b> (« Uni Mail »).',
       i: () => mock(`<div class="card list"><div class="m-field">${ICON.pin}uni mail</div><div class="m-field" style="background:var(--sugg);justify-content:space-between">Genève, Uni-Mail<span class="kind">Arrêt</span></div><div class="m-field" style="background:var(--sugg);justify-content:space-between"><span>Uni Mail<br><span class="small">1205, Genève</span></span><span class="kind">Lieu</span></div></div>`, tap(40, 60)) },
@@ -2552,6 +2559,13 @@ function renderSettings() {
         </div>
         <p class="small" style="margin:0">« Système » suit automatiquement le réglage clair/sombre de ton téléphone.</p>
       </div>
+      <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+        <h2 class="label">Vitesse de marche</h2>
+        <div class="seg" role="group" aria-label="Vitesse de marche" style="display:flex">
+          ${Object.entries(WALK_SPEEDS).map(([v, o]) => `<button class="${walkSpeed() === v ? 'on' : ''}" data-act="walkSpeed" data-v="${v}" aria-pressed="${walkSpeed() === v}" style="flex:1">${o.label}</button>`).join('')}
+        </div>
+        <p class="small" style="margin:0">Environ ${WALK_SPEEDS[walkSpeed()].kmh} km/h. Sert à calculer les temps à pied sur la carte et les arrêts à proximité (max 12 min).</p>
+      </div>
       <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:4px">
         <h2 class="label" style="margin-bottom:4px">Autorisations</h2>
         <div id="permRows" class="stack" style="gap:0"><p class="small" style="margin:0">Vérification…</p></div>
@@ -2671,6 +2685,11 @@ const ACT = {
   },
   bell: (ds) => { const d = S.boardRows[+ds.i]; if (d) toggleBell(d, S.stop).then(() => drawBoard()); },
   bellJourney: () => { if (S.journey) toggleBell(S.journey, S.stop).then(() => { if (S.screen === 'journey') renderJourney(); }); },
+  walkSpeed: (ds) => {
+    store.set('nt_walkspeed', ds.v);
+    M.near = null; M.results = null; M.sel = null;
+    renderSettings();
+  },
   theme: (ds, el) => {
     if (getTheme() === ds.v) return;
     store.set('nt_theme', ds.v);
