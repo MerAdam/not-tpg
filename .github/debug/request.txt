@@ -1,0 +1,10 @@
+https://tiles.openfreemap.org/styles/positron
+https://tiles.openfreemap.org/styles/liberty
+https://tiles.openfreemap.org/styles/bright
+https://tiles.openfreemap.org/styles/dark
+https://tiles.openfreemap.org/styles/fiord
+https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js
+https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css
+https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js
+https://basemaps.cartocdn.com/gl/positron-gl-style/style.json
+https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json
