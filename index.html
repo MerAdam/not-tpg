@@ -187,14 +187,18 @@
   html.dark #sheet .backdrop{background:rgba(0,0,0,.6)}
   html.dark .seg button.on{background:var(--border2)}
   /* carte */
-  .map-screen{position:relative;flex:1;display:flex;flex-direction:column;min-height:0}
-  #bigmap{flex:1;min-height:160px;background:var(--line2);z-index:0}
-  html.dark #bigmap .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9)}
+  .map-screen{position:relative;flex:1;min-height:0;overflow:hidden}
+  #bigmap{position:absolute;inset:0;background:var(--line2);z-index:0}
+  html.dark #bigmap.osm-fallback .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9)}
+  .leaflet-container{font-family:inherit}
   #bigmap .leaflet-control-attribution{font-size:9px}
   .map-search{position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:12px;right:12px;z-index:1000;box-shadow:0 4px 16px rgba(0,0,0,.15)}
   .map-search .sugg{max-height:46vh;overflow-y:auto}
   .map-fab{position:absolute;right:12px;z-index:900;width:44px;height:44px;border-radius:22px;border:1px solid var(--line);background:var(--card);color:var(--ink);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-  .map-panel{max-height:56%;overflow-y:auto;background:var(--ground);border-radius:18px 18px 0 0;margin-top:-16px;position:relative;z-index:800;padding:12px 16px 16px;box-shadow:0 -4px 16px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:10px;flex-shrink:0;overscroll-behavior:contain}
+  .map-sheet{position:absolute;left:0;right:0;bottom:0;height:50%;z-index:800;background:var(--ground);border-radius:18px 18px 0 0;box-shadow:0 -4px 18px rgba(0,0,0,.12);display:flex;flex-direction:column;max-width:560px;margin:0 auto}
+  .sheet-handle{flex:none;height:26px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none}
+  .sheet-handle span{width:44px;height:5px;border-radius:3px;background:var(--border2)}
+  .map-panel{flex:1;min-height:0;overflow-y:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:10px;overscroll-behavior:contain}
   .map-panel > *{flex-shrink:0}
   .opt{display:flex;flex-direction:column;gap:8px;width:100%;text-align:left;padding:12px 14px}
   .opt-top{display:flex;align-items:center;gap:8px;justify-content:space-between}
@@ -567,20 +571,89 @@ const depMode = () => store.get('nt_depmode', 'min');
 const fmtDelta = (delta) => (delta > 0 ? '+' : '−') + Math.abs(delta);
 /* ---------- CARTE ---------- */
 let leafletP = null;
+const addCss = (href) => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
+const addJs = (src) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
 function loadLeaflet() {
-  if (window.L) return Promise.resolve(window.L);
   if (leafletP) return leafletP;
-  leafletP = new Promise((resolve, reject) => {
-    const css = document.createElement('link');
-    css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(css);
-    const js = document.createElement('script');
-    js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    js.onload = () => resolve(window.L);
-    js.onerror = () => { leafletP = null; reject(new Error('leaflet')); };
-    document.head.appendChild(js);
-  });
+  leafletP = (async () => {
+    if (!window.L) { addCss('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'); await addJs('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'); }
+    // Fond de carte vectoriel (OpenFreeMap) ; si ça échoue, on garde OpenStreetMap classique
+    try {
+      if (!window.maplibregl) { addCss('https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css'); await addJs('https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js'); }
+      if (!window.L.maplibreGL) await addJs('https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js');
+    } catch {}
+    return window.L;
+  })().catch((e) => { leafletP = null; throw e; });
   return leafletP;
+}
+const isDark = () => document.documentElement.classList.contains('dark');
+// Fond de carte : OpenFreeMap « positron » (clair) ou « dark » (sombre)
+function setBaseLayer() {
+  const L = window.L; if (!M.map || !L) return;
+  const want = isDark() ? 'dark' : 'positron';
+  if (M.base && M.baseStyle === want) return;
+  if (M.base) { try { M.map.removeLayer(M.base); } catch {} }
+  const attr = '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+  const el = $('#bigmap');
+  if (L.maplibreGL && window.maplibregl) {
+    try {
+      M.base = L.maplibreGL({ style: `https://tiles.openfreemap.org/styles/${want}`, attribution: attr, interactive: false }).addTo(M.map);
+      M.baseStyle = want; if (el) el.classList.remove('osm-fallback');
+      return;
+    } catch {}
+  }
+  M.base = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(M.map);
+  M.baseStyle = want; if (el) el.classList.add('osm-fallback');
+}
+/* Panneau du bas déplaçable : réduit, moitié ou plein écran */
+function sheetH(state) {
+  const scr = $('.map-screen'); const H = scr ? scr.clientHeight : innerHeight;
+  return state === 'peek' ? 116 : state === 'full' ? Math.max(200, H - 84) : Math.round(H * 0.5);
+}
+function setSheet(state, anim = true) {
+  M.sheet = state;
+  const el = $('#mapSheet'); if (!el) return;
+  el.style.transition = anim ? 'height .3s cubic-bezier(.2,.8,.2,1)' : 'none';
+  el.style.height = sheetH(state) + 'px';
+}
+// Centre la carte sur un point en tenant compte du panneau du bas
+function centerOn(ll, z) { if (!M.map) return; M.map.setView(ll, z, { animate: false }); M.map.panBy([0, Math.round(sheetPad() / 2) - 8], { animate: false }); }
+const sheetPad = () => { const el = $('#mapSheet'); return (el ? el.offsetHeight : 300) + 16; };
+function attachSheetDrag() {
+  const sheet = $('#mapSheet'), handle = $('#sheetHandle'), body = $('#mapPanel');
+  if (!sheet) return;
+  const ORDER = ['peek', 'mid', 'full'];
+  let y0 = null, h0 = 0, dragging = false, fromBody = false, t0 = 0;
+  const start = (y, isBody) => { y0 = y; h0 = sheet.offsetHeight; dragging = false; fromBody = isBody; t0 = Date.now(); };
+  const move = (y, e) => {
+    if (y0 == null) return;
+    const dy = y - y0;
+    if (fromBody && !dragging) {
+      // Depuis la liste : on ne déplace le panneau que si on tire vers le bas en haut de liste
+      if (body.scrollTop > 0 || dy < 6) { if (dy < -6 || body.scrollTop > 0) y0 = null; return; }
+    }
+    if (!dragging && Math.abs(dy) < 4) return;
+    dragging = true;
+    if (e && e.cancelable) e.preventDefault();
+    const H = $('.map-screen').clientHeight;
+    sheet.style.transition = 'none';
+    sheet.style.height = Math.max(90, Math.min(H - 84, h0 - dy)) + 'px';
+  };
+  const end = (y) => {
+    if (y0 == null) return;
+    const dy = y - y0, fast = Math.abs(dy) / Math.max(1, Date.now() - t0) > 0.5;
+    const wasDrag = dragging; y0 = null; dragging = false;
+    let i = ORDER.indexOf(M.sheet || 'mid');
+    if (!wasDrag) { if (!fromBody) setSheet(M.sheet === 'peek' ? 'mid' : 'peek'); return; }
+    if (dy > 40 || (fast && dy > 0)) i = Math.max(0, i - (dy > 260 ? 2 : 1));
+    else if (dy < -40 || (fast && dy < 0)) i = Math.min(2, i + (dy < -260 ? 2 : 1));
+    setSheet(ORDER[i]);
+  };
+  handle.addEventListener('touchstart', (e) => start(e.touches[0].clientY, false), { passive: true });
+  body.addEventListener('touchstart', (e) => start(e.touches[0].clientY, true), { passive: true });
+  sheet.addEventListener('touchmove', (e) => move(e.touches[0].clientY, e), { passive: false });
+  sheet.addEventListener('touchend', (e) => end(e.changedTouches[0].clientY));
+  handle.addEventListener('mousedown', (e) => { start(e.clientY, false); const mm = (ev) => move(ev.clientY, ev); const mu = (ev) => { end(ev.clientY); removeEventListener('mousemove', mm); removeEventListener('mouseup', mu); }; addEventListener('mousemove', mm); addEventListener('mouseup', mu); });
 }
 const GENEVA = [46.2044, 6.1432];
 const M = { map: null, layers: null, origin: null, originAuto: true, dest: null, results: null, sel: null, loading: false, err: null, watch: null, walkStop: null };
@@ -613,7 +686,7 @@ function renderMap() {
       </div>
       <div id="bigmap" role="application" aria-label="Carte"></div>
       <button class="map-fab" data-act="mapLocate" aria-label="Me localiser" style="top:calc(env(safe-area-inset-top) + 76px)">${ICON.locate}</button>
-      <div class="map-panel" id="mapPanel"></div>
+      <div class="map-sheet" id="mapSheet"><div class="sheet-handle" id="sheetHandle" role="button" aria-label="Agrandir ou réduire le panneau"><span></span></div><div class="map-panel" id="mapPanel"></div></div>
     </div>`;
   attachPlaceSearch($('#mapDest'), $('#mapSugg'), (place) => {
     M.dest = place; M.sel = null; M.results = null; M.walkStop = null;
@@ -621,6 +694,8 @@ function renderMap() {
     renderMap(); mapPlan();
   });
   drawMapPanel();
+  setSheet(M.sheet || 'mid', false);
+  attachSheetDrag();
   dataReady.then(() => initBigMap());
 }
 
@@ -631,9 +706,10 @@ async function initBigMap() {
   if (M.map) { try { M.map.remove(); } catch {} }
   const map = L.map(el, { zoomControl: false, attributionControl: true, tap: true });
   M.map = map;
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+  centerOn(M.origin || GENEVA, M.origin ? 16 : 13);
+  M.base = null; M.baseStyle = null;
+  setBaseLayer();
   M.layers = L.layerGroup().addTo(map);
-  map.setView(M.origin || GENEVA, M.origin ? 16 : 13);
   map.on('click', (e) => {
     if (M.originAuto && M.origin) return; // position GPS : on ne la remplace pas par un simple tap
     M.origin = [e.latlng.lat, e.latlng.lng]; M.originAuto = false;
@@ -651,7 +727,7 @@ function mapLocate(silent) {
   navigator.geolocation.getCurrentPosition((pos) => {
     M.origin = [pos.coords.latitude, pos.coords.longitude]; M.originAuto = true;
     store.set('nt_geo_denied', false);
-    if (M.map) M.map.setView(M.origin, Math.max(M.map.getZoom(), 16));
+    if (M.map) centerOn(M.origin, Math.max(M.map.getZoom(), 16));
     M.results = null; M.sel = null;
     drawMapLayers(); drawMapPanel();
     if (M.walkStop) walkToStop(); else if (M.dest) mapPlan();
@@ -689,15 +765,15 @@ function drawMapLayers() {
     L.polyline(path, { color: '#2563EB', weight: 5, opacity: 0.85, dashArray: M.sel.walk && M.sel.walk.coords ? null : '2 9', lineCap: 'round' }).addTo(M.layers);
     const c = lineStyle(M.sel.first.cat, M.sel.first.num);
     L.marker(st, { icon: window.L.divIcon({ className: '', html: `<span class="badge-sm" style="background:${c.bg};color:${c.fg};box-shadow:0 0 0 3px #fff">${esc(M.sel.first.num || '')}</span>`, iconSize: [30, 22], iconAnchor: [15, 11] }), zIndexOffset: 900 }).addTo(M.layers);
-    M.map.fitBounds(L.latLngBounds(path.concat([st])), { padding: [70, 40], maxZoom: 18 });
+    M.map.fitBounds(L.latLngBounds(path.concat([st])), { paddingTopLeft: [40, 90], paddingBottomRight: [40, sheetPad()], maxZoom: 18 });
   } else if (M.walkStop && M.origin) {
     const w = M.walkStop, st = [w.stop.lat, w.stop.lon];
     const path = w.route && w.route.coords ? w.route.coords : [M.origin, st];
     L.polyline(path, { color: '#2563EB', weight: 5, opacity: 0.85, dashArray: w.route ? null : '2 9', lineCap: 'round' }).addTo(M.layers);
     L.marker(st, { icon: pinIcon('dest-pin'), interactive: false, zIndexOffset: 900 }).addTo(M.layers);
-    M.map.fitBounds(L.latLngBounds(path.concat([st])), { padding: [70, 40], maxZoom: 18 });
+    M.map.fitBounds(L.latLngBounds(path.concat([st])), { paddingTopLeft: [40, 90], paddingBottomRight: [40, sheetPad()], maxZoom: 18 });
   } else if (M.results && M.results.length && M.origin) {
-    M.map.fitBounds(L.latLngBounds([M.origin, ...M.results.map((r) => [r.stop.lat, r.stop.lon])]), { padding: [80, 40], maxZoom: 17 });
+    M.map.fitBounds(L.latLngBounds([M.origin, ...M.results.map((r) => [r.stop.lat, r.stop.lon])]), { paddingTopLeft: [40, 90], paddingBottomRight: [40, sheetPad()], maxZoom: 17 });
   }
 }
 
@@ -2204,6 +2280,7 @@ function applyTheme() {
   document.documentElement.classList.toggle('dark', dark);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', dark ? '#121316' : '#F4F3EF');
+  if (typeof M !== 'undefined' && M.map) setBaseLayer();
 }
 // Change de thème avec une animation : cercle depuis (x, y) si possible, sinon fondu
 function themeTransition(update, x, y) {
