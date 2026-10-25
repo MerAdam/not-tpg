@@ -427,13 +427,13 @@ function renderHome() {
       <div class="sec-head"><h2 class="label">Mes arrêts</h2>
         ${favs.length ? `<button class="link" data-act="editFavs">${S.editFavs ? 'Terminé' : 'Modifier'}</button>` : ''}</div>
       <div class="card list">
+        <label class="field ${favs.length ? 'bb' : ''}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C2410C" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input id="addIn" placeholder="Rechercher un arrêt…" aria-label="Rechercher un arrêt"></label>
+        <div class="sugg" id="addSugg"></div>
         ${favs.map((f, i) => S.editFavs
           ? `<div class="row-btn"><span>${esc(short(f.name))}</span><span class="row-actions">
                ${i ? `<button class="icon-btn" data-act="favUp" data-i="${i}" aria-label="Monter">${ICON.up}</button>` : ''}
                <button class="icon-btn danger" data-act="favDel" data-i="${i}" aria-label="Supprimer">${ICON.trash}</button></span></div>`
           : `<button class="row-btn" data-act="openStop" data-i="${i}"><span>${esc(short(f.name))}</span>${ICON.chev}</button>`).join('')}
-        <label class="field"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C2410C" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input id="addIn" placeholder="Rechercher un arrêt…" aria-label="Rechercher un arrêt"></label>
-        <div class="sugg" id="addSugg"></div>
       </div>
       <p class="foot">Données : transport.opendata.ch · arrêts et couleurs : tpg / opentransportdata.swiss</p>
     </div>`;
@@ -444,7 +444,7 @@ function renderHome() {
   attachSuggest(fromIn, $('#fromSugg'), (s) => { S.fromText = fromIn.value = s.name; });
   attachSuggest(toIn, $('#toSugg'), (s) => { S.toText = toIn.value = s.name; });
   attachSuggest($('#addIn'), $('#addSugg'), (s) => {
-    S.stop = { id: s.id, name: s.name }; S.boardDate = ''; S.boardTime = ''; S.board = [];
+    S.stop = { id: s.id, name: s.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = [];
     go('board');
   });
   $('#searchForm').addEventListener('submit', (e) => {
@@ -523,7 +523,12 @@ function renderBoard() {
       <button class="icon-btn star ${fav ? 'on' : ''}" data-act="favToggle" aria-pressed="${fav}" aria-label="${fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}">${STAR(fav)}</button>
     </header>
     <div class="controls"><div class="chips" id="pills"></div></div>
-    <div class="scroll" id="boardScroll"><div class="card list" id="deps"><p class="empty">Chargement…</p></div><p class="foot" id="upd"></p></div>`;
+    <div class="scroll stack" id="boardScroll" style="gap:10px">
+      <button class="ghost" data-act="boardMore" data-dir="before" style="align-self:center">Départs précédents</button>
+      <div class="card list" id="deps"><p class="empty">Chargement…</p></div>
+      <button class="ghost" data-act="boardMore" data-dir="after" style="align-self:center">Départs suivants</button>
+      <p class="foot" id="upd" style="margin-top:0"></p>
+    </div>`;
   drawPills();
   loadBoard();
 }
@@ -597,7 +602,40 @@ const SHEET = {
     closeSheet(); drawPills(); reloadBoard();
   }
 };
-function reloadBoard() { const d = $('#deps'); if (d) d.innerHTML = '<p class="empty">Chargement…</p>'; loadBoard(); }
+function reloadBoard() { S.boardBefore = []; S.boardAfter = []; const d = $('#deps'); if (d) d.innerHTML = '<p class="empty">Chargement…</p>'; loadBoard(); }
+const depKey = (d) => d.stop.departure + '|' + (d.number || d.category) + '|' + d.to;
+function boardAll() {
+  const seen = new Set(), out = [];
+  for (const d of [...(S.boardBefore || []), ...S.board, ...(S.boardAfter || [])]) {
+    const k = depKey(d); if (seen.has(k)) continue; seen.add(k); out.push(d);
+  }
+  return out.sort((a, b) => parseISO(a.stop.departure) - parseISO(b.stop.departure));
+}
+async function boardMore(dir, btn) {
+  if (btn.disabled) return;
+  const all = boardAll(); if (!all.length) return;
+  const label = btn.textContent; btn.disabled = true; btn.textContent = 'Chargement…';
+  const edge = parseISO((dir === 'before' ? all[0] : all[all.length - 1]).stop.departure);
+  const from = new Date(edge.getTime() + (dir === 'before' ? -60 : 1) * 60000);
+  try {
+    const j = await api(`/stationboard?id=${encodeURIComponent(S.stop.id)}&limit=60&datetime=${encodeURIComponent(ymd(from) + ' ' + hm(from))}`);
+    const list = j.stationboard || [];
+    const sc = $('#boardScroll'), h0 = sc ? sc.scrollHeight : 0;
+    if (dir === 'before') {
+      const add = list.filter((d) => parseISO(d.stop.departure) < edge);
+      if (!add.length) toast('Pas de départ plus tôt trouvé.');
+      S.boardBefore = add.concat(S.boardBefore || []);
+      drawBoard();
+      if (sc) sc.scrollTop += sc.scrollHeight - h0; // garde la position de lecture
+    } else {
+      const add = list.filter((d) => parseISO(d.stop.departure) > edge);
+      if (!add.length) toast('Pas de départ plus tard trouvé.');
+      S.boardAfter = (S.boardAfter || []).concat(add);
+      drawBoard();
+    }
+  } catch { toast('Impossible de charger les départs.'); }
+  btn.disabled = false; btn.textContent = label;
+}
 async function loadBoard() {
   clearTimeout(boardTimer);
   let q = `/stationboard?id=${encodeURIComponent(S.stop.id)}&limit=80`;
@@ -620,15 +658,19 @@ function drawBoard() {
   if (!$('#deps')) return;
   if (sheet.classList.contains('open') && $('#sheetBody').querySelector('[data-sheet="lineAll"]')) $('#sheetBody').innerHTML = linesSheetHtml();
   const now = Date.now(), live = boardLive();
-  S.boardRows = S.board.filter((d) => !active.length || active.includes(String(d.number || d.category))).slice(0, 30);
+  const extra = (S.boardBefore && S.boardBefore.length) || (S.boardAfter && S.boardAfter.length);
+  const filtered = boardAll().filter((d) => !active.length || active.includes(String(d.number || d.category)));
+  S.boardRows = extra ? filtered : filtered.slice(0, 30);
   const rows = S.boardRows.map((d, i) => {
     const planned = parseISO(d.stop.departure);
     const delay = d.stop.delay || 0;
     const prog = parseISO(d.stop.prognosis && d.stop.prognosis.departure);
     const real = prog || new Date(planned.getTime() + delay * 60000);
     const diff = Math.round((real - now) / 60000);
-    const big = !live || diff > 59 ? hm(real) : (diff <= 0 ? 'Imm.' : diff + ' min');
-    return `<button class="dep" data-act="openJourney" data-i="${i}">${badge(d.category, d.number)}
+    const past = real.getTime() < now - 30000;
+    const sameDay = ymd(planned) === todayStr();
+    const big = past || !live || diff > 59 ? (sameDay ? '' : planned.getDate() + '.' + (planned.getMonth() + 1) + '. ') + hm(real) : (diff <= 0 ? 'Imm.' : diff + ' min');
+    return `<button class="dep" data-act="openJourney" data-i="${i}"${past ? ' style="opacity:.5"' : ''}>${badge(d.category, d.number)}
       <div class="dep-to"><span class="to">${esc(short(d.to))}</span>
         <span class="small">Prévu ${hm(planned)}${d.stop.platform ? ' · quai ' + esc(d.stop.platform) : ''}</span></div>
       <div class="dep-r"><span class="big">${big}</span>${delay > 0 ? `<span class="st-late">+${delay} min</span>` : ''}</div></button>`;
@@ -978,7 +1020,7 @@ function drawCands() {
 const ACT = {
   back: () => (history.state ? history.back() : go(PARENT[S.screen] || 'home', false)),
   openJourney: (ds) => { S.journey = S.boardRows[+ds.i]; if (S.journey) go('journey'); },
-  openStopFromJourney: (ds) => { S.stop = { id: ds.id, name: ds.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; go('board'); },
+  openStopFromJourney: (ds) => { S.stop = { id: ds.id, name: ds.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = []; go('board'); },
   locate: () => { S.fromText = ''; const i = $('#fromIn'); if (i) i.value = ''; locate(); },
   swap: () => {
     const from = S.fromText.trim() || (S.geo ? S.geo.name : '');
@@ -987,7 +1029,7 @@ const ACT = {
   editFavs: () => { S.editFavs = !S.editFavs; renderHome(); },
   favUp: (ds) => { const i = +ds.i; [favs[i - 1], favs[i]] = [favs[i], favs[i - 1]]; store.set('nt_favs', favs); renderHome(); },
   favDel: (ds) => { favs.splice(+ds.i, 1); store.set('nt_favs', favs); if (!favs.length) S.editFavs = false; renderHome(); },
-  openStop: (ds) => { S.stop = favs[+ds.i]; S.boardDate = ''; S.boardTime = ''; S.board = []; go('board'); },
+  openStop: (ds) => { S.stop = favs[+ds.i]; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = []; go('board'); },
   lineAll: () => { filters[S.stop.id] = []; store.set('nt_filters', filters); drawBoard(); },
   lineToggle: (ds) => {
     const a = filters[S.stop.id] || [];
@@ -1004,6 +1046,7 @@ const ACT = {
     el.setAttribute('aria-label', on ? 'Retirer des favoris' : 'Ajouter aux favoris');
     el.innerHTML = STAR(on);
   },
+  boardMore: (ds, el) => boardMore(ds.dir, el),
   openLines: () => openSheet(linesSheetHtml()),
   openTime: () => openSheet(timeSheetHtml()),
   arr: (ds) => { S.q.arrival = ds.v === '1'; renderResultsAndReload(); },
