@@ -189,11 +189,9 @@
   /* carte */
   .map-screen{position:relative;flex:1;min-height:0;overflow:hidden}
   #bigmap{position:absolute;inset:0;background:var(--line2);z-index:0}
-  /* fonds adoucis : clair un peu plus soutenu, sombre un peu plus lumineux */
-  #bigmap .leaflet-gl-layer{filter:brightness(.94) contrast(1.06) saturate(1.25)}
-  html.dark #bigmap .leaflet-gl-layer{filter:brightness(1.18) contrast(.95) saturate(.9)}
+  /* mode sombre façon « nuit » : la carte claire est inversée en gris doux */
+  #bigmap.dimmed .leaflet-tile-pane, #bigmap.dimmed .leaflet-gl-layer{filter:invert(.9) hue-rotate(180deg) brightness(.95) contrast(.88) saturate(.75)}
   .map-panel.locked{overflow-y:hidden}
-  html.dark #bigmap.osm-fallback .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9)}
   .leaflet-container{font-family:inherit}
   #bigmap .leaflet-control-attribution{font-size:9px}
   .map-search{position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:12px;right:12px;z-index:1000;box-shadow:0 4px 16px rgba(0,0,0,.15)}
@@ -592,22 +590,47 @@ function loadLeaflet() {
 }
 const isDark = () => document.documentElement.classList.contains('dark');
 // Fond de carte : OpenFreeMap « positron » (clair) ou « dark » (sombre)
+// Fonds de carte disponibles (gratuits, sans clé)
+const MAP_STYLES = [
+  { id: 'swiss', name: 'Suisse', desc: 'Carte de base swisstopo, détaillée et colorée', kind: 'gl', url: 'https://vectortiles.geo.admin.ch/styles/ch.swisstopo.basemap.vt/style.json', attr: '© <a href="https://www.swisstopo.admin.ch" target="_blank">swisstopo</a>', swatch: ['#F3F1EA', '#CFE3B9', '#9CC3E6', '#F6C66B'] },
+  { id: 'swisslight', name: 'Suisse épurée', desc: 'Version claire et sobre, idéale pour les arrêts', kind: 'gl', url: 'https://vectortiles.geo.admin.ch/styles/ch.swisstopo.lightbasemap.vt/style.json', attr: '© <a href="https://www.swisstopo.admin.ch" target="_blank">swisstopo</a>', swatch: ['#F7F7F5', '#E4EBDC', '#C9DDEE', '#FFFFFF'] },
+  { id: 'liberty', name: 'Standard', desc: 'Style proche de Google Maps (OpenStreetMap)', kind: 'gl', url: 'https://tiles.openfreemap.org/styles/liberty', attr: '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>', swatch: ['#F8F4F0', '#D8E8C8', '#A0C8F0', '#FCD6A4'] },
+  { id: 'national', name: 'Carte nationale', desc: 'La carte topographique suisse classique', kind: 'raster', url: 'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg', attr: '© <a href="https://www.swisstopo.admin.ch" target="_blank">swisstopo</a>', swatch: ['#FFFFFF', '#D5E8C4', '#8EC1E8', '#E84A3C'] },
+  { id: 'satellite', name: 'Satellite', desc: 'Photo aérienne swisstopo avec les noms de rues', kind: 'gl', url: 'https://vectortiles.geo.admin.ch/styles/ch.swisstopo.imagerybasemap.vt/style.json', attr: '© <a href="https://www.swisstopo.admin.ch" target="_blank">swisstopo</a>', swatch: ['#3E4A33', '#6B7A55', '#8C8A7A', '#2F3B2A'], noDim: true }
+];
+const mapStyle = () => MAP_STYLES.find((x) => x.id === store.get('nt_mapstyle', 'swiss')) || MAP_STYLES[0];
+const mapDim = () => store.get('nt_mapdim', true);
 function setBaseLayer() {
   const L = window.L; if (!M.map || !L) return;
-  const want = isDark() ? 'fiord' : 'positron';
-  if (M.base && M.baseStyle === want) return;
-  if (M.base) { try { M.map.removeLayer(M.base); } catch {} }
-  const attr = '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+  const st = mapStyle();
   const el = $('#bigmap');
-  if (L.maplibreGL && window.maplibregl) {
+  // En mode sombre, la carte est assombrie (sauf satellite), comme le mode nuit de Google Maps
+  if (el) el.classList.toggle('dimmed', isDark() && mapDim() && !st.noDim);
+  if (M.base && M.baseStyle === st.id) return;
+  if (M.base) { try { M.map.removeLayer(M.base); } catch {} }
+  if (st.kind === 'gl' && L.maplibreGL && window.maplibregl) {
     try {
-      M.base = L.maplibreGL({ style: `https://tiles.openfreemap.org/styles/${want}`, attribution: attr, interactive: false }).addTo(M.map);
-      M.baseStyle = want; if (el) el.classList.remove('osm-fallback');
-      return;
+      M.base = L.maplibreGL({ style: st.url, attribution: st.attr, interactive: false }).addTo(M.map);
+      M.baseStyle = st.id; return;
     } catch {}
   }
-  M.base = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(M.map);
-  M.baseStyle = want; if (el) el.classList.add('osm-fallback');
+  if (st.kind === 'raster') {
+    M.base = L.tileLayer(st.url, { maxZoom: 19, maxNativeZoom: 18, attribution: st.attr }).addTo(M.map);
+  } else {
+    M.base = L.tileLayer('https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg', { maxZoom: 19, maxNativeZoom: 18, attribution: '© swisstopo' }).addTo(M.map);
+  }
+  M.baseStyle = st.id;
+}
+function mapStylesHtml() {
+  const cur = mapStyle().id;
+  return `<h2>Fond de carte</h2>
+    <div class="stack" style="gap:8px;margin-bottom:14px">${MAP_STYLES.map((st) => `
+      <button class="card" data-sheet="mapStyle" data-id="${st.id}" style="width:100%;text-align:left;padding:10px 12px;display:flex;align-items:center;gap:12px;${st.id === cur ? 'border:2px solid var(--accent)' : ''}">
+        <span style="width:46px;height:46px;border-radius:10px;flex:none;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;border:1px solid var(--line)">${st.swatch.map((c) => `<i style="background:${c}"></i>`).join('')}</span>
+        <span style="display:flex;flex-direction:column;gap:2px"><b style="font-size:15px">${st.name}</b><span class="small">${st.desc}</span></span>
+      </button>`).join('')}</div>
+    <label class="row gap" style="margin-bottom:16px;font-weight:700;font-size:15px"><input type="checkbox" data-sheet="mapDim" ${mapDim() ? 'checked' : ''} style="width:22px;height:22px;accent-color:var(--accent)"> Assombrir la carte en mode sombre</label>
+    <button class="primary w100" data-sheet="close">OK</button>`;
 }
 /* Panneau du bas déplaçable : réduit, moitié ou plein écran */
 function sheetH(state) {
@@ -694,6 +717,7 @@ function renderMap() {
       </div>
       <div id="bigmap" role="application" aria-label="Carte"></div>
       <button class="map-fab" data-act="mapLocate" aria-label="Me localiser" style="top:calc(env(safe-area-inset-top) + 76px)">${ICON.locate}</button>
+      <button class="map-fab" data-act="mapStyles" aria-label="Fond de carte" style="top:calc(env(safe-area-inset-top) + 128px)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
       <div class="map-sheet" id="mapSheet"><div class="sheet-handle" id="sheetHandle" role="button" aria-label="Agrandir ou réduire le panneau"><span></span></div><div class="map-panel" id="mapPanel"></div></div>
     </div>`;
   attachPlaceSearch($('#mapDest'), $('#mapSugg'), (place) => {
@@ -1237,6 +1261,8 @@ function timeSheetHtml() {
     </div>`;
 }
 const SHEET = {
+  mapStyle: (ds) => { store.set('nt_mapstyle', ds.id); setBaseLayer(); $('#sheetBody').innerHTML = mapStylesHtml(); },
+  mapDim: (ds, el) => { store.set('nt_mapdim', el.checked); setBaseLayer(); },
   close: () => closeSheet(),
   lineAll: () => { filters[S.stop.id] = []; store.set('nt_filters', filters); $('#sheetBody').innerHTML = linesSheetHtml(); drawPills(); drawBoard(); },
   lineToggle: (ds) => {
@@ -2407,6 +2433,7 @@ const ACT = {
   },
   permHelp: (ds) => openSheet(permHelpHtml(ds.p)),
   mapLocate: () => mapLocate(false),
+  mapStyles: () => openSheet(mapStylesHtml()),
   mapClear: () => { M.dest = null; M.results = null; M.sel = null; M.walkStop = null; renderMap(); },
   goToStop: () => {
     const st = stopById(S.stop.id) || null;
