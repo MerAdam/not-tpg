@@ -1162,7 +1162,7 @@ function drawMapPanel() {
     html = `<h2 class="label" style="margin:0">Arrêts à proximité</h2>` + (!near
       ? '<p class="small" style="margin:0">Calcul des temps de marche…</p>'
       : near.length
-      ? `<div class="card list">${near.slice(0, 5).map(({ s, d, walk, real }) => `<button class="row-btn" data-act="mapStop" data-id="${esc(s.id)}"><span style="display:flex;flex-direction:column"><span>${esc(short(s.name))}</span><span class="small">${real ? '' : '~'}${minsTxt(walk)} à pied · ${Math.round(d / 10) * 10} m</span></span>${ICON.chev}</button>`).join('')}</div>`
+      ? `<div class="card list">${near.map(({ s, d, walk, real }) => `<button class="row-btn" data-act="mapStop" data-id="${esc(s.id)}"><span style="display:flex;flex-direction:column"><span>${esc(short(s.name))}</span><span class="small">${real ? '' : '~'}${minsTxt(walk)} à pied · ${Math.round(d / 10) * 10} m</span></span>${ICON.chev}</button>`).join('')}</div>`
       : '<p class="small" style="margin:0">Aucun arrêt tpg à moins de 12 min à pied.</p>') +
       '<p class="small" style="margin:0">Cherche une destination en haut pour voir les meilleures options depuis ici.</p>';
   } else if (M.loading) {
