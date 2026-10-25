@@ -720,6 +720,31 @@ async function walkApi(action, params) {
   if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
   return j;
 }
+// Arrêts à ≤ 12 min à pied réels (pas à vol d'oiseau), triés par temps de marche. Mis en cache par point de départ.
+const NEAR_MAX = 720;
+async function nearbyByWalk(pt) {
+  const key = pt.map((x) => x.toFixed(4)).join(',');
+  if (M.near && M.near.key === key) return M.near.p;
+  const p = (async () => {
+    const cands = nearestStops(pt, 24, 1100);
+    if (!cands.length) return [];
+    let dur = cands.map((c) => estWalk(pt, [c.s.lat, c.s.lon])), dist = cands.map((c) => c.d * 1.3), real = false;
+    try {
+      const j = await walkApi('matrix', { from: pt.join(','), to: cands.map((c) => c.s.lat + ',' + c.s.lon).join('|') });
+      if (j.durations && j.durations.length === cands.length) {
+        dur = j.durations.map((x, i) => x == null ? Infinity : Math.round(x));
+        if (j.distances) dist = j.distances.map((x, i) => x == null ? dist[i] : x);
+        real = true;
+      }
+    } catch {}
+    return cands.map((c, i) => ({ s: c.s, d: dist[i], walk: dur[i], real }))
+      .filter((x) => x.walk <= NEAR_MAX).sort((a, b) => a.walk - b.walk);
+  })();
+  M.near = { key, p, list: null };
+  p.then((l) => { if (M.near && M.near.key === key) { M.near.list = l; drawMapLayers(); drawMapPanel(); } });
+  return p;
+}
+function nearList() { return M.origin && M.near && M.near.key === M.origin.map((x) => x.toFixed(4)).join(',') ? M.near.list : null; }
 function nearestStops(pt, n, maxM) {
   if (!STOPS) return [];
   return STOPS.map((s) => ({ s, d: distM(pt[0], pt[1], s.lat, s.lon) })).filter((x) => x.d <= maxM)
@@ -936,7 +961,7 @@ function drawMapLayers() {
   const bounds = [];
   if (M.origin) { L.marker(M.origin, { icon: pinIcon('me-dot'), interactive: false, zIndexOffset: 1000 }).addTo(M.layers); bounds.push(M.origin); }
   // Arrêts proches (cliquables : ouvrent les départs)
-  const near = M.origin && !M.sel ? nearestStops(M.origin, 12, 700) : []; // trajet choisi : on n'affiche que lui
+  const near = M.origin && !M.sel ? (nearList() || []) : []; // trajet choisi : on n'affiche que lui
   const shown = new Set();
   for (const { s } of near) {
     shown.add(s.id);
@@ -1019,16 +1044,11 @@ async function mapPlan(force) {
     const directWalk = estWalk(M.origin, dest);
     // Arrêts d'arrivée : l'arrêt choisi, ou les 2 arrêts les plus proches de l'adresse
     const destStops = M.dest.stopId ? [{ s: stopById(M.dest.stopId), d: 0 }] : nearestStops(dest, 2, 900);
-    let origins = nearestStops(M.origin, 6, 800);
-    if (origins.length < 3) origins = nearestStops(M.origin, 4, 1600);
+    // Arrêts de départ : les 4 plus proches en temps de marche réel (max 12 min)
+    let origins = (await nearbyByWalk(M.origin)).slice(0, 4);
+    if (!origins.length) origins = nearestStops(M.origin, 3, 1600).map((o) => ({ ...o, walk: estWalk(M.origin, [o.s.lat, o.s.lon]) })); // coin isolé
+    const real = origins.length ? origins[0].real : false;
     if (!origins.length || !destStops.length) { M.results = []; M.walkOnly = directWalk; return; }
-    // Temps à pied réels (OpenRouteService), sinon estimation
-    let walks = origins.map((o) => estWalk(M.origin, [o.s.lat, o.s.lon])), real = false;
-    try {
-      const j = await walkApi('matrix', { from: M.origin.join(','), to: origins.map((o) => o.s.lat + ',' + o.s.lon).join('|') });
-      if (j.durations && j.durations.every((x) => x != null)) { walks = j.durations.map(Math.round); real = true; }
-    } catch {}
-    origins = origins.map((o, i) => ({ ...o, walk: walks[i] })).sort((a, b) => a.walk - b.walk).slice(0, 4);
     const now = Date.now();
     const results = [];
     await Promise.all(origins.map(async (o) => {
@@ -1130,10 +1150,13 @@ function drawMapPanel() {
       ? `<p style="margin:0;font-weight:800">Localisation bloquée</p><p class="small" style="margin:0">Touche la carte pour placer ton point de départ, ou réactive la localisation dans <b>Réglages → Autorisations</b>.</p>`
       : `<p class="small" style="margin:0">Recherche de ta position… Tu peux aussi <b>toucher la carte</b> pour placer ton point de départ.</p>`;
   } else if (!M.dest) {
-    const near = nearestStops(M.origin, 4, 700);
-    html = `<h2 class="label" style="margin:0">Arrêts à proximité</h2>` + (near.length
-      ? `<div class="card list">${near.map(({ s, d }) => `<button class="row-btn" data-act="mapStop" data-id="${esc(s.id)}"><span style="display:flex;flex-direction:column"><span>${esc(short(s.name))}</span><span class="small">${Math.round(d)} m · ~${minsTxt(d * 1.3 / WALK_MS)} à pied</span></span>${ICON.chev}</button>`).join('')}</div>`
-      : '<p class="small" style="margin:0">Aucun arrêt tpg à moins de 700 m.</p>') +
+    const near = nearList();
+    if (!near) nearbyByWalk(M.origin);
+    html = `<h2 class="label" style="margin:0">Arrêts à proximité</h2>` + (!near
+      ? '<p class="small" style="margin:0">Calcul des temps de marche…</p>'
+      : near.length
+      ? `<div class="card list">${near.slice(0, 5).map(({ s, d, walk, real }) => `<button class="row-btn" data-act="mapStop" data-id="${esc(s.id)}"><span style="display:flex;flex-direction:column"><span>${esc(short(s.name))}</span><span class="small">${real ? '' : '~'}${minsTxt(walk)} à pied · ${Math.round(d / 10) * 10} m</span></span>${ICON.chev}</button>`).join('')}</div>`
+      : '<p class="small" style="margin:0">Aucun arrêt tpg à moins de 12 min à pied.</p>') +
       '<p class="small" style="margin:0">Cherche une destination en haut pour voir les meilleures options depuis ici.</p>';
   } else if (M.loading) {
     html = '<p class="empty" style="padding:8px 0">Recherche des meilleures options…</p>';
