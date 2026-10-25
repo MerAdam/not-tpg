@@ -161,9 +161,20 @@ async function handle(req, res, { urls, key, maxAge, kind }) {
     res.setHeader('Cache-Control', `public, max-age=0, s-maxage=${maxAge}, stale-while-revalidate=${maxAge}, stale-if-error=86400`);
     const body = { kind, fetchedAt: new Date().toISOString(), total: all.length, alerts };
     if (req.query && req.query.debug) {
+      const geneva = all.filter((s) => (s.stopNames || []).some((n) => /gen[eè]v|carouge|lancy|meyrin|vernier|onex|th[oô]nex|saconnex/i.test(n)) || /gen[eè]v/i.test(s.title || ''));
+      const raw = stripNs(xml);
+      const firstEl = raw.search(/<PtSituationElement\b/);
       body.debug = {
+        xmlLength: xml.length,
+        xmlHead: xml.slice(0, 600),
+        firstSituationXml: firstEl >= 0 ? raw.slice(firstEl, firstEl + 4000) : null,
         participants: count(all.map((s) => s.participant)),
         operators: count(all.flatMap((s) => s.operators || [])),
+        withStops: all.filter((s) => s.stops.length).length,
+        withLines: all.filter((s) => s.lines.length).length,
+        stopsMatchingTpg: all.filter((s) => s.stops.some((d) => refs.stops.has(d))).length,
+        refs: { stops: refs.stops.size, lines: refs.lines.size },
+        genevaLike: geneva.slice(0, 3),
         sample: all.slice(0, 2)
       };
     }
