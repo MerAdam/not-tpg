@@ -90,7 +90,9 @@
   .badge-sm{min-width:30px;height:22px;padding:0 6px;border-radius:6px;font-weight:900;font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none}
   .controls{padding:2px 16px 12px;display:flex;flex-direction:column;gap:10px}
   .chips{display:flex;gap:8px;flex-wrap:wrap}
-  .chip{height:36px;min-width:44px;padding:0 12px;border-radius:18px;border:1.5px solid var(--border2);background:var(--card);font-weight:900;font-size:15px;display:inline-flex;align-items:center;gap:6px}
+  .chip{height:36px;min-width:44px;padding:0 12px;border-radius:18px;border:1.5px solid var(--border2);background:var(--card);font-weight:900;font-size:15px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+  .chip.line-chip{min-width:56px;padding:0 10px}
+  .j-title{margin:0;font-weight:800;line-height:1.12;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;word-break:break-word}
   .chip .dot{width:10px;height:10px;border-radius:5px;flex:none}
   .chip.on-dark{background:var(--ink);color:var(--ground);border-color:var(--ink)}
   .wrap-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -626,8 +628,8 @@ function linesSheetHtml() {
       <button class="chip ${active.length ? '' : 'on-dark'}" data-sheet="lineAll">Toutes</button>
       ${lines.map((x) => {
         const on = active.includes(x.l), c = lineStyle(x.cat, x.num);
-        return `<button class="chip" data-sheet="lineToggle" data-l="${esc(x.l)}" aria-pressed="${on}"
-          style="${on ? `background:${c.bg};color:${c.fg};border-color:${c.bg}` : `border-color:${c.bg}`}">${on ? '' : `<span class="dot" style="background:${c.bg}"></span>`}${esc(x.l)}</button>`;
+        return `<button class="chip line-chip" data-sheet="lineToggle" data-l="${esc(x.l)}" aria-pressed="${on}"
+          style="${on ? `background:${c.bg};color:${c.fg};border-color:${c.bg}` : `border-color:${c.bg}`}">${esc(x.l)}</button>`;
       }).join('') || '<span class="small">Chargement des lignes…</span>'}
     </div>
     <p class="small" style="margin:0 0 14px">Le choix est mémorisé pour cet arrêt.</p>
@@ -740,6 +742,16 @@ function drawBoard() {
 }
 
 /* ---------- PARCOURS D'UNE COURSE ---------- */
+// Ajuste la taille du titre pour tenir sur 2 lignes max, dans la hauteur du badge de ligne
+function fitTitle(el) {
+  if (!el) return;
+  const b = el.parentElement.querySelector('.badge');
+  const maxH = Math.max(30, b ? b.offsetHeight : 30) + 2;
+  for (let size = 20; size >= 11; size--) {
+    el.style.fontSize = size + 'px';
+    if (el.scrollHeight <= maxH) return;
+  }
+}
 /* Parcours types (data/patterns.json, horaire officiel) : arrêts avant celui où l'on est */
 let PATTERNS = null, patternsP = null;
 function loadPatterns() {
@@ -828,7 +840,7 @@ function renderJourney() {
 
   main.innerHTML = `
     <header class="top back">${backBtn()}
-      <div class="row gap" style="min-width:0;flex:1">${badge(d.category, d.number)}<h1 class="title" style="font-size:20px">direction ${esc(short(d.to))}</h1></div>
+      <div class="row gap" style="min-width:0;flex:1">${badge(d.category, d.number)}<h1 class="j-title" id="jTitle" style="font-size:20px">${esc(short(d.to))}</h1></div>
       ${(parseISO(d.stop.departure) || 0) > Date.now() - 60000 ? `<button class="icon-btn bell ${hasBell(bellKey(S.stop.id, d)) ? 'on' : ''}" style="width:44px;height:44px;margin:0" data-act="bellJourney" aria-label="Suivre ce départ">${BELL(hasBell(bellKey(S.stop.id, d)))}</button>` : ''}
     </header>
     <div class="scroll stack">
@@ -839,6 +851,7 @@ function renderJourney() {
         ? `<div class="card" style="padding:6px 0;--c:${st.bg}">${rows}</div><p class="foot">Arrêts grisés : déjà desservis. Touche un arrêt pour voir ses départs.</p>`
         : '<div class="card empty-card">Le parcours de cette course n’est pas disponible.</div>'}
     </div>`;
+  fitTitle($('#jTitle'));
   if (prev && prev.ids.length) {
     const h = main.querySelector('.jrow.here');
     if (h) h.scrollIntoView({ block: 'center' });
