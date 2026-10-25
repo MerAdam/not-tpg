@@ -592,13 +592,10 @@ const isDark = () => document.documentElement.classList.contains('dark');
 // Fond de carte : OpenFreeMap « positron » (clair) ou « dark » (sombre)
 // Fonds de carte disponibles (gratuits, sans clé)
 const MAP_STYLES = [
-  { id: 'swiss', name: 'Suisse', desc: 'Carte de base swisstopo, détaillée et colorée', kind: 'gl', url: 'https://vectortiles.geo.admin.ch/styles/ch.swisstopo.basemap.vt/style.json', attr: '© <a href="https://www.swisstopo.admin.ch" target="_blank">swisstopo</a>', swatch: ['#F3F1EA', '#CFE3B9', '#9CC3E6', '#F6C66B'] },
   { id: 'swisslight', name: 'Suisse épurée', desc: 'Version claire et sobre, idéale pour les arrêts', kind: 'gl', url: 'https://vectortiles.geo.admin.ch/styles/ch.swisstopo.lightbasemap.vt/style.json', attr: '© <a href="https://www.swisstopo.admin.ch" target="_blank">swisstopo</a>', swatch: ['#F7F7F5', '#E4EBDC', '#C9DDEE', '#FFFFFF'] },
-  { id: 'liberty', name: 'Standard', desc: 'Style proche de Google Maps (OpenStreetMap)', kind: 'gl', url: 'https://tiles.openfreemap.org/styles/liberty', attr: '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>', swatch: ['#F8F4F0', '#D8E8C8', '#A0C8F0', '#FCD6A4'] },
-  { id: 'national', name: 'Carte nationale', desc: 'La carte topographique suisse classique', kind: 'raster', url: 'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.jpeg', attr: '© <a href="https://www.swisstopo.admin.ch" target="_blank">swisstopo</a>', swatch: ['#FFFFFF', '#D5E8C4', '#8EC1E8', '#E84A3C'] },
   { id: 'satellite', name: 'Satellite', desc: 'Photo aérienne swisstopo avec les noms de rues', kind: 'gl', url: 'https://vectortiles.geo.admin.ch/styles/ch.swisstopo.imagerybasemap.vt/style.json', attr: '© <a href="https://www.swisstopo.admin.ch" target="_blank">swisstopo</a>', swatch: ['#3E4A33', '#6B7A55', '#8C8A7A', '#2F3B2A'], noDim: true }
 ];
-const mapStyle = () => MAP_STYLES.find((x) => x.id === store.get('nt_mapstyle', 'swiss')) || MAP_STYLES[0];
+const mapStyle = () => MAP_STYLES.find((x) => x.id === store.get('nt_mapstyle', 'swisslight')) || MAP_STYLES[0];
 const mapDim = () => store.get('nt_mapdim', true);
 function setBaseLayer() {
   const L = window.L; if (!M.map || !L) return;
