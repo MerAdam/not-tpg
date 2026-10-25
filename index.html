@@ -87,7 +87,23 @@
   .seg{display:inline-flex;background:#E9E7E1;border-radius:12px;padding:3px}
   .seg button{height:38px;padding:0 14px;border:0;border-radius:9px;background:none;font-weight:800;font-size:14px;color:var(--muted)}
   .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
-  .dep{display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 16px;border-bottom:1px solid var(--line2)}
+  .dep{display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 16px;border:0;border-bottom:1px solid var(--line2);width:100%;background:none;text-align:left}
+  button.dep:active{background:var(--line2)}
+  /* parcours d'une course */
+  .jrow{display:grid;grid-template-columns:56px 14px 1fr;column-gap:10px;padding:0 16px;width:100%;background:none;border:0;text-align:left}
+  .jrow:active{background:var(--line2)}
+  .jrow .leg-t{padding-top:10px}
+  .jrow .rail .node{margin-top:14px;width:12px;height:12px}
+  .jrow.past{opacity:.45}
+  .jrow.here .stn{color:var(--ink)}
+  .jrow .stn{font-size:15px;font-weight:700;padding:9px 0}
+  .jrow.first .rail::before{top:18px}
+  .jrow.last .rail::before{bottom:calc(100% - 18px)}
+  /* tirer pour actualiser */
+  #app{position:relative}
+  #ptr{position:absolute;left:50%;top:0;width:40px;height:40px;margin-left:-20px;border-radius:20px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;z-index:5;color:var(--accent)}
+  #ptr.spin svg{animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
   .dep-to{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
   .to{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .small{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -369,7 +385,8 @@ function attachSuggest(input, box, onPick) {
 }
 
 /* ---------- navigation ---------- */
-const SUB = ['board', 'results', 'trip', 'new'];
+const SUB = ['board', 'results', 'trip', 'new', 'journey'];
+const PARENT = { new: 'commutes', trip: 'results', journey: 'board' };
 function go(screen, push = true) {
   clearTimeout(boardTimer);
   closeSheet();
@@ -378,12 +395,9 @@ function go(screen, push = true) {
   const commuteTab = screen === 'commutes' || screen === 'new';
   $('#tabHome').classList.toggle('on', !commuteTab);
   $('#tabCommutes').classList.toggle('on', commuteTab);
-  ({ home: renderHome, board: renderBoard, results: renderResults, trip: renderTrip, commutes: renderCommutes, new: renderNew })[screen]();
+  ({ home: renderHome, board: renderBoard, results: renderResults, trip: renderTrip, commutes: renderCommutes, new: renderNew, journey: renderJourney })[screen]();
 }
-window.addEventListener('popstate', () => {
-  const parent = { new: 'commutes', trip: 'results' }[S.screen] || 'home';
-  go(parent, false);
-});
+window.addEventListener('popstate', () => go(PARENT[S.screen] || 'home', false));
 document.querySelector('nav').addEventListener('click', (e) => {
   const b = e.target.closest('[data-tab]'); if (!b) return;
   go(b.dataset.tab, false);
@@ -606,21 +620,135 @@ function drawBoard() {
   if (!$('#deps')) return;
   if (sheet.classList.contains('open') && $('#sheetBody').querySelector('[data-sheet="lineAll"]')) $('#sheetBody').innerHTML = linesSheetHtml();
   const now = Date.now(), live = boardLive();
-  const rows = S.board.filter((d) => !active.length || active.includes(String(d.number || d.category))).slice(0, 30).map((d) => {
+  S.boardRows = S.board.filter((d) => !active.length || active.includes(String(d.number || d.category))).slice(0, 30);
+  const rows = S.boardRows.map((d, i) => {
     const planned = parseISO(d.stop.departure);
     const delay = d.stop.delay || 0;
     const prog = parseISO(d.stop.prognosis && d.stop.prognosis.departure);
     const real = prog || new Date(planned.getTime() + delay * 60000);
     const diff = Math.round((real - now) / 60000);
     const big = !live || diff > 59 ? hm(real) : (diff <= 0 ? 'Imm.' : diff + ' min');
-    return `<div class="dep">${badge(d.category, d.number)}
+    return `<button class="dep" data-act="openJourney" data-i="${i}">${badge(d.category, d.number)}
       <div class="dep-to"><span class="to">${esc(short(d.to))}</span>
         <span class="small">Prévu ${hm(planned)}${d.stop.platform ? ' · quai ' + esc(d.stop.platform) : ''}</span></div>
-      <div class="dep-r"><span class="big">${big}</span>${delay > 0 ? `<span class="st-late">+${delay} min</span>` : ''}</div></div>`;
+      <div class="dep-r"><span class="big">${big}</span>${delay > 0 ? `<span class="st-late">+${delay} min</span>` : ''}</div></button>`;
   }).join('');
   $('#deps').innerHTML = rows || '<p class="empty">Aucun départ pour ce filtre.</p>';
   $('#upd').textContent = live ? 'Temps réel · mis à jour à ' + hm(new Date()) : 'Horaire du ' + dateLabel(S.boardDate);
 }
+
+/* ---------- PARCOURS D'UNE COURSE ---------- */
+function renderJourney() {
+  const d = S.journey; if (!d) return go('board', false);
+  const st = lineStyle(d.category, d.number);
+  const list = d.passList && d.passList.length ? d.passList : [];
+  const now = Date.now(), live = boardLive();
+  const rows = list.map((p, i) => {
+    const t = parseISO(p.departure || p.arrival);
+    const progT = parseISO(p.prognosis && (p.prognosis.departure || p.prognosis.arrival));
+    const delay = p.delay || (t && progT ? Math.round((progT - t) / 60000) : 0);
+    const real = progT || (t ? new Date(t.getTime() + (delay || 0) * 60000) : null);
+    const past = live && i > 0 && real && real.getTime() < now - 30000;
+    const cls = ['jrow', i === 0 ? 'first here' : '', i === list.length - 1 ? 'last' : '', past ? 'past' : ''].join(' ');
+    const name = (p.station && p.station.name) || '';
+    const id = p.station && p.station.id;
+    const inner = `<div class="leg-t">${t ? hm(t) : ''}${delay > 0 ? `<span class="d">+${delay}′</span>` : ''}</div>
+      <div class="rail"><span class="node"${i === 0 ? ' style="background:var(--c)"' : ''}></span></div>
+      <div class="stn">${esc(short(name))}${p.platform ? ` <span class="small">· quai ${esc(p.platform)}</span>` : ''}</div>`;
+    return id && i > 0
+      ? `<button class="${cls}" data-act="openStopFromJourney" data-id="${esc(id)}" data-name="${esc(name)}">${inner}</button>`
+      : `<div class="${cls}">${inner}</div>`;
+  }).join('');
+  main.innerHTML = `
+    <header class="top back">${backBtn()}
+      <div class="row gap" style="min-width:0">${badge(d.category, d.number)}<h1 class="title" style="font-size:20px">direction ${esc(short(d.to))}</h1></div>
+    </header>
+    <div class="scroll stack">
+      <p class="small" style="margin:0 4px">Depuis ${esc(short(S.stop.name))}${list.length ? ' · ' + list.length + ' arrêts' : ''}${d.operator ? ' · ' + esc(d.operator) : ''}</p>
+      ${list.length
+        ? `<div class="card" style="padding:6px 0;--c:${st.bg}">${rows}</div><p class="foot">Touche un arrêt pour voir ses départs. Tire vers le bas pour actualiser.</p>`
+        : '<div class="card empty-card">Le parcours de cette course n’est pas disponible.</div>'}
+    </div>`;
+}
+
+/* ---------- tirer pour actualiser ---------- */
+async function refreshScreen() {
+  const clearStatus = () => Object.keys(statusCache).forEach((k) => delete statusCache[k]);
+  switch (S.screen) {
+    case 'board': await loadBoard(); break;
+    case 'journey': {
+      await loadBoard();
+      const o = S.journey;
+      const m = S.board.find((d) => d.stop.departure === o.stop.departure && d.number === o.number && d.to === o.to);
+      if (m) S.journey = m;
+      if (S.screen === 'journey') renderJourney();
+      break;
+    }
+    case 'results': S.res = []; await loadResults(S.q.time, 'replace'); break;
+    case 'commutes': clearStatus(); renderCommutes(); await new Promise((r) => setTimeout(r, 700)); break;
+    case 'home': clearStatus(); await fillNext(); break;
+    default: await new Promise((r) => setTimeout(r, 300));
+  }
+}
+(function pullToRefresh() {
+  const app = $('#app');
+  const ptr = document.createElement('div');
+  ptr.id = 'ptr';
+  ptr.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>';
+  app.appendChild(ptr);
+  const TH = 80, MAX = 130; // distance à atteindre (px) avant de relâcher
+  let startY = null, dy = 0, sc = null, busy = false, armed = false;
+  const topOf = (el) => el.getBoundingClientRect().top - app.getBoundingClientRect().top;
+  function reset(anim) {
+    ptr.style.transition = anim ? 'opacity .2s, transform .2s' : 'none';
+    ptr.style.opacity = 0;
+    if (sc) { sc.style.transition = anim ? 'transform .25s' : 'none'; sc.style.transform = ''; }
+    dy = 0; armed = false;
+  }
+  main.addEventListener('touchstart', (e) => {
+    if (busy || e.touches.length !== 1 || sheet.classList.contains('open')) return;
+    sc = e.target.closest('.scroll');
+    if (!sc || sc.scrollTop > 0) { sc = null; return; }
+    startY = e.touches[0].clientY; dy = 0; armed = false;
+  }, { passive: true });
+  main.addEventListener('touchmove', (e) => {
+    if (startY == null || !sc) return;
+    const raw = e.touches[0].clientY - startY;
+    if (raw <= 0 || sc.scrollTop > 0) { if (dy) reset(false); return; }
+    e.preventDefault();
+    dy = Math.min(MAX, raw * 0.5);
+    const p = Math.min(1, dy / TH);
+    ptr.style.transition = 'none';
+    ptr.style.opacity = p;
+    ptr.style.transform = `translateY(${topOf(sc) - 44 + dy}px) rotate(${p * 300}deg)`;
+    ptr.style.color = dy >= TH ? 'var(--accent)' : 'var(--faint)';
+    sc.style.transition = 'none';
+    sc.style.transform = `translateY(${dy * 0.6}px)`;
+    const now = dy >= TH;
+    if (now && !armed && navigator.vibrate) navigator.vibrate(8);
+    armed = now;
+  }, { passive: false });
+  const end = async () => {
+    if (startY == null) return;
+    startY = null;
+    if (!sc) return;
+    if (armed && !busy) {
+      busy = true;
+      ptr.style.transition = 'transform .2s';
+      ptr.style.transform = `translateY(${topOf(sc) + 10}px)`;
+      ptr.classList.add('spin');
+      sc.style.transition = 'transform .2s';
+      sc.style.transform = 'translateY(56px)';
+      try { await refreshScreen(); } catch {}
+      await new Promise((r) => setTimeout(r, 250));
+      ptr.classList.remove('spin');
+      busy = false;
+    }
+    reset(true);
+  };
+  main.addEventListener('touchend', end);
+  main.addEventListener('touchcancel', end);
+})();
 
 /* ---------- RÉSULTATS D'ITINÉRAIRE ---------- */
 function renderResults() {
@@ -848,7 +976,9 @@ function drawCands() {
 
 /* ---------- actions (clics) ---------- */
 const ACT = {
-  back: () => (history.state ? history.back() : go({ new: 'commutes', trip: 'results' }[S.screen] || 'home', false)),
+  back: () => (history.state ? history.back() : go(PARENT[S.screen] || 'home', false)),
+  openJourney: (ds) => { S.journey = S.boardRows[+ds.i]; if (S.journey) go('journey'); },
+  openStopFromJourney: (ds) => { S.stop = { id: ds.id, name: ds.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; go('board'); },
   locate: () => { S.fromText = ''; const i = $('#fromIn'); if (i) i.value = ''; locate(); },
   swap: () => {
     const from = S.fromText.trim() || (S.geo ? S.geo.name : '');
