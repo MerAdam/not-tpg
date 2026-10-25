@@ -695,7 +695,7 @@ function renderJourney() {
     const real = progT || (t ? new Date(t.getTime() + (delay || 0) * 60000) : null);
     const past = live && i > 0 && real && real.getTime() < now - 30000;
     const cls = ['jrow', i === 0 ? 'first here' : '', i === list.length - 1 ? 'last' : '', past ? 'past' : ''].join(' ');
-    const name = (p.station && p.station.name) || '';
+    const name = (p.station && p.station.name) || (i === 0 ? S.stop.name : '');
     const id = p.station && p.station.id;
     const inner = `<div class="leg-t">${t ? hm(t) : ''}${delay > 0 ? `<span class="d">+${delay}′</span>` : ''}</div>
       <div class="rail"><span class="node"${i === 0 ? ' style="background:var(--c)"' : ''}></span></div>
@@ -715,7 +715,8 @@ function renderJourney() {
         : '<div class="card empty-card">Le parcours de cette course n’est pas disponible.</div>'}
     </div>`;
   if (!list.length) return;
-  const pts = list.map((p) => coordOf(p.station));
+  // Le premier arrêt de la liste est celui où l'on se trouve : on prend sa position dans nos données
+  const pts = list.map((p, i) => (i === 0 ? coordOf({ id: S.stop.id }) || coordOf(p.station) : coordOf(p.station)));
   drawMap([{ pts: pts.filter(Boolean), color: st.bg, walk: false }], { first: pts[0] });
 }
 
@@ -723,9 +724,18 @@ function renderJourney() {
 let leafletP = null, mapInst = null;
 function coordOf(st) {
   if (!st) return null;
+  // 1) liste officielle des arrêts tpg (fiable) ; 2) coordonnée renvoyée par l'API, si plausible
+  if (STOPS && st.id) {
+    const id = String(st.id).replace(/^Parent/i, '').split(':')[0];
+    const s = STOPS.find((x) => x.id === id);
+    if (s) return [s.lat, s.lon];
+  }
   const c = st.coordinate;
-  if (c && c.x && c.y) return [c.x, c.y]; // transport.opendata.ch : x = latitude, y = longitude
-  if (STOPS && st.id) { const s = STOPS.find((x) => x.id === String(st.id)); if (s) return [s.lat, s.lon]; }
+  if (c && c.x && c.y) {
+    let lat = +c.x, lon = +c.y;
+    if (lat < lon) [lat, lon] = [lon, lat]; // en Suisse la latitude (~46) est toujours > longitude (~6)
+    if (lat > 44 && lat < 49 && lon > 4 && lon < 12) return [lat, lon];
+  }
   return null;
 }
 function loadLeaflet() {
@@ -753,9 +763,9 @@ async function drawMap(segs, opt = {}) {
   if (mapInst) { mapInst.remove(); mapInst = null; }
   const map = L.map(box, { zoomControl: false, attributionControl: true, tap: false });
   mapInst = map;
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19, subdomains: 'abcd',
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>'
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }).addTo(map);
   for (const s of segs) {
     if (s.walk) L.polyline(s.pts, { color: s.color, weight: 4, dashArray: '2 8', lineCap: 'round' }).addTo(map);
