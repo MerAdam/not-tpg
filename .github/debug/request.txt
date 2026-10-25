@@ -1,3 +1,0 @@
-https://trulynot-tpg.vercel.app/api/walk?action=route&from=46.2045,6.1252&to=46.2043,6.1271
-https://trulynot-tpg.vercel.app/api/walk?action=matrix&from=46.2045,6.1252&to=46.2043,6.1271
-https://transport.opendata.ch/v1/connections?from=8592844&to=8593133&date=2026-10-25&time=17:09&limit=3

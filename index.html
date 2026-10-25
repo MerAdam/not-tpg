@@ -585,6 +585,7 @@ function loadLeaflet() {
 const GENEVA = [46.2044, 6.1432];
 const M = { map: null, layers: null, origin: null, originAuto: true, dest: null, results: null, sel: null, loading: false, err: null, watch: null };
 const WALK_MS = 1.25; // vitesse de marche (m/s), pour les estimations
+const MARGIN = 180; // arriver à l'arrêt 3 min avant le bus
 const estWalk = (a, b) => Math.round((distM(a[0], a[1], b[0], b[1]) * 1.3) / WALK_MS); // secondes
 const minsTxt = (sec) => Math.max(1, Math.round(sec / 60)) + ' min';
 const pinIcon = (cls, html = '') => window.L.divIcon({ className: '', html: `<div class="${cls}">${html}</div>`, iconSize: [20, 20], iconAnchor: [10, 10] });
@@ -763,11 +764,15 @@ async function mapPlan(force) {
         if (!ds.s) continue;
         const endWalk = M.dest.stopId ? 0 : estWalk([ds.s.lat, ds.s.lon], dest);
         if (ds.s.id === o.s.id) continue;
-        const t = new Date(now + (o.walk + 60) * 1000);
+        const t = new Date(now + (o.walk + MARGIN) * 1000);
         try {
           const j = await api(connQuery({ from: o.s.id, to: ds.s.id, date: ymd(t), time: hm(t), limit: 3 }));
           for (const c of (j.connections || []).map(mapConn)) {
-            if (c.dep.getTime() < now + o.walk * 1000) continue;
+            // L'API propose parfois de marcher d'abord vers un autre arrêt : on ne garde que les
+            // liaisons qui partent vraiment en bus/tram de cet arrêt
+            const s0 = (c.raw.sections || [])[0];
+            if (!s0 || !s0.journey) continue;
+            if (c.dep.getTime() < now + (o.walk + MARGIN) * 1000) continue;
             const arrive = c.arr.getTime() + endWalk * 1000;
             if (!best || arrive < best.arrive) best = { c, arrive, endWalk, destStop: ds.s };
           }
@@ -793,6 +798,11 @@ async function mapPlan(force) {
   }
 }
 
+// « Quitte ta position dans X min » (marche + 3 min de marge avant le bus)
+function leaveTxt(dep, walkSec) {
+  const m = Math.round((dep.getTime() - (walkSec + MARGIN) * 1000 - Date.now()) / 60000);
+  return m <= 0 ? '<b>pars maintenant</b>' : `pars dans <b>${m} min</b>`;
+}
 function drawMapPanel() {
   const p = $('#mapPanel'); if (!p) return;
   if (M.sel) return drawSelPanel(p);
@@ -818,8 +828,9 @@ function drawMapPanel() {
         return `<button class="card opt" data-act="mapSel" data-i="${i}">
           ${tags.trim() ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${tags}</div>` : ''}
           <span style="font-weight:900;font-size:16px;line-height:1.25">${esc(short(r.stop.name))}</span>
-          <div class="conn-legs">${r.c.legs.map((l) => badge(l.cat, l.num, true)).join('')}<span class="small">départ ${r.c.depStr} (dans ${wait} min)</span></div>
-          <div class="small">${r.walkReal ? '' : '~'}${minsTxt(r.walk)} à pied · arrivée ${hm(new Date(r.arrive))}${r.c.transfers ? ' · ' + r.c.transfers + ' changement' + (r.c.transfers > 1 ? 's' : '') : ''}</div>
+          <div class="conn-legs">${r.c.legs.map((l) => badge(l.cat, l.num, true)).join('')}<span class="small">${r.c.legs.length ? 'Le ' + esc(r.c.legs[0].num || '') + ' part' : 'Départ'} à <b>${r.c.depStr}</b> (dans ${wait} min)</span></div>
+          <div class="small">${r.walkReal ? '' : '~'}${minsTxt(r.walk)} à pied · ${leaveTxt(r.c.dep, r.walk)}</div>
+          <div class="small">Arrivée <b>${hm(new Date(r.arrive))}</b>${r.c.transfers ? ' · ' + r.c.transfers + ' changement' + (r.c.transfers > 1 ? 's' : '') : ' · direct'}</div>
         </button>`;
       }).join('') : '<div class="card empty-card">Aucune liaison trouvée depuis les arrêts proches.</div>') + walkCard;
   }
@@ -828,6 +839,14 @@ function drawMapPanel() {
 
 async function mapSelect(r) {
   M.sel = { ...r, walkBase: r.walk, walk: null, deps: null };
+  if (!M.originLabel || M.originLabelFor !== M.origin.join(',')) {
+    const key = M.origin.join(',');
+    fetch(`https://photon.komoot.io/reverse?lat=${M.origin[0]}&lon=${M.origin[1]}&lang=fr`).then((x) => x.json()).then((j) => {
+      const p = (j.features && j.features[0] && j.features[0].properties) || {};
+      const street = [p.street, p.housenumber].filter(Boolean).join(' ');
+      M.originLabel = street || p.name || null; M.originLabelFor = key;
+    }).catch(() => {});
+  }
   drawMapPanel(); drawMapLayers();
   const sel = M.sel;
   walkApi('route', { from: M.origin.join(','), to: r.stop.lat + ',' + r.stop.lon })
@@ -843,7 +862,7 @@ async function mapSelect(r) {
 function drawSelPanel(p) {
   const r = M.sel;
   const wSec = r.walk && r.walk.duration ? r.walk.duration : r.walkBase;
-  const leave = new Date(r.c.dep.getTime() - wSec * 1000);
+  const leave = new Date(r.c.dep.getTime() - (wSec + MARGIN) * 1000);
   const now = Date.now();
   const leaveIn = Math.round((leave - now) / 60000);
   p.innerHTML = `
@@ -851,8 +870,9 @@ function drawSelPanel(p) {
     <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:8px">
       <div style="font-weight:900;font-size:18px">${esc(short(r.stop.name))}</div>
       <div class="small" style="display:flex;align-items:center;gap:6px">${ICON.walk} ${minsTxt(wSec)} à pied${r.walk && r.walk.distance ? ' · ' + Math.round(r.walk.distance) + ' m' : ''}</div>
-      <div class="conn-legs">${r.c.legs.map((l) => badge(l.cat, l.num, true)).join('')}<span class="small">${r.c.depStr} → ${r.c.arrStr}${r.endWalk ? ' + ' + minsTxt(r.endWalk) + ' à pied' : ''}</span></div>
-      <div style="font-weight:800;color:${leaveIn <= 2 ? 'var(--bad)' : 'var(--ink)'}">${leaveIn <= 0 ? 'Pars maintenant' : 'Pars dans ' + leaveIn + ' min'} · arrivée ${hm(new Date(r.arrive))}</div>
+      <div class="conn-legs">${r.c.legs.map((l) => badge(l.cat, l.num, true)).join('')}<span class="small">part de l’arrêt à <b>${r.c.depStr}</b> → ${r.c.arrStr}${r.endWalk ? ' + ' + minsTxt(r.endWalk) + ' à pied' : ''}</span></div>
+      <div style="font-weight:800;color:${leaveIn <= 2 ? 'var(--bad)' : 'var(--ink)'}">${leaveIn <= 0 ? 'Quitte ta position maintenant' : 'Quitte ta position dans ' + leaveIn + ' min'}</div>
+      <div class="small">Départ à pied à ${hm(leave)} pour être à l’arrêt 3 min avant le bus · arrivée ${hm(new Date(r.arrive))}</div>
       <button class="primary" data-act="mapTrip" style="height:44px">Voir le trajet complet</button>
     </div>
     <h2 class="label" style="margin:4px 4px 0">Prochains départs · ${badge(r.first.cat, r.first.num, true)} ${esc(short(r.first.to))}</h2>
@@ -861,7 +881,7 @@ function drawSelPanel(p) {
       const prog = parseISO(d.stop.prognosis && d.stop.prognosis.departure);
       const real = prog || new Date(planned.getTime() + (d.stop.delay || 0) * 60000);
       const diff = Math.round((real - now) / 60000);
-      const reachable = real.getTime() >= now + wSec * 1000;
+      const reachable = real.getTime() >= now + (wSec + MARGIN) * 1000;
       return `<div class="dep" style="${reachable ? '' : 'opacity:.5'}">${badge(d.category, d.number)}<div class="dep-to"><span class="to">${esc(short(d.to))}</span><span class="small">${reachable ? 'Prévu ' + hm(planned) : 'Trop tôt pour l’attraper'}${d.stop.platform ? ' · quai ' + esc(d.stop.platform) : ''}</span></div><div class="dep-r"><span class="big">${diff <= 59 ? (diff <= 0 ? 'Imm.' : diff + ' min') : hm(real)}</span></div></div>`;
     }).join('') : '<p class="empty">Aucun départ trouvé.</p>'}</div>
     <button class="ghost" data-act="mapStop" data-id="${esc(r.stop.id)}" style="align-self:center">Tous les départs de cet arrêt</button>`;
@@ -1510,15 +1530,26 @@ function renderTrip() {
         <div class="leg-b"><div class="stn">${esc(short(toName))}</div><div class="meta">Arrivée${plat(s.arrival)}</div></div>
       </div>`;
   }).join('');
+  // Depuis la carte : marche depuis ta position jusqu'au premier arrêt, et jusqu'à l'adresse à la fin
+  const W = S.tripParent === 'map' ? S.tripWalk : null;
+  const walkLeg = (mins, label) => `<div class="leg"><div class="leg-t"></div><div class="rail walk"></div>
+      <div class="leg-b"><div class="mid">${ICON.walk}<span class="small" style="font-weight:700">Marche · ${mins} min</span></div>${label ? `<div class="meta">${label}</div>` : ''}</div></div>`;
+  const placeLeg = (t, name, meta) => `<div class="leg"><div class="leg-t">${t}</div><div class="rail walk"><span class="node"></span></div>
+      <div class="leg-b"><div class="stn">${esc(name)}</div><div class="meta">${meta}</div></div></div>`;
+  const before = W ? placeLeg(hm(W.leave), W.startLabel || 'Ta position', 'Départ à pied') + walkLeg(Math.max(1, Math.round(W.walkSec / 60)), `jusqu’à ${esc(short(c.raw.from.station.name))} · ${Math.round(W.margin / 60)} min de marge`) : '';
+  const after = W && W.endWalkSec ? walkLeg(Math.max(1, Math.round(W.endWalkSec / 60)), '') + placeLeg(hm(new Date(c.arr.getTime() + W.endWalkSec * 1000)), W.endLabel, 'Arrivée') : '';
+  const startT = W ? hm(W.leave) : c.depStr;
+  const endT = W && W.endWalkSec ? hm(new Date(c.arr.getTime() + W.endWalkSec * 1000)) : c.arrStr;
+  const totalMin = W ? Math.round(((c.arr.getTime() + (W.endWalkSec || 0) * 1000) - W.leave.getTime()) / 60000) : c.dur;
   main.innerHTML = `
     <header class="top back">${backBtn()}
       <div style="display:flex;flex-direction:column;min-width:0">
-        <span class="small">${esc(short(c.raw.from.station.name))} → ${esc(short(c.raw.to.station.name))}</span>
-        <h1 class="title" style="font-size:22px">${c.depStr} – ${c.arrStr}</h1>
+        <span class="small">${esc(W ? (W.startLabel || 'Ta position') : short(c.raw.from.station.name))} → ${esc(W && W.endLabel ? W.endLabel : short(c.raw.to.station.name))}</span>
+        <h1 class="title" style="font-size:22px">${startT} – ${endT}</h1>
       </div></header>
     <div class="scroll stack">
-      <p class="small" style="margin:0 4px">${c.dur} min · ${c.transfers ? c.transfers + ' changement' + (c.transfers > 1 ? 's' : '') : 'direct'}${S.q.date !== todayStr() ? ' · ' + esc(dateLabel(S.q.date)) : ''}</p>
-      <div class="card" style="padding:4px 0 8px">${parts}</div>
+      <p class="small" style="margin:0 4px">${totalMin} min · ${c.transfers ? c.transfers + ' changement' + (c.transfers > 1 ? 's' : '') : 'direct'}${S.q.date !== todayStr() ? ' · ' + esc(dateLabel(S.q.date)) : ''}</p>
+      <div class="card" style="padding:4px 0 8px">${before}${parts}${after}</div>
     </div>`;
 }
 
@@ -2211,6 +2242,12 @@ const ACT = {
   mapTrip: () => {
     const r = M.sel; if (!r) return;
     S.trip = r.c; S.tripParent = 'map';
+    const wSec = r.walk && r.walk.duration ? r.walk.duration : r.walkBase;
+    S.tripWalk = {
+      startLabel: M.originLabel || (M.originAuto ? 'Ta position' : 'Point de départ'), walkSec: wSec, margin: MARGIN,
+      leave: new Date(r.c.dep.getTime() - (wSec + MARGIN) * 1000),
+      endWalkSec: r.endWalk || 0, endLabel: M.dest.label
+    };
     S.q = { from: r.stop.name, to: r.destStop.name, date: ymd(r.c.dep), time: r.c.depStr, arrival: false, direct: false, modes: { bus: true, tram: true, train: true } };
     go('trip');
   },
