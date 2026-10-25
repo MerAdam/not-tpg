@@ -1,0 +1,23 @@
+HTTP/2 200 
+cache-control: must-revalidate, no-cache, private
+content-language: fr
+content-type: text/html; charset=UTF-8
+date: Sun, 25 Oct 2026 01:12:49 GMT
+expires: Sun, 19 Nov 1978 05:00:00 GMT
+server: nginx
+vary: Accept-Encoding
+x-cache: MISS
+x-content-type-options: nosniff
+x-content-type-options: nosniff
+x-drupal-cache: UNCACHEABLE (no cacheability)
+x-drupal-dynamic-cache: UNCACHEABLE (no cacheability)
+x-frame-options: SAMEORIGIN
+x-frame-options: SAMEORIGIN
+x-generator: Drupal 10 (https://www.drupal.org)
+x-xss-protection: 1; mode=block
+set-cookie: visid_incap_419648=mFZK7IEXQiKGH+YLT4lEv49X3WoAAAAAQUIPAAAAAAC6IIPCVvmatP/+iK5BL3g2; expires=Sun, 24 Oct 2027 07:00:38 GMT; HttpOnly; path=/; Domain=.tpg.ch; Secure; SameSite=None
+set-cookie: incap_ses_2104_419648=jVeFYRmpkEEF6iGQlOkyHZBX3WoAAAAAmsqe8t871IVGFKLaauhS0g==; path=/; Domain=.tpg.ch; Secure; SameSite=None
+strict-transport-security: max-age=31536000
+x-cdn: Imperva
+x-iinfo: 17-65995652-65995662 nNNY RT(1792890769162 26) q(0 0 0 0) r(6 6) U18
+

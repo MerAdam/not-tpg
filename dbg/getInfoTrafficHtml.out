@@ -1,0 +1,1022 @@
+    <ul class="uk-list">
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#D2DB4A">
+                              <span>2</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 2</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Place des Eaux-Vives en direction de Genève-Plage, n’est pas desservi.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#00ACE7">
+                              <span>5</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 5</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Genève-Aéroport-Terminal entre Grand-Saconnex, Morillons et Grand-Saconnex-Place. Arrêt(s) non-desservi(s) : Grand-Saconnex, Crêts-Morillon. Arrêt(s) déplacé(s) : Le Pommier.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#00ACE7">
+                              <span>5</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 5</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Thônex-Vallard entre Grand-Saconnex-Place et Grand-Saconnex, Morillons. Arrêt(s) non-desservi(s) : Grand-Saconnex, Crêts-Morillon. Arrêt(s) déplacé(s) : Le Pommier.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#00ACE7">
+                              <span>5</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 5</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Genève-Aéroport-Terminal entre Le Pommier et Grand-Saconnex-Place. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#008CBE">
+                              <span>6</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 6</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Place des Eaux-Vives en direction de Genève-Plage, n’est pas desservi.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#00A828">
+                              <span>7</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 7</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Lignon-Tours entre Musée d&#039;art et d&#039;histoire et Métropole. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Rive.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#00A828">
+                              <span>7</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 7</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Rive déplacé sur la rue Pierre-Fatio à la hauteur des Halles de Rive.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#84471C">
+                              <span>8</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 8</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Veyrier-Douane entre Grand-Saconnex-Place et Grand-Saconnex, Morillons. Arrêt(s) non-desservi(s) : Grand-Saconnex, Crêts-Morillon. Arrêt(s) déplacé(s) : Le Pommier.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#84471C">
+                              <span>8</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 8</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Palexpo entre Grand-Saconnex, Morillons et Grand-Saconnex-Place. Arrêt(s) non-desservi(s) : Grand-Saconnex, Crêts-Morillon. Arrêt(s) déplacé(s) : Le Pommier.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#84471C">
+                              <span>8</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 8</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Palexpo entre Le Pommier et Grand-Saconnex-Place. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#84471C">
+                              <span>8</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 8</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Palexpo entre Muséum et Métropole. Arrêt(s) non-desservi(s) : Rive. Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#E2001D">
+                              <span>9</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 9</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Belle-Terre-Place-de-l&#039;Araire entre Mont-Blanc et Rive. Arrêt(s) non-desservi(s) : Métropole. Arrêt(s) déplacé(s) : Rive.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#006E3D">
+                              <span>10</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 10</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Rive entre Bouchet et Gare Cornavin. Arrêt(s) non-desservi(s) : Franchises, Guye, Charmilles, Dôle, Prairie. Arrêt(s) déplacé(s) : Gare Cornavin.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#006E3D">
+                              <span>10</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 10</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Genève-Aéroport-Terminal entre Gare Cornavin et Bouchet. Arrêt(s) non-desservi(s) : Prairie, Dôle, Charmilles, Guye, Franchises. Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#82419E">
+                              <span>11</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 11</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Queue-d&#039;Arve en direction de Genève-Eaux-Vives-Gare, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#5A1E82">
+                              <span>14</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 14</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est interrompue dans les deux directions entre Petit-Lancy-Place et Bernex-Vailly. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#5A1E82">
+                              <span>14</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 14</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Un service de remplacement circule entre Bernex-Vailly et Petit-Lancy-Place.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#84471C">
+                              <span>15</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 15</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Terminus Nations déplacé au niveau du 35 Avenue de France à la hauteur du Collège-Sismondi.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#00ACE7">
+                              <span>17</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 17</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Manifestation - La ligne est interrompue dans les deux directions entre Annemasse-Parc Montessuit et Annemasse, Perrier-Aubrac. Arrêt(s) non-desservi(s) : Annemasse, Place Deffaugt, Annemasse, Barbusse, Annemasse, Perrier-Aubrac. Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#00A828">
+                              <span>20</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 20</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Varembé en direction de Veyrier-Tournettes, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#00A828">
+                              <span>20</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 20</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Varembé en direction de Valavran, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#00A828">
+                              <span>20</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 20</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Veyrier-Tournettes entre Appia et Nations. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Nations.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#78003C">
+                              <span>21</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 21</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Lancy-Pont-Rouge-Gare/Etoile en direction de Onex-Cité, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#5A1E82">
+                              <span>22</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 22</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Carouge-Rondeau entre Le Pommier et Sonnex. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#5A1E82">
+                              <span>22</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 22</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Nations en direction de Carouge-Rondeau, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#5A1E82">
+                              <span>22</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 22</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt &quot;Nations&quot; déplacé de 240 mètres après son emplacement officiel, voie de bus avenue de la Paix n°11.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#A05909">
+                              <span>25</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 25</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Thônex-Vallard entre Mont-Blanc et Rive. Arrêt(s) non-desservi(s) : Métropole. Arrêt(s) déplacé(s) : Rive.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#82419E">
+                              <span>28</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 28</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Tunnel Routier entre Bois-des-Frères et Blandonnet. Arrêt(s) non-desservi(s) : Etang-Place, Etang-Casa Bamba. Arrêt(s) déplacé(s) : Blandonnet.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#89CBBE">
+                              <span>43</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 43</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Lancy-Pont-Rouge-Gare/Etoile en direction de Loëx-Hôpital, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#00B0A4">
+                              <span>50</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 50</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Genève-Aéroport-Terminal entre Grand-Saconnex-Mairie et Palexpo. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Grand-Saconnex-Place.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#00B0A4">
+                              <span>51</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 51</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne voit son parcours modifié dans les deux directions entre l&#039;arrêt Nations et le terminus Nations. Elle effectue son nouveau terminus à l&#039;arrêt . Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#00B0A4">
+                              <span>51</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 51</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Nations entre Trembley et Nations. Arrêt(s) non-desservi(s) : Moillebeau, Petit-Saconnex, Intercontinental, Genève, Ariana. Arrêt(s) déplacé(s) : Nations.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#00B0A4">
+                              <span>51</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 51</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de CO Renard entre Nations et Trembley. Arrêt(s) non-desservi(s) : Genève, Ariana, Intercontinental, Petit-Saconnex, Moillebeau. Arrêt(s) déplacé(s) : Nations.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#89CBBE">
+                              <span>53</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 53</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Grand-Saconnex-Place déplacé environ 200 m. après son emplacement officiel (en face du parking de la pl. de Carantec).
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#89CBBE">
+                              <span>53</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 53</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Grand-Saconnex-Place en direction de Valavran, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#89CBBE">
+                              <span>53</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 53</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Valavran entre Grand-Saconnex-Place et Grand-Saconnex-Mairie. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Grand-Saconnex-Place.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#005F61">
+                              <span>55</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 55</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Genève-Aéroport-Terminal entre Grand-Saconnex-Mairie et Grand-Saconnex-Place. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#005F61">
+                              <span>59</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 59</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Plage du Vengeron entre Grand-Saconnex-Place et Grand-Saconnex-Mairie. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#005F61">
+                              <span>59</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 59</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Genève-Aéroport-Terminal entre Le Pommier et Grand-Saconnex-Place. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#EC619F">
+                              <span>60</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 60</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Gex-L&#039;Aiglette entre Genève, OMS-BIT et Tunnel Routier. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#EC619F">
+                              <span>60</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 60</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Gare Cornavin entre Tunnel Routier et Genève, OMS-BIT. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Tunnel Routier.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#EC619F">
+                              <span>60</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 60</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Varembé en direction de Gare Cornavin, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#EC619F">
+                              <span>60</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 60</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Varembé en direction de Gex-L&#039;Aiglette, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#EC619F">
+                              <span>60</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 60</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Gare Cornavin entre Appia et Nations. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Nations.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#F5B5D2">
+                              <span>61</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 61</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Gex-L&#039;Aiglette entre Genève, OMS-BIT et Tunnel Routier. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#F5B5D2">
+                              <span>61</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 61</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Gare Cornavin entre Tunnel Routier et Genève, OMS-BIT. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Tunnel Routier.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#F5B5D2">
+                              <span>61</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 61</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Varembé en direction de Gare Cornavin, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#F5B5D2">
+                              <span>61</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 61</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Varembé en direction de Gex-L&#039;Aiglette, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#F5B5D2">
+                              <span>61</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 61</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Gare Cornavin entre Appia et Nations. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Nations.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#005F61">
+                              <span>73</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 73</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de ZIMEYSA-Gare entre La Boverie et Peney-Dessus. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : La Boverie.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#005F61">
+                              <span>73</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 73</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Satigny-Gare entre Peney-Dessus et La Boverie. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : La Boverie.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#F5B5D2">
+                              <span>80</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 80</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Lancy-Pont-Rouge-Gare/Etoile en direction de Bel-Air, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#005F61">
+                              <span>91</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 91</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de entre Dancet et Augustins. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Augustins.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#005F61">
+                              <span>91</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 91</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Augustins en direction de Beau-Séjour, est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#005F61">
+                              <span>91</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 91</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Augustins déplacé au niveau du 2 rue Barthélemy-Menn.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#89CBBE">
+                              <span>92</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 92</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Saint-Antoine en direction de Place de Neuve (fictif), est déplacé.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#89CBBE">
+                              <span>92</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne 92</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Saint-Antoine déplacé à la hauteur 2 rue Charles-Galland, après le pont
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#008CBE">
+                              <span>A4</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne A4</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de entre Les Esserts et Galeries du Loup. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Bandol.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#000000">
+                              <span>C7</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne C7</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Le Rolliet entre Le Pommier et Sonnex. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : .
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#000000">
+                              <span>C7</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne C7</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne voit son parcours modifié dans les deux directions entre l&#039;arrêt Nations et le terminus Nations. Elle effectue son nouveau terminus à l&#039;arrêt . Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Nations.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#FF7E00">
+                              <span>E</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne E</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Hermance-Village entre Rive et Genève-Plage. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Vollandes.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#000000">
+                              <span>E+</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne E+</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Hermance-Village entre Mont-Blanc et Rive. Arrêt(s) non-desservi(s) : Métropole. Arrêt(s) déplacé(s) : Rive.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#000000">
+                              <span>E+</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne E+</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Gare Cornavin entre Place des Eaux-Vives et Métropole. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Rive.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#000000">
+                              <span>E+</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne E+</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Rive déplacé sur la rue Pierre-Fatio à la hauteur des Halles de Rive.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="noir line-logo oblongue" style="background-color:#FF9BAA">
+                              <span>G</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne G</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Veigy-Village entre Rive et Genève-Plage. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Vollandes.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#000000">
+                              <span>G+</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne G+</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Veigy-Douane entre Mont-Blanc et Rive. Arrêt(s) non-desservi(s) : Métropole. Arrêt(s) déplacé(s) : Rive.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#000000">
+                              <span>G+</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne G+</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - La ligne est déviée en direction de Gare Cornavin entre Place des Eaux-Vives et Métropole. Arrêt(s) non-desservi(s) : . Arrêt(s) déplacé(s) : Rive.
+                    </div>
+                </div>
+            </li>
+                    <li class="uk-margin-bottom">
+                <div uk-grid class="uk-grid uk-child-width-1-2 uk-child-width-auto@m">
+                    <div class="disruptions-container__lines uk-flex uk-flex-wrap">
+                        <div class="disruption-line">
+                            <span aria-hidden="true" class="blanc line-logo oblongue" style="background-color:#000000">
+                              <span>G+</span>
+                            </span>
+                            <span class="visually-hidden"> Ligne G+</span>
+                        </div>
+                    </div>
+                    <div class="uk-width-expand@m disruptions-container__description">
+                        Travaux - Arrêt Rive déplacé sur la rue Pierre-Fatio à la hauteur des Halles de Rive.
+                    </div>
+                </div>
+            </li>
+            </ul>

@@ -1,0 +1,3 @@
+ 63562 dbg/getInfoTrafficHtml.out
+ 88957 dbg/getInfoTrafic.json
+152519 total
