@@ -137,6 +137,8 @@
   .cm-title{font-size:18px;font-weight:900}
   .cm-list{display:flex;flex-direction:column;border-top:1px solid var(--line2)}
   .cm-row,.cand{display:flex;align-items:center;gap:10px;min-height:54px;border-bottom:1px solid var(--line2)}
+  button.cm-row{width:100%;background:none;border:0;border-bottom:1px solid var(--line2);padding:0;text-align:left}
+  button.cm-row:active{background:var(--line2)}
   .cand{padding:0 16px;cursor:pointer}
   .cand input{width:22px;height:22px;accent-color:var(--accent);flex:none;margin:0}
   .cm-time{font-size:17px;font-weight:800;width:112px;flex:none;font-variant-numeric:tabular-nums}
@@ -437,6 +439,7 @@ function attachSuggest(input, box, onPick) {
 /* ---------- navigation ---------- */
 const SUB = ['board', 'results', 'trip', 'new', 'journey'];
 const PARENT = { new: 'commutes', trip: 'results', journey: 'board' };
+const parentOf = (screen) => (screen === 'trip' && S.tripParent ? S.tripParent : PARENT[screen] || 'home');
 function go(screen, push = true) {
   clearTimeout(boardTimer);
   closeSheet();
@@ -449,7 +452,7 @@ function go(screen, push = true) {
   $('#tabInfos').classList.toggle('on', tab === 'infos');
   ({ home: renderHome, board: renderBoard, results: renderResults, trip: renderTrip, commutes: renderCommutes, new: renderNew, journey: renderJourney, settings: renderSettings, infos: renderInfos })[screen]();
 }
-window.addEventListener('popstate', () => go(PARENT[S.screen] || 'home', false));
+window.addEventListener('popstate', () => go(parentOf(S.screen), false));
 document.querySelector('nav').addEventListener('click', (e) => {
   const b = e.target.closest('[data-tab]'); if (!b) return;
   go(b.dataset.tab, false);
@@ -782,7 +785,8 @@ function renderJourney() {
   if (PATTERNS === null || STOPS === null) Promise.all([loadPatterns(), dataReady]).then(() => { if (S.screen === 'journey' && S.journey === d) renderJourney(); });
 
   const t0 = parseISO(d.stop.departure) || new Date();
-  const ids = list.map((p, i) => String((p.station && p.station.id) || (i === 0 ? S.stop.id : '')));
+  // Le premier élément de passList porte un identifiant erroné dans l'API : on prend celui de l'arrêt affiché
+  const ids = list.map((p, i) => (i === 0 ? String(S.stop.id) : String((p.station && p.station.id) || '').split(':')[0]));
   const alerts = alertsFor([d.number], [S.stop.id, ...ids], t0, d.to);
   const issue = stopIssueFinder(alerts);
 
@@ -1050,9 +1054,9 @@ function renderCommutes() {
             ${todayIn(cm) ? '' : '<div class="muted sm">Pas de trajet aujourd’hui</div>'}
           </div>
           <div class="cm-list">${cm.picks.map((p, j) => `
-            <div class="cm-row"><span class="cm-time">${p.dep} → ${p.arr}</span>
+            <button class="cm-row" data-act="openPick" data-i="${i}" data-j="${j}"><span class="cm-time">${p.dep} → ${p.arr}</span>
               <span class="cm-legs">${p.legs.map((l) => badge(l.cat, l.num, true)).join('')}${todayIn(cm) ? warnHtml(alertsFor(p.legs.map((l) => l.num), [], todayAt(p.dep))) : ''}</span>
-              <span id="st-${i}-${j}" class="small">${todayIn(cm) ? '…' : ''}</span></div>`).join('')}
+              <span id="st-${i}-${j}" class="small">${todayIn(cm) ? '…' : ''}</span>${ICON.chev}</button>`).join('')}
           </div>
           <div class="row gap">
             <button class="ghost" data-act="reverse" data-i="${i}">Créer le retour</button>
@@ -1358,7 +1362,7 @@ function renderSettings() {
 
 /* ---------- actions (clics) ---------- */
 const ACT = {
-  back: () => (history.state ? history.back() : go(PARENT[S.screen] || 'home', false)),
+  back: () => (history.state ? history.back() : go(parentOf(S.screen), false)),
   openJourney: (ds) => { S.journey = S.boardRows[+ds.i]; if (S.journey) go('journey'); },
   openStopFromJourney: (ds) => { S.stop = { id: ds.id, name: ds.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = []; go('board'); },
   locate: () => { S.fromText = ''; const i = $('#fromIn'); if (i) i.value = ''; locate(); },
@@ -1407,7 +1411,26 @@ const ACT = {
   direct: () => { S.q.direct = !S.q.direct; renderResultsAndReload(); },
   earlier: () => { if (S.resLoading || !S.res.length) return; loadResults(m2t(dmin(S.res[0].dep) - 40), 'merge'); },
   later: () => { if (S.resLoading || !S.res.length) return; loadResults(m2t(dmin(S.res[S.res.length - 1].dep) + 1), 'merge'); },
-  openTrip: (ds) => { S.trip = S.res[+ds.i]; go('trip'); },
+  openTrip: (ds) => { S.trip = S.res[+ds.i]; S.tripParent = null; go('trip'); },
+  openPick: async (ds) => {
+    const cm = commutes[+ds.i], p = cm && cm.picks[+ds.j];
+    if (!p) return;
+    try {
+      let list = null, date = todayStr();
+      if (todayIn(cm)) list = await commuteStatus(cm);
+      else {
+        const d = nextDate(cm.days); date = ymd(d);
+        toast('Horaire du ' + dateLabel(date) + '…');
+        list = await getConns(cm.from, cm.to, date, m2t(Math.max(0, t2m(p.dep) - 2)), 4);
+      }
+      const m = (list || []).find((c) => c.depStr === p.dep && c.key === p.key)
+        || (list || []).find((c) => c.key === p.key && Math.abs(dmin(c.dep) - t2m(p.dep)) <= 3);
+      if (!m) return toast('Cette liaison est introuvable dans l’horaire.');
+      S.trip = m; S.tripParent = 'commutes';
+      S.q = { from: cm.from, to: cm.to, date, time: p.dep, arrival: false, direct: false, modes: { bus: true, tram: true, train: true } };
+      go('trip');
+    } catch { toast('Impossible de charger le détail.'); }
+  },
   newCommute: () => { S.draft = { from: '', to: '', days: [0, 1, 2, 3, 4], start: '07:00', end: '08:00', picks: [], cands: null }; go('new'); },
   reverse: (ds) => {
     const cm = commutes[+ds.i];

@@ -1,1 +1,0 @@
-https://transport.opendata.ch/v1/stationboard?id=8592844&limit=6
