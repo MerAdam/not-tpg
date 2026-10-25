@@ -161,6 +161,7 @@ async function handle(req, res, { urls, key, maxAge, kind }) {
     res.setHeader('Cache-Control', `public, max-age=0, s-maxage=${maxAge}, stale-while-revalidate=${maxAge}, stale-if-error=86400`);
     const body = { kind, fetchedAt: new Date().toISOString(), total: all.length, alerts };
     if (req.query && req.query.debug) {
+      res.setHeader('Cache-Control', 'no-store');
       const geneva = all.filter((s) => (s.stopNames || []).some((n) => /gen[eè]v|carouge|lancy|meyrin|vernier|onex|th[oô]nex|saconnex/i.test(n)) || /gen[eè]v/i.test(s.title || ''));
       const raw = stripNs(xml);
       const firstEl = raw.search(/<PtSituationElement\b/);
@@ -168,7 +169,9 @@ async function handle(req, res, { urls, key, maxAge, kind }) {
         xmlLength: xml.length,
         xmlHead: xml.slice(0, 600),
         firstSituationXml: firstEl >= 0 ? raw.slice(firstEl, firstEl + 4000) : null,
-        participants: count(all.map((s) => s.participant)),
+        participants: count(all.map((s) => s.participant), 100),
+        tpgLike: all.filter((s) => /tpg|genev|gen[eè]v/i.test((s.participant || '') + ' ' + (s.title || '') + ' ' + (s.text || '') + ' ' + (s.stopNames || []).join(' ')))
+          .slice(0, 6).map((s) => ({ id: s.id, participant: s.participant, lines: s.lines, operators: s.operators, stops: s.stops.slice(0, 8), stopNames: s.stopNames.slice(0, 4), title: s.title })),
         operators: count(all.flatMap((s) => s.operators || [])),
         withStops: all.filter((s) => s.stops.length).length,
         withLines: all.filter((s) => s.lines.length).length,
@@ -184,9 +187,9 @@ async function handle(req, res, { urls, key, maxAge, kind }) {
     return res.status(e.status === 429 ? 429 : 502).json({ error: e.message });
   }
 }
-function count(arr) {
+function count(arr, max = 15) {
   const m = {}; for (const a of arr) if (a) m[a] = (m[a] || 0) + 1;
-  return Object.fromEntries(Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 15));
+  return Object.fromEntries(Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, max));
 }
 
 module.exports = { handle, parseSiri, filterTpg, didok };
