@@ -1,0 +1,3 @@
+3456 dbg/info-trafic.js
+3024 dbg/paragraph-info-trafic.js
+6480 total
