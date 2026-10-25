@@ -10,13 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Télécharger les scripts info-trafic
+      - name: Télécharger les données info-trafic
         run: |
           mkdir -p dbg
           UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128 Safari/537.36"
-          curl -sSL -A "$UA" -o dbg/info-trafic.js https://www.tpg.ch/modules/custom/info_trafic/dist/js/info-trafic.js?v=1.1 || true
-          curl -sSL -A "$UA" -o dbg/paragraph-info-trafic.js "https://www.tpg.ch/themes/custom/tpg/dist/js/paragraph-info-trafic.js" || true
-          wc -c dbg/*.js > dbg/status2.txt
+          curl -sSL -A "$UA" -H "X-Requested-With: XMLHttpRequest" -D dbg/h1.txt -o dbg/getInfoTrafic.json https://www.tpg.ch/fr/getInfoTrafic || true
+          curl -sSL -A "$UA" -H "X-Requested-With: XMLHttpRequest" -D dbg/h2.txt -o dbg/getInfoTrafficHtml.out https://www.tpg.ch/fr/getInfoTrafficHtml || true
+          wc -c dbg/getInfo* > dbg/status3.txt
       - name: Enregistrer
         run: |
           git config user.name "github-actions[bot]"
