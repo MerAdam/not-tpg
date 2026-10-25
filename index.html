@@ -776,7 +776,14 @@ function drawBoard() {
   if (sheet.classList.contains('open') && $('#sheetBody').querySelector('[data-sheet="lineAll"]')) $('#sheetBody').innerHTML = linesSheetHtml();
   const now = Date.now(), live = boardLive();
   const extra = (S.boardBefore && S.boardBefore.length) || (S.boardAfter && S.boardAfter.length);
-  const filtered = boardAll().filter((d) => !active.length || active.includes(String(d.number || d.category)));
+  // Tri dans l'ordre réel de passage (retards et avances compris), puis par heure prévue
+  const realOf = (d) => {
+    const p = parseISO(d.stop.departure);
+    const prog = parseISO(d.stop.prognosis && d.stop.prognosis.departure);
+    return (prog || new Date(p.getTime() + (d.stop.delay || 0) * 60000)).getTime();
+  };
+  const filtered = boardAll().filter((d) => !active.length || active.includes(String(d.number || d.category)))
+    .sort((a, b) => realOf(a) - realOf(b) || parseISO(a.stop.departure) - parseISO(b.stop.departure));
   S.boardRows = extra ? filtered : filtered.slice(0, 30);
   const rows = S.boardRows.map((d, i) => {
     const planned = parseISO(d.stop.departure);
