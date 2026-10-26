@@ -1248,7 +1248,7 @@ function drawSelPanel(p) {
     <button class="ghost" data-act="mapStop" data-id="${esc(r.stop.id)}" style="align-self:center">Tous les départs de cet arrêt</button>`;
 }
 function openStopBoard(s) {
-  S.stop = { id: s.id, name: s.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = [];
+  S.stop = { id: s.id, name: s.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = []; S.boardMax = 30;
   go('board'); S.boardParent = 'map'; $('#tabMap').classList.add('on'); $('#tabHome').classList.remove('on');
 }
 
@@ -1292,7 +1292,7 @@ function renderHome() {
   attachSuggest(fromIn, $('#fromSugg'), (s) => { S.fromText = fromIn.value = s.name; });
   attachSuggest(toIn, $('#toSugg'), (s) => { S.toText = toIn.value = s.name; });
   attachSuggest($('#addIn'), $('#addSugg'), (s) => {
-    S.stop = { id: s.id, name: s.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = [];
+    S.stop = { id: s.id, name: s.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = []; S.boardMax = 30;
     go('board');
   });
   $('#searchForm').addEventListener('submit', (e) => {
@@ -1481,7 +1481,7 @@ const SHEET = {
     closeSheet(); drawPills(); reloadBoard();
   }
 };
-function reloadBoard() { S.boardBefore = []; S.boardAfter = []; const d = $('#deps'); if (d) d.innerHTML = '<p class="empty">Chargement…</p>'; loadBoard(); }
+function reloadBoard() { S.boardBefore = []; S.boardAfter = []; S.boardMax = 30; const d = $('#deps'); if (d) d.innerHTML = '<p class="empty">Chargement…</p>'; loadBoard(); }
 const depKey = (d) => d.stop.departure + '|' + (d.number || d.category) + '|' + d.to;
 function boardAll() {
   const seen = new Set(), out = [];
@@ -1493,6 +1493,7 @@ function boardAll() {
 async function boardMore(dir, btn) {
   if (btn.disabled) return;
   const all = boardAll(); if (!all.length) return;
+  if (dir === 'after' && S.boardHidden > 0) { S.boardMax = (S.boardMax || 30) + 30; drawBoard(); return; } // déjà chargés, juste cachés
   const label = btn.textContent; btn.disabled = true; btn.textContent = 'Chargement…';
   const edge = parseISO((dir === 'before' ? all[0] : all[all.length - 1]).stop.departure);
   const from = new Date(edge.getTime() + (dir === 'before' ? -60 : 1) * 60000);
@@ -1510,6 +1511,7 @@ async function boardMore(dir, btn) {
       const add = list.filter((d) => parseISO(d.stop.departure) > edge);
       if (!add.length) toast('Pas de départ plus tard trouvé.');
       S.boardAfter = (S.boardAfter || []).concat(add);
+      S.boardMax = (S.boardMax || 30) + 30;
       drawBoard();
     }
   } catch { toast('Impossible de charger les départs.'); }
@@ -1536,7 +1538,6 @@ function drawBoard() {
   if (!$('#deps')) return;
   if (sheet.classList.contains('open') && $('#sheetBody').querySelector('[data-sheet="lineAll"]')) $('#sheetBody').innerHTML = linesSheetHtml();
   const now = Date.now(), live = boardLive();
-  const extra = (S.boardBefore && S.boardBefore.length) || (S.boardAfter && S.boardAfter.length);
   // Tri dans l'ordre réel de passage (retards et avances compris), puis par heure prévue
   const realOf = (d) => {
     const p = parseISO(d.stop.departure);
@@ -1545,7 +1546,12 @@ function drawBoard() {
   };
   const filtered = boardAll().filter((d) => !active.length || active.includes(String(d.number || d.category)))
     .sort((a, b) => realOf(a) - realOf(b) || parseISO(a.stop.departure) - parseISO(b.stop.departure));
-  S.boardRows = extra ? filtered : filtered.slice(0, 30);
+  // Départs précédents ajoutés en haut ; ensuite on n'affiche que les S.boardMax suivants
+  const beforeKeys = new Set((S.boardBefore || []).map(depKey));
+  const firstBase = filtered.findIndex((d) => !beforeKeys.has(depKey(d)));
+  const nBefore = firstBase < 0 ? filtered.length : firstBase;
+  S.boardRows = filtered.slice(0, nBefore + (S.boardMax || 30));
+  S.boardHidden = filtered.length - S.boardRows.length;
   const rows = S.boardRows.map((d, i) => {
     const planned = parseISO(d.stop.departure);
     const delay = d.stop.delay || 0;
@@ -2611,7 +2617,7 @@ function renderSettings() {
 const ACT = {
   back: () => (history.state ? history.back() : go(parentOf(S.screen), false)),
   openJourney: (ds) => { S.journey = S.boardRows[+ds.i]; if (S.journey) go('journey'); },
-  openStopFromJourney: (ds) => { S.stop = { id: ds.id, name: ds.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = []; go('board'); },
+  openStopFromJourney: (ds) => { S.stop = { id: ds.id, name: ds.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = []; S.boardMax = 30; go('board'); },
   locate: () => { S.fromText = ''; const i = $('#fromIn'); if (i) i.value = ''; locate(); },
   swap: () => {
     const from = S.fromText.trim() || (S.geo ? S.geo.name : '');
@@ -2620,7 +2626,7 @@ const ACT = {
   editFavs: () => { S.editFavs = !S.editFavs; renderHome(); },
   favUp: (ds) => { const i = +ds.i; [favs[i - 1], favs[i]] = [favs[i], favs[i - 1]]; store.set('nt_favs', favs); renderHome(); },
   favDel: (ds) => { favs.splice(+ds.i, 1); store.set('nt_favs', favs); if (!favs.length) S.editFavs = false; renderHome(); },
-  openStop: (ds) => { S.stop = favs[+ds.i]; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = []; go('board'); },
+  openStop: (ds) => { S.stop = favs[+ds.i]; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = []; S.boardMax = 30; go('board'); },
   lineAll: () => { filters[S.stop.id] = []; store.set('nt_filters', filters); drawBoard(); },
   lineToggle: (ds) => {
     const a = filters[S.stop.id] || [];
