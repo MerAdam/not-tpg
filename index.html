@@ -806,7 +806,9 @@ async function initBigMap() {
   else if (M.walkStop) walkToStop();
 }
 
+const geoOff = () => store.get('nt_geo_off', false); // localisation désactivée dans l'app
 function mapLocate(silent) {
+  if (geoOff()) { M.err = 'off'; drawMapPanel(); if (!silent) toast('Localisation désactivée dans Not TPG : Réglages → Autorisations.'); return; }
   if (!navigator.geolocation) { if (!silent) toast('Localisation indisponible.'); return; }
   navigator.geolocation.getCurrentPosition((pos) => {
     M.origin = [pos.coords.latitude, pos.coords.longitude]; M.originAuto = true;
@@ -1120,7 +1122,7 @@ async function walkToStop() {
 }
 function drawWalkPanel(p) {
   const w = M.walkStop, now = Date.now();
-  if (!M.origin) { p.innerHTML = `<p style="margin:0;font-weight:800">${esc(short(w.stop.name))}</p><p class="small" style="margin:0">${M.err === 'denied' ? 'Localisation bloquée : touche la carte pour placer ton point de départ, ou réactive-la dans Réglages → Autorisations.' : 'Recherche de ta position…'}</p>`; return; }
+  if (!M.origin) { p.innerHTML = `<p style="margin:0;font-weight:800">${esc(short(w.stop.name))}</p><p class="small" style="margin:0">${M.err === 'denied' || M.err === 'off' ? 'Localisation ' + (M.err === 'off' ? 'désactivée' : 'bloquée') + ' : touche la carte pour placer ton point de départ, ou réactive-la dans Réglages → Autorisations.' : 'Recherche de ta position…'}</p>`; return; }
   const sec = w.route ? w.route.duration : estWalk(M.origin, [w.stop.lat, w.stop.lon]);
   const dist = w.route ? Math.round(w.route.distance) : Math.round(distM(M.origin[0], M.origin[1], w.stop.lat, w.stop.lon) * 1.3);
   const arrive = new Date(now + sec * 1000);
@@ -1153,8 +1155,8 @@ function drawMapPanel() {
   if (M.sel) return drawSelPanel(p);
   let html = '';
   if (!M.origin) {
-    html = M.err === 'denied'
-      ? `<p style="margin:0;font-weight:800">Localisation bloquée</p><p class="small" style="margin:0">Touche la carte pour placer ton point de départ, ou réactive la localisation dans <b>Réglages → Autorisations</b>.</p>`
+    html = M.err === 'denied' || M.err === 'off'
+      ? `<p style="margin:0;font-weight:800">Localisation ${M.err === 'off' ? 'désactivée' : 'bloquée'}</p><p class="small" style="margin:0">Touche la carte pour placer ton point de départ, ou réactive la localisation dans <b>Réglages → Autorisations</b>.</p>`
       : `<p class="small" style="margin:0">Recherche de ta position… Tu peux aussi <b>toucher la carte</b> pour placer ton point de départ.</p>`;
   } else if (!M.dest) {
     const near = nearList();
@@ -1338,6 +1340,7 @@ async function fillNext() {
 
 // silent : au démarrage, pas de message si la position n'est pas disponible
 async function locate(opts = {}) {
+  if (geoOff()) { if (!opts.silent) toast('Localisation désactivée dans Not TPG : Réglages → Autorisations.'); return 'off'; }
   if (!navigator.geolocation) { if (!opts.silent) toast('Localisation indisponible sur cet appareil.'); return Promise.resolve('unsupported'); }
   return new Promise((resolve) => navigator.geolocation.getCurrentPosition(async (pos) => {
     resolve('ok');
@@ -2328,7 +2331,7 @@ const TUTOS = [
       i: () => mock(`<div class="card" style="padding:12px"><b style="font-size:15px">Plainpalais → Bel-Air</b><div class="small">Lu–Ve · 07:00–08:00 · 2 liaisons</div>${[['07:24 → 07:31', '<span class="st-ok">À l’heure</span>'], ['07:36 → 07:43', '<span class="st-late">+3 min</span>']].map(([a, b]) => `<div class="m-field" style="padding:8px 0"><b style="width:110px">${a}</b>${badge('B', '12', true)}<span style="margin-left:auto">${b}</span></div>`).join('')}</div>`) }
   ] },
   { id: 'notifs', title: 'Les notifications', slides: [
-    { t: 'Activer les notifications', p: 'Dans <b>Réglages → Notifications</b>, touche <b>Activer</b> et accepte la demande du téléphone. « Envoyer un test » permet de vérifier. Sur iPhone, l’app doit être <b>installée sur l’écran d’accueil</b>.',
+    { t: 'Activer les notifications', p: 'Dans <b>Réglages → Autorisations</b>, à la ligne <b>Notifications</b>, touche <b>Activer</b> et accepte la demande du téléphone. « Envoyer un test » permet de vérifier. Sur iPhone, l’app doit être <b>installée sur l’écran d’accueil</b>.',
       i: () => mock(`<div class="card" style="padding:12px;display:flex;flex-direction:column;gap:8px"><span class="label">Notifications</span><span class="small">Reçois une alerte en cas de retard, avance, suppression ou déviation.</span><div class="m-btn">Activer les notifications</div></div>`, tap(50, 72)) },
     { t: 'Trajets pendulaires', p: 'Les jours prévus, <b>dès 30 minutes avant</b> chaque liaison de tes trajets, tu es prévenu <b>uniquement en cas de changement</b> : retard ou avance, suppression, déviation.',
       i: () => mock(`<div class="card" style="padding:12px;display:flex;gap:10px;align-items:flex-start"><span style="width:34px;height:34px;border-radius:9px;background:#C2410C;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;flex:none">NT</span><span style="display:flex;flex-direction:column;gap:2px"><b style="font-size:14px">12 · 07:36 Plainpalais → Bel-Air</b><span class="small">Retard : +4 min (départ à 07:40).</span></span></div>`) },
@@ -2344,7 +2347,7 @@ const TUTOS = [
       i: () => mock(`<div class="card list">${mRow('10', 'Genève-Aéroport', 'Prévu 14:40 · quai C', '5 min', mWarn())}${mRow('10', 'Rive', 'Prévu 14:41 · quai D', '6 min')}</div>`, tap(36, 44)) }
   ] },
   { id: 'autorisations', title: 'Localisation et autorisations', slides: [
-    { t: 'Où les voir', p: 'Dans <b>Réglages → Autorisations</b>, tu vois si la <b>localisation</b> et les <b>notifications</b> sont autorisées. Si elles n’ont jamais été demandées, touche <b>Autoriser</b>.',
+    { t: 'Où les voir', p: 'En bas des <b>Réglages</b>, juste avant « À propos », la carte <b>Autorisations</b> montre si la <b>localisation</b> et les <b>notifications</b> sont actives. Tu peux les <b>activer</b>, les <b>désactiver</b>, ou envoyer une <b>notification de test</b>.',
       i: () => mock(`<div class="card" style="padding:12px"><span class="label">Autorisations</span>${[['Localisation', 'Pas encore demandée', 'var(--muted)', 'Autoriser'], ['Notifications', 'Autorisée', 'var(--ok)', '']].map(([a, b, c, d]) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line2)"><span style="flex:1;display:flex;flex-direction:column"><b style="font-size:14px">${a}</b><span style="font-size:12px;font-weight:800;color:${c}">${b}</span></span>${d ? `<span class="ghost" style="display:inline-flex;align-items:center;height:30px;font-size:12.5px">${d}</span>` : ''}</div>`).join('')}</div>`, tap(84, 36)) },
     { t: 'Si c’est bloqué', p: 'Une fois bloquée, une app web ne peut plus redemander l’autorisation. Touche <b>« Comment réactiver ? »</b> : l’app affiche les étapes <b>exactes pour ton téléphone</b> (Samsung, Android, iPhone).',
       i: () => mock(`<div class="card" style="padding:12px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:center;gap:10px"><span style="flex:1;display:flex;flex-direction:column"><b style="font-size:14px">Localisation</b><span style="font-size:12px;font-weight:800;color:var(--bad)">Bloquée</span></span><span class="ghost" style="display:inline-flex;align-items:center;height:30px;font-size:12.5px">Comment réactiver ?</span></div><ol class="small" style="margin:4px 0 0;padding-left:18px"><li>Active la <b>Position</b> dans le volet rapide</li><li>Paramètres → Applications → Autorisations → Position</li></ol></div>`, tap(76, 22)) }
@@ -2439,17 +2442,31 @@ async function fillPermRows() {
   // Certains navigateurs (Samsung Internet notamment) refusent sans rien demander
   // tout en indiquant « pas encore demandée » : on se fie au dernier refus réel.
   if (geo !== 'granted' && geo !== 'unsupported' && store.get('nt_geo_denied', false)) geo = 'denied';
-  const row = (key, icon, title, state) => {
-    const [label, color] = PERM_LABEL[state] || PERM_LABEL.unknown;
-    const action = state === 'granted' || state === 'unsupported' ? ''
+  const row = (key, icon, title, state, opt = {}) => {
+    const [label, color] = opt.label || PERM_LABEL[state] || PERM_LABEL.unknown;
+    const action = opt.action != null ? opt.action : state === 'granted' || state === 'unsupported' ? ''
       : state === 'denied' ? `<button class="ghost" data-act="permHelp" data-p="${key}">Comment réactiver ?</button>`
       : `<button class="ghost" data-act="permAsk" data-p="${key}">Autoriser</button>`;
-    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line2)">
+    return `<div style="display:flex;flex-direction:column;gap:10px;padding:10px 0;border-bottom:1px solid var(--line2)">
+      <div style="display:flex;align-items:center;gap:12px">
       <span style="color:var(--muted);display:inline-flex">${icon}</span>
       <span style="flex:1;display:flex;flex-direction:column"><b style="font-size:15px">${title}</b><span style="font-size:13px;font-weight:800;color:${color}">${label}</span></span>
-      ${action}</div>`;
+      ${action}</div>${opt.below || ''}</div>`;
   };
-  el.innerHTML = row('geo', ICON.locate, 'Localisation', geo) + row('notif', BELL(false), 'Notifications', notif) +
+  // Localisation : désactivable dans l'app (un site ne peut pas retirer lui-même l'autorisation du téléphone)
+  const geoOpt = geoOff() && geo !== 'unsupported'
+    ? { label: ['Désactivée dans l’app', 'var(--muted)'], action: '<button class="ghost" data-act="geoOn">Réactiver</button>' }
+    : geo === 'granted' ? { action: '<button class="ghost danger" data-act="geoOff">Désactiver</button>' } : {};
+  // Notifications : autorisation + abonnement de cet appareil
+  const nDesc = '<p class="small" style="margin:0">Alertes en cas de retard, avance, suppression ou déviation : pour tes trajets pendulaires (dès 30 min avant le départ) et pour chaque départ suivi avec la cloche.</p>';
+  const notifOpt = notif === 'unsupported'
+    ? { below: `<p class="small" style="margin:0;font-weight:700">${isIOS() ? 'Sur iPhone, ajoute d’abord Not TPG à l’écran d’accueil (Partager → Sur l’écran d’accueil), puis ouvre-la depuis l’icône.' : 'Ce navigateur ne permet pas les notifications.'}</p>` }
+    : NT.sid && notif === 'granted'
+    ? { label: ['Activées sur cet appareil', 'var(--ok)'], action: '', below: nDesc + '<div class="row gap"><button class="ghost" data-act="notifTest">Envoyer un test</button><button class="ghost danger" data-act="notifOff">Désactiver</button></div>' }
+    : notif === 'granted'
+    ? { label: ['Autorisées, pas activées', 'var(--muted)'], action: '<button class="ghost" data-act="notifOn">Activer</button>', below: nDesc }
+    : notif === 'denied' ? { below: nDesc } : { action: '<button class="ghost" data-act="notifOn">Activer</button>', below: nDesc };
+  el.innerHTML = row('geo', ICON.locate, 'Localisation', geo, geoOpt) + row('notif', BELL(false), 'Notifications', notif, notifOpt) +
     `<button class="link" data-act="permHelp" data-p="geo" style="align-self:flex-start;padding:0">Aide : la localisation ne marche pas</button>`;
   // Mise à jour si l'autorisation change pendant que la page est ouverte
   try {
@@ -2566,22 +2583,12 @@ function renderSettings() {
         </div>
         <p class="small" style="margin:0">Environ ${WALK_SPEEDS[walkSpeed()].kmh} km/h. Sert à calculer les temps à pied sur la carte et les arrêts à proximité (max 11 min).</p>
       </div>
+      <div class="card list">
+        <button class="row-btn" data-act="openTutos" style="border-bottom:0"><span class="fav-name"><span style="color:var(--accent);display:inline-flex">${TUTO_ICON}</span><span>Tutoriels</span></span>${ICON.chev}</button>
+      </div>
       <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:4px">
         <h2 class="label" style="margin-bottom:4px">Autorisations</h2>
         <div id="permRows" class="stack" style="gap:0"><p class="small" style="margin:0">Vérification…</p></div>
-      </div>
-      <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
-        <h2 class="label">Notifications</h2>
-        ${NT.sid
-          ? `<p style="margin:0;font-weight:800;color:var(--ok)">Activées sur cet appareil</p>
-             <p class="small" style="margin:0">Tu es prévenu des retards, avances, suppressions et déviations : pour tes trajets pendulaires dès 30 min avant le départ, et pour chaque départ suivi avec la cloche.</p>
-             <div class="row gap"><button class="ghost" data-act="notifTest">Envoyer un test</button><button class="ghost danger" data-act="notifOff">Désactiver</button></div>`
-          : `<p class="small" style="margin:0">Reçois une alerte en cas de retard, avance, suppression ou déviation : pour tes trajets pendulaires (dès 30 min avant le départ) et pour les départs que tu suis avec la cloche.</p>
-             ${pushSupported() ? '<button class="primary" data-act="notifOn">Activer les notifications</button>'
-               : `<p class="small" style="margin:0;font-weight:700">${isIOS() ? 'Sur iPhone, ajoute d’abord Not TPG à l’écran d’accueil (Partager → Sur l’écran d’accueil), puis ouvre-la depuis l’icône.' : 'Ce navigateur ne permet pas les notifications.'}</p>`}`}
-      </div>
-      <div class="card list">
-        <button class="row-btn" data-act="openTutos" style="border-bottom:0"><span class="fav-name"><span style="color:var(--accent);display:inline-flex">${TUTO_ICON}</span><span>Tutoriels</span></span>${ICON.chev}</button>
       </div>
       <h2 class="label" style="margin:10px 4px -4px">À propos</h2>
       <div class="card list">
@@ -2644,6 +2651,15 @@ const ACT = {
     if (S.screen === 'settings') renderSettings();
   },
   permHelp: (ds) => openSheet(permHelpHtml(ds.p)),
+  geoOff: () => {
+    store.set('nt_geo_off', true);
+    S.geo = null; if (M.originAuto) { M.origin = null; M.originAuto = false; } M.near = null; M.results = null; M.sel = null;
+    toast('Localisation désactivée dans Not TPG.'); renderSettings();
+  },
+  geoOn: async () => {
+    store.set('nt_geo_off', false); renderSettings();
+    if (await locate() === 'ok') toast('Localisation réactivée.');
+  },
   mapLocate: () => mapLocate(false),
   mapStyles: () => openSheet(mapStylesHtml()),
   mapClear: () => { M.dest = null; M.results = null; M.sel = null; M.walkStop = null; renderMap(); },
