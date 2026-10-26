@@ -175,7 +175,7 @@
   .tab{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:0;font-size:11.5px;font-weight:800;min-height:56px;color:var(--muted)}
   .tab.on{color:var(--accent)}
   .next{width:100%;margin-top:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;text-align:left}
-  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:12px 16px;border-radius:12px;font-weight:700;font-size:14px;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
+  #toast{position:fixed;z-index:50;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:12px 16px;border-radius:12px;font-weight:700;font-size:14px;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
   #toast.show{opacity:1}
 
   /* thème sombre (classe posée par le script en tête de page) */
