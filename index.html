@@ -2456,13 +2456,13 @@ async function fillPermRows() {
   // Localisation : désactivable dans l'app (un site ne peut pas retirer lui-même l'autorisation du téléphone)
   const geoOpt = geoOff() && geo !== 'unsupported'
     ? { label: ['Désactivée dans l’app', 'var(--muted)'], action: '<button class="ghost" data-act="geoOn">Réactiver</button>' }
-    : geo === 'granted' ? { action: '<button class="ghost danger" data-act="geoOff">Désactiver</button>' } : {};
+    : geo === 'granted' ? { action: `<button class="icon-btn danger" data-act="geoOff" aria-label="Désactiver la localisation">${ICON.trash}</button>` } : {};
   // Notifications : autorisation + abonnement de cet appareil
   const nDesc = '<p class="small" style="margin:0">Alertes en cas de retard, avance, suppression ou déviation : pour tes trajets pendulaires (dès 30 min avant le départ) et pour chaque départ suivi avec la cloche.</p>';
   const notifOpt = notif === 'unsupported'
     ? { below: `<p class="small" style="margin:0;font-weight:700">${isIOS() ? 'Sur iPhone, ajoute d’abord Not TPG à l’écran d’accueil (Partager → Sur l’écran d’accueil), puis ouvre-la depuis l’icône.' : 'Ce navigateur ne permet pas les notifications.'}</p>` }
     : NT.sid && notif === 'granted'
-    ? { label: ['Activées sur cet appareil', 'var(--ok)'], action: '', below: nDesc + '<div class="row gap"><button class="ghost" data-act="notifTest">Envoyer un test</button><button class="ghost danger" data-act="notifOff">Désactiver</button></div>' }
+    ? { label: ['Activées sur cet appareil', 'var(--ok)'], action: `<button class="icon-btn danger" data-act="notifOff" aria-label="Désactiver les notifications">${ICON.trash}</button>`, below: nDesc + '<div class="row gap"><button class="ghost" data-act="notifTest">Envoyer un test</button></div>' }
     : notif === 'granted'
     ? { label: ['Autorisées, pas activées', 'var(--muted)'], action: '<button class="ghost" data-act="notifOn">Activer</button>', below: nDesc }
     : notif === 'denied' ? { below: nDesc } : { action: '<button class="ghost" data-act="notifOn">Activer</button>', below: nDesc };
