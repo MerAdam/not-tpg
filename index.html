@@ -61,6 +61,7 @@
   .brand{margin:0;font-size:30px;font-weight:900;letter-spacing:-.01em}
   .brand.sm{font-size:28px}
   .title{margin:0;font-size:24px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .title.wrap2{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.15;min-width:0;overflow-wrap:anywhere}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px}
   .list{overflow:hidden}
   .label{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0}
@@ -1379,7 +1380,7 @@ const CARET = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" strok
 function renderBoard() {
   const f = S.stop, fav = isFav(f.id);
   main.innerHTML = `
-    <header class="top back">${backBtn()}<h1 class="title" style="flex:1">${esc(short(f.name))}</h1>
+    <header class="top back">${backBtn()}<h1 class="title wrap2" style="flex:1">${esc(short(f.name))}</h1>
       <button class="pill" data-act="goToStop" style="height:36px;flex:none;gap:6px">${ICON.walk}Y aller</button>
       <button class="icon-btn star ${fav ? 'on' : ''}" data-act="favToggle" aria-pressed="${fav}" aria-label="${fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}">${STAR(fav)}</button>
     </header>
