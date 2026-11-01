@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-10-25T22:25:22.931Z",
+  "startedAt": "2026-11-01T10:24:56.048Z",
   "gtfsUrl": "https://data.opentransportdata.swiss/dataset/timetable-2026-gtfs2020/permalink",
   "agencies": [
     "Transports Publics Genevois [881]",
@@ -12,7 +12,7 @@
     "patternTrips": 176951,
     "patternLines": 90,
     "patterns": 483,
-    "quays": 2081,
+    "quays": 2082,
     "stops": 885
   },
   "colors": {
@@ -39,11 +39,11 @@
     ]
   },
   "notes": [
-    "GTFS : https://data.opentransportdata.swiss/dataset/timetable-2026-gtfs2020/permalink (290 Mo)",
+    "GTFS : https://data.opentransportdata.swiss/dataset/timetable-2026-gtfs2020/permalink (291 Mo)",
     "stops.json : 885 arrêts",
-    "quays.json : 2081 quais",
+    "quays.json : 2082 quais",
     "patterns.json : 483 parcours",
     "lines.json : 87 lignes"
   ],
-  "finishedAt": "2026-10-25T22:26:47.662Z"
+  "finishedAt": "2026-11-01T10:25:57.744Z"
 }
