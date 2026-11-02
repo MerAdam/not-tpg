@@ -393,10 +393,14 @@ async function api(path) {
   return r.json();
 }
 
-function toast(msg) {
+function toast(msg, ms = 2600) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2600);
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), ms);
 }
+/* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
+   À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
+const APP_VERSION = 'v54';
+const APP_CHANGES = 'Un message s’affiche désormais après chaque mise à jour de l’app.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -2854,6 +2858,8 @@ document.addEventListener('visibilitychange', () => {
 applyTheme();
 go('home', false);
 if (!store.get('nt_welcome_done', false)) dataReady.then(() => setTimeout(showWelcome, 400));
+else if (store.get('nt_seen_ver', null) !== APP_VERSION) setTimeout(() => toast('Mise à jour : ' + APP_CHANGES, 7000), 900);
+store.set('nt_seen_ver', APP_VERSION);
 loadAlerts();
 if (NT.sid) syncCommutes();
 setInterval(() => { if (document.visibilityState === 'visible') loadAlerts(); }, 60000);
