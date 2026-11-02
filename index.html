@@ -981,7 +981,7 @@ function drawMapLayers() {
       .on('click', () => { const r = M.results && M.results.find((x) => x.stop.id === s.id); if (r) mapSelect(r); else openStopBoard(s); })
       .addTo(M.layers);
   }
-  if (M.results && !M.sel) for (const r of M.results) if (!shown.has(r.stop.id)) {
+  if (M.results && !M.sel) for (const r of M.results) if (!shown.has(r.stop.id)) { shown.add(r.stop.id);
     L.marker([r.stop.lat, r.stop.lon], { icon: pinIcon('stop-pin') }).on('click', () => mapSelect(r)).addTo(M.layers);
   }
   if (M.dest) { L.marker([M.dest.lat, M.dest.lon], { icon: pinIcon('dest-pin'), interactive: false }).addTo(M.layers); bounds.push([M.dest.lat, M.dest.lon]); }
@@ -1044,7 +1044,7 @@ function attachPlaceSearch(input, box, onPick) {
   });
 }
 
-// Calcule, pour chaque arrêt proche, la meilleure liaison jusqu'à la destination
+// Calcule les meilleures options jusqu'à la destination : une par ligne (ou combinaison de lignes)
 async function mapPlan(force) {
   if (!M.origin || !M.dest || M.loading) return;
   if (M.results && !force) return;
@@ -1052,49 +1052,92 @@ async function mapPlan(force) {
   try {
     const dest = [M.dest.lat, M.dest.lon];
     const directWalk = estWalk(M.origin, dest);
-    // Arrêts d'arrivée : l'arrêt choisi, ou les 2 arrêts les plus proches de l'adresse
-    const destStops = M.dest.stopId ? [{ s: stopById(M.dest.stopId), d: 0 }] : nearestStops(dest, 2, 900);
+    // Arrêts d'arrivée : l'arrêt choisi, sinon jusqu'à 3 arrêts à ≤ 8 min à pied (réels) de l'adresse
+    let destStops;
+    if (M.dest.stopId) destStops = [{ s: stopById(M.dest.stopId), endWalk: 0 }];
+    else {
+      const cands = nearestStops(dest, 6, 900);
+      let ew = cands.map((c) => estWalk([c.s.lat, c.s.lon], dest));
+      try {
+        const j = await walkApi('matrix', { from: dest.join(','), to: cands.map((c) => c.s.lat + ',' + c.s.lon).join('|') });
+        if (j.durations && j.durations.length === cands.length) ew = j.durations.map((x, i) => x == null ? ew[i] : Math.round(x));
+      } catch {}
+      destStops = cands.map((c, i) => ({ s: c.s, endWalk: ew[i] })).sort((a, b) => a.endWalk - b.endWalk);
+      const close = destStops.filter((d) => d.endWalk <= 480 * walkF());
+      destStops = (close.length ? close : destStops).slice(0, 3);
+    }
+    destStops = destStops.filter((d) => d.s);
     // Arrêts de départ : les 4 plus proches en temps de marche réel (max 11 min)
     let origins = (await nearbyByWalk(M.origin)).slice(0, 4);
     if (!origins.length) origins = nearestStops(M.origin, 3, 1600).map((o) => ({ ...o, walk: estWalk(M.origin, [o.s.lat, o.s.lon]) })); // coin isolé
     const real = origins.length ? origins[0].real : false;
     if (!origins.length || !destStops.length) { M.results = []; M.walkOnly = directWalk; return; }
     const now = Date.now();
-    const results = [];
-    await Promise.all(origins.map(async (o) => {
-      let best = null;
-      for (const ds of destStops) {
-        if (!ds.s) continue;
-        const endWalk = M.dest.stopId ? 0 : estWalk([ds.s.lat, ds.s.lon], dest);
-        if (ds.s.id === o.s.id) continue;
-        const t = new Date(now + (o.walk + MARGIN) * 1000);
-        try {
-          const j = await api(connQuery({ from: o.s.id, to: ds.s.id, date: ymd(t), time: hm(t), limit: 3 }));
-          for (const c of (j.connections || []).map(mapConn)) {
-            // L'API propose parfois de marcher d'abord vers un autre arrêt : on ne garde que les
-            // liaisons qui partent vraiment en bus/tram de cet arrêt
-            const s0 = (c.raw.sections || [])[0];
-            if (!s0 || !s0.journey) continue;
-            if (c.dep.getTime() < now + (o.walk + MARGIN) * 1000) continue;
-            const arrive = c.arr.getTime() + endWalk * 1000;
-            if (!best || arrive < best.arrive) best = { c, arrive, endWalk, destStop: ds.s };
-          }
-        } catch {}
-      }
-      if (best) {
-        const firstSec = (best.c.raw.sections || []).find((x) => x.journey);
-        const first = firstSec ? { cat: firstSec.journey.category, num: firstSec.journey.number, to: firstSec.journey.to } : { cat: '', num: '', to: '' };
-        results.push({ stop: o.s, walk: o.walk, walkReal: real, ...best, first });
-      }
-    }));
-    results.sort((a, b) => a.arrive - b.arrive);
+    const cands = [];
+    // Durée d'un tronçon à pied proposé par l'API (correspondance ou fin de trajet)
+    const walkSecOf = (x) => {
+      const a = parseISO(x.departure && x.departure.departure), b = parseISO(x.arrival && x.arrival.arrival);
+      if (a && b && b > a) return (b - a) / 1000;
+      const p = x.departure && x.departure.station && x.departure.station.coordinate, q = x.arrival && x.arrival.station && x.arrival.station.coordinate;
+      return p && q && p.x && q.x ? estWalk([p.x, p.y], [q.x, q.y]) : 0;
+    };
+    const per = destStops.length > 1 ? 4 : 6;
+    await Promise.all(origins.flatMap((o) => destStops.map(async (ds) => {
+      if (ds.s.id === o.s.id) return;
+      const t = new Date(now + (o.walk + MARGIN) * 1000);
+      try {
+        const j = await api(connQuery({ from: o.s.id, to: ds.s.id, date: ymd(t), time: hm(t), limit: per }));
+        for (const c of (j.connections || []).map(mapConn)) {
+          // L'API propose parfois de marcher d'abord vers un autre arrêt : on ne garde que les
+          // liaisons qui partent vraiment en bus/tram de cet arrêt
+          const secs = c.raw.sections || [];
+          if (!secs[0] || !secs[0].journey) continue;
+          if (c.dep.getTime() < now + (o.walk + MARGIN) * 1000) continue;
+          // Marche cachée dans la liaison : en fin (bus qui s'arrête plus loin) et aux correspondances
+          let i = secs.length - 1, tail = 0;
+          while (i >= 0 && !secs[i].journey) { tail += walkSecOf(secs[i]); i--; }
+          const lastRide = secs[i];
+          let mid = 0; for (let k = 0; k < i; k++) if (!secs[k].journey) mid += walkSecOf(secs[k]);
+          const tailWalk = tail + ds.endWalk;
+          const arrive = c.arr.getTime() + ds.endWalk * 1000;
+          const totalWalk = o.walk + mid + tailWalk;
+          // Score : heure d'arrivée, + la moitié du temps de marche, + 2 min par changement
+          const cost = arrive + totalWalk * 500 + c.transfers * 120000;
+          cands.push({
+            o, c, arrive, cost, totalWalk, endWalk: ds.endWalk, tailWalk, destStop: ds.s,
+            lastStop: lastRide && lastRide.arrival && lastRide.arrival.station ? lastRide.arrival.station.name : ds.s.name
+          });
+        }
+      } catch {}
+    })));
+    // Une option par ligne (ou combinaison de lignes) : la meilleure, tous arrêts de départ confondus
+    const byKey = new Map();
+    for (const x of cands) {
+      const k = x.c.key || 'x';
+      const cur = byKey.get(k);
+      if (!cur || x.cost < cur.cost) byKey.set(k, x);
+    }
+    let opts = [...byKey.values()];
+    // On retire les options moins bonnes sur tous les plans (plus tard, plus de marche, plus de changements)
+    opts = opts.filter((x) => !opts.some((y) => y !== x && y.arrive <= x.arrive && y.totalWalk <= x.totalWalk && y.c.transfers <= x.c.transfers
+      && (y.arrive < x.arrive || y.totalWalk < x.totalWalk || y.c.transfers < x.c.transfers)));
+    opts.sort((a, b) => a.cost - b.cost);
+    const results = opts.slice(0, 8).map((x) => {
+      const firstSec = (x.c.raw.sections || []).find((s) => s.journey);
+      const first = firstSec ? { cat: firstSec.journey.category, num: firstSec.journey.number, to: firstSec.journey.to } : { cat: '', num: '', to: '' };
+      return { stop: x.o.s, walk: x.o.walk, walkReal: real, c: x.c, arrive: x.arrive, endWalk: x.endWalk, tailWalk: x.tailWalk, lastStop: x.lastStop, destStop: x.destStop, first };
+    });
     if (results.length) {
-      results[0].fast = true;
+      const minArr = Math.min(...results.map((r) => r.arrive));
       const minWalk = Math.min(...results.map((r) => r.walk));
-      results.forEach((r) => { if (r.walk === minWalk) r.near = true; if (!r.c.transfers) r.direct = true; });
+      results.forEach((r) => {
+        if (r.arrive === minArr) r.fast = true;
+        if (r.walk === minWalk) r.near = true;
+        if (!r.c.transfers && r.tailWalk < 180) r.direct = true;
+      });
     }
     M.results = results;
-    M.walkOnly = results.length && now + directWalk * 1000 <= results[0].arrive ? directWalk : (!results.length ? directWalk : null);
+    M.walkOnly = results.length && now + directWalk * 1000 <= Math.min(...results.map((r) => r.arrive)) ? directWalk : (!results.length ? directWalk : null);
   } finally {
     M.loading = false;
     if (S.screen === 'map') { drawMapPanel(); drawMapLayers(); }
@@ -1181,7 +1224,8 @@ function drawMapPanel() {
           <span style="font-weight:900;font-size:16px;line-height:1.25">${esc(short(r.stop.name))}</span>
           <div class="conn-legs">${r.c.legs.map((l) => badge(l.cat, l.num, true)).join('')}<span class="small">${r.c.legs.length ? 'Le ' + esc(r.c.legs[0].num || '') + ' part' : 'Départ'} à <b>${r.c.depStr}</b> (dans ${wait} min)</span></div>
           <div class="small">${r.walkReal ? '' : '~'}${minsTxt(r.walk)} à pied · ${leaveTxt(r.c.dep, r.walk)}</div>
-          <div class="small">Arrivée <b>${hm(new Date(r.arrive))}</b>${r.c.transfers ? ' · ' + r.c.transfers + ' changement' + (r.c.transfers > 1 ? 's' : '') : ' · direct'}</div>
+          <div class="small">Arrivée <b>${hm(new Date(r.arrive))}</b>${r.c.transfers ? ' · ' + r.c.transfers + ' changement' + (r.c.transfers > 1 ? 's' : '') : r.tailWalk >= 60 ? '' : ' · direct'}</div>
+          ${r.tailWalk >= 60 ? `<div class="small">Descends à <b>${esc(short(r.lastStop))}</b> puis ${minsTxt(r.tailWalk)} à pied</div>` : ''}
         </button>`;
       }).join('') : '<div class="card empty-card">Aucune liaison trouvée depuis les arrêts proches.</div>') + walkCard;
   }
@@ -2314,7 +2358,7 @@ const TUTOS = [
       i: () => mock(mMap(mStop(70, 45) + mStop(195, 62) + mStop(90, 115) + mDot(140, 80)) + `<div class="card list"><div class="m-field" style="flex-direction:column;align-items:flex-start;gap:0"><span>Champel, gare/Peschier</span><span class="small">131 m · 2 min à pied</span></div></div>`) },
     { t: 'Où veux-tu aller ?', p: 'Tape ta destination en haut : un <b>arrêt tpg</b>, une <b>adresse</b> (« Rue de Carouge 12 ») ou un <b>lieu</b> (« Uni Mail »).',
       i: () => mock(`<div class="card list"><div class="m-field">${ICON.pin}uni mail</div><div class="m-field" style="background:var(--sugg);justify-content:space-between">Genève, Uni-Mail<span class="kind">Arrêt</span></div><div class="m-field" style="background:var(--sugg);justify-content:space-between"><span>Uni Mail<br><span class="small">1205, Genève</span></span><span class="kind">Lieu</span></div></div>`, tap(40, 60)) },
-    { t: 'Les meilleures options', p: 'Pour chaque arrêt proche, l’app calcule le meilleur trajet. Les badges t’aident à choisir : <span class="tagb fast">+ rapide</span> arrivée la plus tôt, <span class="tagb near">+ proche</span> le moins de marche, <span class="tagb direct">Direct</span> sans changement. Tout est calculé pour arriver à l’arrêt <b>3 min avant le bus</b>.',
+    { t: 'Les meilleures options', p: 'L’app propose <b>une option par ligne utile</b> (ou combinaison de lignes avec changement), en la prenant à l’arrêt proche le plus avantageux. Elles sont classées selon l’heure d’arrivée, la marche et les changements. Si le bus te dépose plus loin, la fin à pied est indiquée. Les badges : <span class="tagb fast">+ rapide</span> arrivée la plus tôt, <span class="tagb near">+ proche</span> le moins de marche, <span class="tagb direct">Direct</span> sans changement ni longue marche à la fin. Tout est calculé pour arriver à l’arrêt <b>3 min avant le bus</b>.',
       i: () => mock(mOpt('<span class="tagb fast">+ rapide</span><span class="tagb near">+ proche</span><span class="tagb direct">Direct</span>', 'Champel, gare/Peschier', ['3'], 'Le 3 part à <b>17:16</b> · pars dans <b>1 min</b>') + mOpt('', 'Champel, gare', ['5', '12'], 'Le 5 part à <b>17:18</b> · 1 changement')) },
     { t: 'Choisir un arrêt', p: 'Touche une option : le <b>chemin à pied</b> s’affiche sur la carte, avec <b>« Quitte ta position dans X min »</b> et les prochains départs. Ceux que tu ne pourras pas attraper sont grisés.',
       i: () => mock(mMap(mStop(70, 45) + mPath('M140 80 L120 66 L85 60 L72 48') + mDot(140, 80) + `<rect x="58" y="30" width="28" height="18" rx="4" fill="${lineStyle('B', '3').bg}"/><text x="72" y="43" fill="#fff" font-size="12" font-weight="900" text-anchor="middle">3</text>`, 120) + `<div class="card" style="padding:9px 11px"><b style="color:var(--bad);font-size:14px">Quitte ta position dans 1 min</b><div class="small">Départ à pied à 17:11 pour être à l’arrêt 3 min avant le bus</div></div>`, tap(50, 82)) },
