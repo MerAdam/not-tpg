@@ -181,7 +181,8 @@
   .tab.on{color:var(--accent)}
   .next{width:100%;margin-top:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;text-align:left}
   #toast{position:fixed;z-index:50;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:12px 16px;border-radius:12px;font-weight:700;font-size:14px;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
-  #toast.show{opacity:1}
+  #toast.show{opacity:1;pointer-events:auto;cursor:pointer}
+  #toast.wide{width:calc(100% - 32px);max-width:520px;text-align:center;line-height:1.35}
 
   /* thème sombre (classe posée par le script en tête de page) */
   html.dark{
@@ -393,14 +394,15 @@ async function api(path) {
   return r.json();
 }
 
-function toast(msg, ms = 2600) {
-  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+function toast(msg, ms = 2600, wide = false) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show'); t.classList.toggle('wide', wide);
+  if (!t._tap) { t._tap = true; t.addEventListener('click', () => { clearTimeout(toast._t); t.classList.remove('show'); }); } // toucher pour fermer
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), ms);
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v54';
-const APP_CHANGES = 'Un message s’affiche désormais après chaque mise à jour de l’app.';
+const APP_VERSION = 'v55';
+const APP_CHANGES = 'ce message est plus large, et tu peux le toucher pour le fermer.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -2858,7 +2860,7 @@ document.addEventListener('visibilitychange', () => {
 applyTheme();
 go('home', false);
 if (!store.get('nt_welcome_done', false)) dataReady.then(() => setTimeout(showWelcome, 400));
-else if (store.get('nt_seen_ver', null) !== APP_VERSION) setTimeout(() => toast('Mise à jour : ' + APP_CHANGES, 7000), 900);
+else if (store.get('nt_seen_ver', null) !== APP_VERSION) setTimeout(() => toast('Mise à jour : ' + APP_CHANGES, 7000, true), 900);
 store.set('nt_seen_ver', APP_VERSION);
 loadAlerts();
 if (NT.sid) syncCommutes();
