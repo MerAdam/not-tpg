@@ -180,8 +180,8 @@
   .tab{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:0;font-size:11.5px;font-weight:800;min-height:56px;color:var(--muted)}
   .tab.on{color:var(--accent)}
   .next{width:100%;margin-top:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;text-align:left}
-  #toast{position:fixed;z-index:50;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:12px 16px;border-radius:12px;font-weight:700;font-size:14px;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
-  #toast.show{opacity:1;pointer-events:auto;cursor:pointer}
+  #toast{position:fixed;z-index:50;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:12px 16px;border-radius:12px;font-weight:700;font-size:14px;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .22s,transform .3s cubic-bezier(.2,.8,.2,1);transform:translate(-50%,14px)}
+  #toast.show{opacity:1;pointer-events:auto;cursor:pointer;transform:translate(-50%,0)}
   #toast.wide{width:calc(100% - 32px);max-width:520px;text-align:center;line-height:1.35}
 
   /* thème sombre (classe posée par le script en tête de page) */
@@ -257,7 +257,21 @@
   .tap{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:var(--accent);opacity:.35;pointer-events:none;animation:tap 1.6s ease-out infinite}
   .tap::after{content:"";position:absolute;inset:9px;border-radius:50%;background:var(--accent);opacity:1}
   @keyframes tap{0%{transform:scale(.6);opacity:.55}70%{transform:scale(1.5);opacity:0}100%{opacity:0}}
-  @media (prefers-reduced-motion: reduce){.tap{animation:none}}
+  /* Animations */
+  @keyframes inFwd{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+  @keyframes inBack{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
+  @keyframes inFade{from{opacity:0}to{opacity:1}}
+  @keyframes riseIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.32)}70%{transform:scale(.92)}100%{transform:scale(1)}}
+  #main.a-fwd{animation:inFwd .28s cubic-bezier(.2,.8,.2,1)}
+  #main.a-back{animation:inBack .28s cubic-bezier(.2,.8,.2,1)}
+  #main.a-fade{animation:inFade .2s ease-out}
+  .stg{animation:riseIn .34s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 24ms)}
+  .pop{animation:pop .42s cubic-bezier(.3,1.4,.5,1)}
+  button{transition:transform .12s ease}
+  button:active:not(:disabled){transform:scale(.97)}
+  .dep:active,.row-btn:active,.jrow:active,.card.opt:active,.fav-row:active{transform:scale(.985)}
+  @media (prefers-reduced-motion: reduce){.tap,#main.a-fwd,#main.a-back,#main.a-fade,.stg,.pop{animation:none}button:active,.dep:active,.row-btn:active,.jrow:active,.card.opt:active{transform:none}#toast{transition:opacity .2s}}
   .tuto-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 16px;border:0;border-bottom:1px solid var(--line2);background:none}
   .tuto-item:last-child{border-bottom:0}
   .tuto-num{width:32px;height:32px;border-radius:16px;background:var(--seg);display:inline-flex;align-items:center;justify-content:center;font-weight:900;flex:none}
@@ -267,7 +281,7 @@
   .info-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:50px;padding:0 16px;border-bottom:1px solid var(--line2);font-size:15px}
   .info-row:last-child{border-bottom:0}
   .info-row a{color:var(--accent);font-weight:800;text-decoration:none;text-align:right}
-  .seg button{transition:background-color .25s,color .25s}
+  .seg button{transition:background-color .25s,color .25s,transform .12s}
   /* transition de thème : cercle qui s'agrandit depuis le bouton touché */
   ::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
   ::view-transition-new(root){z-index:2}
@@ -401,8 +415,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v55';
-const APP_CHANGES = 'ce message est plus large, et tu peux le toucher pour le fermer.';
+const APP_VERSION = 'v56';
+const APP_CHANGES = 'nouvelles animations : écrans qui glissent, listes en cascade, boutons qui réagissent au toucher.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -558,7 +572,9 @@ function attachSuggest(input, box, onPick) {
 const SUB = ['board', 'results', 'trip', 'new', 'journey', 'tutos', 'tuto'];
 const PARENT = { new: 'commutes', trip: 'results', journey: 'board', tutos: 'settings', tuto: 'tutos' };
 const parentOf = (screen) => (screen === 'trip' && S.tripParent ? S.tripParent : screen === 'board' && S.boardParent ? S.boardParent : PARENT[screen] || 'home');
+let navDir = null; // 'back' (retour) ou 'tab' (onglet), sinon déduit
 function go(screen, push = true) {
+  const dir = navDir || (push && SUB.includes(screen) ? 'fwd' : 'fade'); navDir = null;
   clearTimeout(boardTimer);
   closeSheet();
   if (push && SUB.includes(screen)) history.pushState({ s: screen }, '');
@@ -569,12 +585,22 @@ function go(screen, push = true) {
   $('#tabSettings').classList.toggle('on', tab === 'settings');
   $('#tabMap').classList.toggle('on', tab === 'map');
   $('#tabInfos').classList.toggle('on', tab === 'infos');
+  S.animNext = true; S.animUntil = Date.now() + 450; if (screen === 'map') M.animNext = true;
   ({ home: renderHome, board: renderBoard, results: renderResults, trip: renderTrip, commutes: renderCommutes, new: renderNew, journey: renderJourney, settings: renderSettings, infos: renderInfos, tutos: renderTutos, tuto: renderTuto, map: renderMap })[screen]();
+  // Animation d'entrée de l'écran (glissement en avant / en arrière, fondu pour les onglets)
+  main.classList.remove('a-fwd', 'a-back', 'a-fade'); void main.offsetWidth;
+  main.classList.add(screen === 'map' ? 'a-fade' : dir === 'back' ? 'a-back' : dir === 'fwd' ? 'a-fwd' : 'a-fade');
+  clearTimeout(go._t); go._t = setTimeout(() => main.classList.remove('a-fwd', 'a-back', 'a-fade'), 400);
 }
-window.addEventListener('popstate', () => go(parentOf(S.screen), false));
+// Listes qui apparaissent en cascade (une seule fois, à l'arrivée sur l'écran)
+function stagger(els) {
+  [...els].slice(0, 14).forEach((el, i) => { el.style.setProperty('--i', i); el.classList.add('stg'); el.addEventListener('animationend', () => el.classList.remove('stg'), { once: true }); });
+}
+function popEl(el) { if (!el) return; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+window.addEventListener('popstate', () => { navDir = 'back'; go(parentOf(S.screen), false); });
 document.querySelector('nav').addEventListener('click', (e) => {
   const b = e.target.closest('[data-tab]'); if (!b) return;
-  go(b.dataset.tab, false);
+  navDir = 'tab'; go(b.dataset.tab, false);
 });
 const backBtn = () => `<button class="icon-btn" data-act="back" aria-label="Retour">${ICON.back}</button>`;
 
@@ -671,7 +697,7 @@ function sheetH(state) {
 function setSheet(state, anim = true) {
   M.sheet = state;
   const el = $('#mapSheet'); if (!el) return;
-  el.style.transition = anim ? 'height .3s cubic-bezier(.2,.8,.2,1)' : 'none';
+  el.style.transition = anim ? 'height .42s cubic-bezier(.25,1.25,.45,1)' : 'none'; // petit rebond en se calant
   el.style.height = sheetH(state) + 'px';
   // Réduit : pas de défilement dans la liste (on remonte en haut)
   const body = $('#mapPanel');
@@ -699,7 +725,10 @@ function attachSheetDrag() {
     if (e && e.cancelable) e.preventDefault();
     const H = $('.map-screen').clientHeight;
     sheet.style.transition = 'none';
-    sheet.style.height = Math.max(90, Math.min(H - 84, h0 - dy)) + 'px';
+    // Au-delà des limites, le panneau résiste (effet élastique)
+    let h = h0 - dy; const lo = 116, hi = H - 84;
+    if (h > hi) h = hi + (h - hi) * 0.3; else if (h < lo) h = lo - (lo - h) * 0.3;
+    sheet.style.height = Math.max(70, Math.min(H - 40, h)) + 'px';
   };
   const end = (y) => {
     if (y0 == null) return;
@@ -759,7 +788,7 @@ async function nearbyByWalk(pt) {
       .filter((x) => x.walk <= NEAR_MAX).sort((a, b) => a.walk - b.walk);
   })();
   M.near = { key, p, list: null };
-  p.then((l) => { if (M.near && M.near.key === key) { M.near.list = l; drawMapLayers(); drawMapPanel(); } });
+  p.then((l) => { if (M.near && M.near.key === key) { M.near.list = l; M.animNext = true; drawMapLayers(); drawMapPanel(); } });
   return p;
 }
 function nearList() { return M.origin && M.near && M.near.key === M.origin.map((x) => x.toFixed(4)).join(',') + walkSpeed() ? M.near.list : null; }
@@ -1149,7 +1178,7 @@ async function mapPlan(force) {
     M.results = results;
     M.walkOnly = results.length && now + directWalk * 1000 <= Math.min(...results.map((r) => r.arrive)) ? directWalk : (!results.length ? directWalk : null);
   } finally {
-    M.loading = false;
+    M.loading = false; M.animNext = true;
     if (S.screen === 'map') { drawMapPanel(); drawMapLayers(); }
   }
 }
@@ -1240,6 +1269,7 @@ function drawMapPanel() {
       }).join('') : '<div class="card empty-card">Aucune liaison trouvée depuis les arrêts proches.</div>') + walkCard;
   }
   p.innerHTML = html;
+  if (M.animNext && ((M.results && !M.loading) || (!M.dest && nearList()))) { M.animNext = false; stagger(p.querySelectorAll('.card.opt, .row-btn')); }
 }
 
 async function mapSelect(r) {
@@ -1635,6 +1665,7 @@ function drawBoard() {
       <div class="dep-r"><span class="big">${big}</span>${sub}</div></button>`;
   }).join('');
   $('#deps').innerHTML = rows || '<p class="empty">Aucun départ pour ce filtre.</p>';
+  if (rows && S.animNext) { S.animNext = false; stagger($('#deps').children); }
   $('#upd').textContent = live ? 'Temps réel · mis à jour à ' + hm(new Date()) : 'Horaire du ' + dateLabel(S.boardDate);
 }
 
@@ -1760,6 +1791,7 @@ function renderJourney() {
         : '<div class="card empty-card">Le parcours de cette course n’est pas disponible.</div>'}
     </div>`;
   fitTitle($('#jTitle'));
+  if (Date.now() < (S.animUntil || 0)) stagger(main.querySelectorAll('.jrow')); // aussi si l'écran se redessine juste après
   if (prev && prev.ids.length) {
     const h = main.querySelector('.jrow.here');
     if (h) h.scrollIntoView({ block: 'center' });
@@ -1980,6 +2012,7 @@ function renderTrip() {
       <p class="small" style="margin:0 4px">${totalMin} min · ${c.transfers ? c.transfers + ' changement' + (c.transfers > 1 ? 's' : '') : 'direct'}${S.q.date !== todayStr() ? ' · ' + esc(dateLabel(S.q.date)) : ''}</p>
       <div class="card" style="padding:4px 0 8px">${before}${parts}${after}</div>
     </div>`;
+  if (Date.now() < (S.animUntil || 0)) stagger(main.querySelectorAll('.card .leg'));
 }
 
 /* ---------- TRAJETS PENDULAIRES ---------- */
@@ -2673,7 +2706,7 @@ function renderSettings() {
 
 /* ---------- actions (clics) ---------- */
 const ACT = {
-  back: () => (history.state ? history.back() : go(parentOf(S.screen), false)),
+  back: () => (history.state ? history.back() : (navDir = 'back', go(parentOf(S.screen), false))),
   openJourney: (ds) => { S.journey = S.boardRows[+ds.i]; if (S.journey) go('journey'); },
   openStopFromJourney: (ds) => { S.stop = { id: ds.id, name: ds.name }; S.boardDate = ''; S.boardTime = ''; S.board = []; S.boardBefore = []; S.boardAfter = []; S.boardMax = 30; go('board'); },
   locate: () => { S.fromText = ''; const i = $('#fromIn'); if (i) i.value = ''; locate(); },
@@ -2699,7 +2732,7 @@ const ACT = {
     const on = isFav(f.id);
     el.classList.toggle('on', on); el.setAttribute('aria-pressed', on);
     el.setAttribute('aria-label', on ? 'Retirer des favoris' : 'Ajouter aux favoris');
-    el.innerHTML = STAR(on);
+    el.innerHTML = STAR(on); popEl(el);
   },
   boardMore: (ds, el) => boardMore(ds.dir, el),
   alerts: (ds) => openAlerts(String(ds.ids || '').split(',').filter(Boolean)),
@@ -2764,8 +2797,8 @@ const ACT = {
     try { await pushApi('test', { sid: NT.sid }); toast('Notification de test envoyée.'); }
     catch (e) { if (e.resubscribe) { NT.sid = null; store.set('nt_push_sid', null); renderSettings(); } toast(e.message); }
   },
-  bell: (ds) => { const d = S.boardRows[+ds.i]; if (d) toggleBell(d, S.stop).then(() => drawBoard()); },
-  bellJourney: () => { if (S.journey) toggleBell(S.journey, S.stop).then(() => { if (S.screen === 'journey') renderJourney(); }); },
+  bell: (ds) => { const d = S.boardRows[+ds.i]; if (d) toggleBell(d, S.stop).then(() => { drawBoard(); popEl($(`.bell[data-i="${ds.i}"]`)); }); },
+  bellJourney: () => { if (S.journey) toggleBell(S.journey, S.stop).then(() => { if (S.screen === 'journey') { renderJourney(); popEl($('[data-act="bellJourney"]')); } }); },
   walkSpeed: (ds) => {
     store.set('nt_walkspeed', ds.v);
     M.near = null; M.results = null; M.sel = null;
