@@ -402,7 +402,10 @@ async function backupNow() {
     const j = await backupApi('save', { name: b.name, pin: b.pin, data: backupData() });
     localStorage.setItem('nt_backup', JSON.stringify({ ...b, at: j.at, err: null }));
     return true;
-  } catch (e) { localStorage.setItem('nt_backup', JSON.stringify({ ...b, err: e.message })); return false; }
+  } catch (e) {
+    if (e.status === 404) { localStorage.removeItem('nt_backup'); return false; } // supprimée ailleurs
+    localStorage.setItem('nt_backup', JSON.stringify({ ...b, err: e.message })); return false;
+  }
 }
 // Synchronisation entre appareils : on récupère la sauvegarde si elle est plus récente que ce qu'on a
 // (à l'ouverture, au retour sur l'app, et toutes les 20 s tant qu'elle est affichée).
@@ -425,7 +428,10 @@ async function pullBackup() {
     if (sheet.classList.contains('open')) return; // ne pas fermer une fenêtre ouverte
     if (S.screen === 'board') { renderBoard(); loadBoard(); }
     else if (['home', 'commutes', 'settings'].includes(S.screen)) ({ home: renderHome, commutes: renderCommutes, settings: renderSettings })[S.screen]();
-  } catch {} finally { syncBusy = false; }
+  } catch (e) {
+    // Sauvegarde supprimée depuis un autre appareil : on se déconnecte ici aussi
+    if (e.status === 404) { localStorage.removeItem('nt_backup'); if (S.screen === 'settings' && !sheet.classList.contains('open')) renderSettings(); }
+  } finally { syncBusy = false; }
 }
 setInterval(pullBackup, 20000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pullBackup(); });
@@ -519,8 +525,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v66';
-const APP_CHANGES = 'la sauvegarde se synchronise maintenant entre tes appareils : un changement sur l’un apparaît sur l’autre en quelques secondes.';
+const APP_VERSION = 'v67';
+const APP_CHANGES = 'tu peux maintenant supprimer ta sauvegarde (icône poubelle dans Réglages → Sauvegarde).';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -1651,6 +1657,7 @@ function timeSheetHtml() {
     </div>`;
 }
 const SHEET = {
+  bkDelete: (ds, el) => ACT.bkDelete(ds, el),
   bkCreate: (ds, el) => ACT.bkCreate(ds, el), bkRestore: (ds, el) => ACT.bkRestore(ds, el), bkNow: (ds, el) => ACT.bkNow(ds, el), bkOff: () => ACT.bkOff(), bkRecover: () => ACT.bkRecover(),
   mapStyle: (ds) => { store.set('nt_mapstyle', ds.id); setBaseLayer(); $('#sheetBody').innerHTML = mapStylesHtml(); },
   mapDim: (ds, el) => { store.set('nt_mapdim', el.checked); setBaseLayer(); },
@@ -2795,7 +2802,8 @@ function backupCardHtml() {
   const when = b && b.at ? new Date(b.at).toLocaleString('fr-CH', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
   return `<div class="card" id="bkCard" style="padding:16px 16px 6px;display:flex;flex-direction:column;gap:4px">
     <h2 class="label">Sauvegarde</h2>
-    ${b ? `<p class="small" style="margin:0;color:${b.err ? 'var(--bad)' : 'var(--ok)'};font-weight:800">${b.err ? 'Dernière sauvegarde échouée' : 'Activée · ' + esc(b.name) + (when ? ' · ' + when : '')}</p>` : ''}
+    ${b ? `<div style="display:flex;align-items:center;gap:8px"><p class="small" style="margin:0;flex:1;color:${b.err ? 'var(--bad)' : 'var(--ok)'};font-weight:800">${b.err ? 'Dernière sauvegarde échouée' : 'Activée · ' + esc(b.name) + (when ? ' · ' + when : '')}</p>
+      <button class="icon-btn danger" data-act="bkAskDelete" aria-label="Supprimer la sauvegarde" style="width:36px;height:36px;margin:-6px -6px -6px 0">${ICON.trash}</button></div>` : ''}
     <div class="list" style="margin:4px -16px 0">
       <button class="row-btn" data-act="bkOpenSave"><span>Sauvegarder mes données</span>${ICON.chev}</button>
       <button class="row-btn" data-act="bkOpenRestore" style="border-bottom:0"><span>Restaurer mes données</span>${ICON.chev}</button>
@@ -2818,6 +2826,18 @@ function bkSaveSheetHtml() {
       <input id="bkName" class="time-in" placeholder="Nom" autocomplete="username" autocapitalize="none" style="width:100%">
       <input id="bkPin" class="time-in" placeholder="Code" inputmode="numeric" type="password" autocomplete="new-password" style="width:100%">
       <button class="primary w100" data-sheet="bkCreate">Activer la sauvegarde</button>
+    </div>`;
+}
+function bkDeleteSheetHtml() {
+  const b = backupCfg() || {};
+  return `<h2>Supprimer la sauvegarde ?</h2>
+    <div class="stack" style="gap:12px">
+      <div style="display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb, var(--bad) 12%, transparent);border-radius:12px;padding:12px">
+        <span style="color:var(--bad);flex:none;margin-top:1px">${WARN_ICON.replace(/13/g, '20')}</span>
+        <span class="small" style="margin:0;color:var(--ink)">La sauvegarde <b>« ${esc(b.name || '')} »</b> sera <b>définitivement supprimée</b> du serveur. Le nom et le code ne fonctionneront plus, tu ne pourras plus restaurer tes données avec, et tes autres appareils ne seront plus synchronisés.<br><br>Les favoris et trajets déjà présents sur cet appareil ne sont pas effacés.</span>
+      </div>
+      <button class="primary w100" data-sheet="bkDelete" style="background:var(--bad);border-color:var(--bad)">Supprimer définitivement</button>
+      <button class="ghost w100" data-sheet="close">Annuler</button>
     </div>`;
 }
 function bkRestoreSheetHtml() {
@@ -2976,6 +2996,19 @@ const ACT = {
   },
   openBackup: () => { navDir = 'tab'; go('settings', false); setTimeout(() => openSheet(bkRestoreSheetHtml()), 300); },
   bkOpenSave: () => openSheet(bkSaveSheetHtml()),
+  bkAskDelete: () => openSheet(bkDeleteSheetHtml()),
+  bkDelete: async (ds, el) => {
+    const b = backupCfg(); if (!b) return closeSheet();
+    el.disabled = true; el.textContent = 'Suppression…';
+    try {
+      await backupApi('delete', { name: b.name, pin: b.pin });
+      clearTimeout(backupT); backupT = null; localStorage.removeItem('nt_backup');
+      closeSheet(); toast('Sauvegarde supprimée.'); renderSettings();
+    } catch (e) {
+      if (e.status === 404) { localStorage.removeItem('nt_backup'); closeSheet(); toast('Sauvegarde déjà supprimée.'); renderSettings(); return; }
+      el.disabled = false; el.textContent = 'Supprimer définitivement'; toast(e.message, 4000, true);
+    }
+  },
   bkOpenRestore: () => openSheet(bkRestoreSheetHtml()),
   bkCreate: async (ds, el) => {
     const name = $('#bkName').value, pin = $('#bkPin').value;
