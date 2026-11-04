@@ -525,8 +525,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v67';
-const APP_CHANGES = 'tu peux maintenant supprimer ta sauvegarde (icône poubelle dans Réglages → Sauvegarde).';
+const APP_VERSION = 'v68';
+const APP_CHANGES = 'Infos trafic : message plus clair quand tpg.ch bloque l’accès, avec un lien direct vers leur page.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -2398,9 +2398,13 @@ function renderInfos() {
   main.innerHTML = `
     <header class="top"><h1 class="brand sm">Infos trafic</h1></header>
     <div class="scroll stack">
-      ${alertsError && !ALERTS.length ? `<div class="card empty-card">Impossible de charger les perturbations pour le moment.<br><span class="small">${esc(alertsError)}</span></div>` : ''}
+      ${alertsError && !ALERTS.length ? `<div class="card empty-card" style="display:flex;flex-direction:column;gap:10px;align-items:center">
+        ${/403/.test(alertsError)
+          ? '<span><b>tpg.ch bloque l’accès aux infos trafic depuis l’app.</b></span><span class="small">Ce n’est pas une panne : leur site filtre en ce moment les requêtes qui ne viennent pas directement d’un navigateur. En attendant, consulte l’info trafic sur tpg.ch.</span>'
+          : `<span>Impossible de charger les perturbations pour le moment.</span><span class="small">${esc(alertsError)}</span>`}
+        <a class="ghost" href="https://www.tpg.ch/fr/voyager/info-trafic/info-trafic" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none">Ouvrir l’info trafic tpg.ch</a></div>` : `
       <h2 class="label" style="margin:4px 4px 0">En cours${current.length ? ' · ' + current.length : ''}</h2>
-      ${current.length ? current.map(card).join('') : `<div class="card empty-card">${upd ? 'Aucune perturbation en cours sur le réseau tpg.' : 'Chargement…'}</div>`}
+      ${current.length ? current.map(card).join('') : `<div class="card empty-card">${upd ? 'Aucune perturbation en cours sur le réseau tpg.' : 'Chargement…'}</div>`}`}
       ${soon.length ? `<h2 class="label" style="margin:10px 4px 0">À venir · 7 jours</h2>${soon.map(card).join('')}` : ''}
       <p class="foot">${upd ? 'Mis à jour à ' + hm(new Date(upd)) + ' · ' : ''}Source : info trafic tpg.ch. Tire vers le bas pour actualiser.</p>
     </div>`;
