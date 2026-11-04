@@ -1,0 +1,40 @@
+name: Surveillance externe (2e point de vue)
+# Toutes les 15 min, teste les services depuis GitHub et publie le résultat dans la branche
+# « monitor-data » (fichier ext.json), lu par le panneau admin. Cette branche n'est pas déployée.
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: monitor
+  cancel-in-progress: true
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Tests
+        run: |
+          t() { # svc url [header]
+            out=$(curl -s -o /dev/null -m 20 -A "Mozilla/5.0 (compatible; NotTPG/1.0)" ${3:+-H "$3"} -w "%{http_code} %{time_total}" "$2"); rc=$?
+            code=${out%% *}; sec=${out##* }
+            echo "{\"svc\":\"$1\",\"code\":${code:-0},\"ms\":$(awk "BEGIN{print int(${sec:-0}*1000)}"),\"curl\":$rc}"
+          }
+          {
+            echo '{"at":'$(date +%s000)',"results":['
+            t opendata "https://transport.opendata.ch/v1/locations?query=Bel-Air&type=station"; echo ','
+            t tpg "https://www.tpg.ch/fr/getInfoTrafic" "X-Requested-With: XMLHttpRequest"; echo ','
+            t walk "https://routing.openstreetmap.de/routed-foot/route/v1/driving/6.1432,46.2044;6.1450,46.2050?overview=false"
+            echo ']}'
+          } > /tmp/ext.json
+          cat /tmp/ext.json
+      - name: Publier
+        run: |
+          mkdir pub && cd pub && git init -q -b monitor-data
+          cp /tmp/ext.json ext.json
+          echo '{"git":{"deploymentEnabled":false}}' > vercel.json
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add . && git commit -qm "Surveillance externe"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" monitor-data

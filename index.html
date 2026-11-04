@@ -385,8 +385,11 @@ const BACKUP_KEYS = ['nt_favs', 'nt_filters', 'nt_commutes', 'nt_theme', 'nt_dep
 const backupCfg = () => store.get('nt_backup', null);
 function backupData() { const d = {}; for (const k of BACKUP_KEYS) { const v = store.get(k, undefined); if (v !== undefined) d[k] = v; } return d; }
 async function backupApi(action, body) {
-  const r = await fetch('/api/backup?action=' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  let r;
+  try { r = await fetch('/api/backup?action=' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
+  catch (e) { reportErr('backup', errKind(e), action); throw e; }
   const j = await r.json().catch(() => ({}));
+  if (r.status >= 500) reportErr('backup', 'HTTP ' + r.status, (j.error || action));
   if (!r.ok) { const e = new Error(j.error || 'Erreur ' + r.status); e.status = r.status; e.exists = j.exists; throw e; }
   return j;
 }
@@ -504,17 +507,38 @@ async function checkApi() {
 addEventListener('offline', () => setApiDown(true, 'offline'));
 addEventListener('online', () => checkApi());
 document.addEventListener('click', (e) => { if (e.target.closest('#apiDown')) checkApi(); });
+/* Erreurs vues dans l'app : envoyées anonymement (identifiant d'appareil aléatoire) pour le panneau admin */
+const REP = { q: [], seen: {}, t: null };
+function reportErr(svc, kind, msg) {
+  try {
+    const k = svc + '|' + kind, now = Date.now();
+    if (REP.seen[k] && now - REP.seen[k] < 120000) return; // pas plus d'une fois toutes les 2 min par type
+    REP.seen[k] = now;
+    REP.q.push({ t: now, svc, kind: String(kind || 'erreur').slice(0, 30), msg: String(msg || '').slice(0, 140) });
+    clearTimeout(REP.t); REP.t = setTimeout(flushReports, REP.q.length >= 5 ? 500 : 15000);
+  } catch {}
+}
+function flushReports() {
+  if (!REP.q.length || navigator.onLine === false) return;
+  let dev = store.get('nt_dev', ''); if (!dev) { dev = Math.random().toString(36).slice(2, 10); store.set('nt_dev', dev); }
+  const errors = REP.q.splice(0, 20);
+  fetch('/api/monitor?action=report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dev, errors }), keepalive: true }).catch(() => {});
+}
+addEventListener('pagehide', flushReports);
+addEventListener('error', (e) => reportErr('app', 'erreur JS', (e.message || '') + (e.lineno ? ' (ligne ' + e.lineno + ')' : '')));
+addEventListener('unhandledrejection', (e) => { const m = e.reason && (e.reason.message || String(e.reason)); if (m && !/abort/i.test(m)) reportErr('app', 'promesse', m); });
+const errKind = (e) => (e && e.name === 'AbortError' ? 'timeout' : e && e.name === 'TypeError' ? 'réseau' : 'erreur');
 async function api(path) {
   if (path.startsWith('/stationboard') && /datetime=/.test(path)) { await Promise.race([shiftReady, new Promise((r) => setTimeout(r, 3000))]); path = shiftPath(path); }
   let r;
   try { r = await fetchT(API + path, 5000); } // pas de réponse en 5 s : on prévient, puis on retente
   catch {
     setApiDown(true);
-    try { r = await fetchT(API + path, 10000); } catch (e) { throw e; }
+    try { r = await fetchT(API + path, 10000); } catch (e) { if (navigator.onLine !== false) reportErr('opendata', errKind(e), path.split('?')[0]); throw e; }
   }
-  if (r.status >= 500) { setApiDown(true); throw new Error('HTTP ' + r.status); }
+  if (r.status >= 500) { setApiDown(true); reportErr('opendata', 'HTTP ' + r.status, path.split('?')[0]); throw new Error('HTTP ' + r.status); }
   setApiDown(false);
-  if (!r.ok) throw new Error('HTTP ' + r.status);
+  if (!r.ok) { reportErr('opendata', 'HTTP ' + r.status, path.split('?')[0]); throw new Error('HTTP ' + r.status); }
   return r.json();
 }
 
@@ -525,7 +549,7 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v71';
+const APP_VERSION = 'v72';
 const APP_CHANGES = 'petites améliorations techniques.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
@@ -869,9 +893,10 @@ const minsTxt = (sec) => Math.max(1, Math.round(sec / 60)) + ' min';
 const pinIcon = (cls, html = '') => window.L.divIcon({ className: '', html: `<div class="${cls}">${html}</div>`, iconSize: [20, 20], iconAnchor: [10, 10] });
 
 async function walkApi(action, params) {
-  const r = await fetch('/api/walk?action=' + action + '&' + new URLSearchParams(params));
+  let r;
+  try { r = await fetch('/api/walk?action=' + action + '&' + new URLSearchParams(params)); } catch (e) { reportErr('walk', errKind(e), action); throw e; }
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
+  if (!r.ok) { reportErr('walk', 'HTTP ' + r.status, j.error || action); throw new Error(j.error || 'HTTP ' + r.status); }
   const f = walkF();
   if (Array.isArray(j.durations)) j.durations = j.durations.map((x) => x == null ? x : x * f);
   if (typeof j.duration === 'number') j.duration *= f;
@@ -2293,7 +2318,7 @@ async function loadAlerts(force) {
     AL.list = j.alerts || []; AL.at = j.at || Date.now(); AL.fetched = Date.now();
     store.set('nt_alerts2', AL);
     if (j.stale) err = j.error || 'tpg.ch indisponible'; // liste gardée par le serveur, pas actualisée
-  } catch (e) { err = e.message; }
+  } catch (e) { err = e.message; if (navigator.onLine !== false && !/403/.test(err)) reportErr('infotrafic', /HTTP \d+/.test(err) ? err.match(/HTTP \d+/)[0] : errKind(e), err); }
   alertsLoading = false;
   alertsError = err;
   mergeAlerts();
@@ -2448,6 +2473,7 @@ async function pushApi(action, body) {
   const r = await fetch('/api/push?action=' + action, body
     ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
   const j = await r.json().catch(() => ({}));
+  if (r.status >= 500) reportErr('push', 'HTTP ' + r.status, j.error || action);
   if (!r.ok) { const e = new Error(j.error || 'Erreur ' + r.status); e.resubscribe = j.resubscribe; throw e; }
   return j;
 }
@@ -2852,22 +2878,54 @@ function drawAdmin() {
   else if (d.error) body = `<p class="small" style="color:var(--bad)">${esc(d.error)}</p>`;
   else {
     const sv = d.services, t = d.totals;
-    body = `<div class="card" style="padding:4px 14px">
-      ${row(sv.opendata.ok ? (sv.opendata.ms > 3000 ? 'warn' : 'ok') : 'bad', 'Horaires · transport.opendata.ch', sv.opendata.ok ? 'Répond en ' + sv.opendata.ms + ' ms · testé ' + ago(sv.opendata.checked) : 'Ne répond pas (' + esc(sv.opendata.err || '?') + ')' + (sv.opendata.since ? ' depuis ' + ago(sv.opendata.since).replace('il y a', '') : ''))}
-      ${row(sv.tpg.ok ? 'ok' : (sv.tpg.count ? 'warn' : 'bad'), 'Info trafic · tpg.ch', sv.tpg.ok ? 'OK · ' + sv.tpg.count + ' perturbation' + (sv.tpg.count > 1 ? 's' : '') + ' · testé ' + ago(sv.tpg.checked) : 'Bloqué (' + esc(sv.tpg.err || '?') + ')' + (sv.tpg.downSince ? ' depuis ' + ago(sv.tpg.downSince).replace('il y a ', '') : '') + ' · dernière liste réussie ' + ago(sv.tpg.at))}
-      ${row(sv.walk.ok ? 'ok' : 'bad', 'Itinéraires à pied · OpenStreetMap', sv.walk.ok ? 'Répond en ' + sv.walk.ms + ' ms' : 'Ne répond pas (' + esc(sv.walk.err || '?') + ') · estimations à vol d’oiseau utilisées')}
+    const ext = d.ext && d.ext.results ? Object.fromEntries(d.ext.results.map((x) => [x.svc, x])) : {};
+    const extOld = !d.ext || now - d.ext.at > 40 * 60000;
+    // Barre 24 h : 48 tranches de 30 min, vert / rouge / gris (pas de mesure)
+    const bar = (k) => {
+      const h = (d.hist && d.hist[k]) || [], slots = [];
+      for (let i = 47; i >= 0; i--) {
+        const a = now - (i + 1) * 1800e3, b = now - i * 1800e3;
+        const pts = h.filter((x) => x[0] > a && x[0] <= b);
+        slots.push(!pts.length ? 'var(--line)' : pts.some((x) => !x[1]) ? (pts.every((x) => !x[1]) ? 'var(--bad)' : '#E8A317') : 'var(--ok)');
+      }
+      return `<div style="display:flex;gap:1px;margin-top:6px;height:14px">${slots.map((c) => `<span style="flex:1;border-radius:2px;background:${c}"></span>`).join('')}</div><div class="small" style="display:flex;justify-content:space-between;font-size:11px;margin-top:2px"><span>il y a 24 h</span><span>maintenant</span></div>`;
+    };
+    const extLine = (k, mine) => {
+      const e = ext[k]; if (!e) return '<span class="small">Autre serveur (GitHub) : pas encore de mesure</span>';
+      const both = !mine && !e.ok, onlyUs = !mine && e.ok;
+      return `<span class="small">Autre serveur (GitHub, ${ago(d.ext.at)}${extOld ? ', ancien' : ''}) : ${e.ok ? 'OK en ' + e.ms + ' ms' : esc(e.detail)}</span>`
+        + (both ? '<span class="small" style="color:var(--bad);font-weight:800">→ En panne partout : le problème vient de leur côté.</span>' : onlyUs ? '<span class="small" style="color:#E8A317;font-weight:800">→ Seul notre serveur (Vercel) est touché : blocage ou limite de requêtes envers nous.</span>' : '');
+    };
+    const svcBlock = (k, title, st, line, diag) => `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line2)">${dot(st)}<span style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0"><b style="font-size:15px">${title}</b><span class="small">${line}</span>
+      ${diag && !diag.ok && diag.snippet ? `<span class="small" style="font-family:ui-monospace,monospace;font-size:11px;opacity:.8;word-break:break-word">« ${esc(diag.snippet)} »</span>` : ''}
+      ${extLine(k, st !== 'bad')}${bar(k)}</span></div>`;
+    const odDiag = sv.opendata, tpgDiag = sv.tpg.diag || {}, wDiag = sv.walk;
+    body = `<div class="card" style="padding:2px 14px">
+      ${svcBlock('opendata', 'Horaires · transport.opendata.ch', sv.opendata.ok ? (sv.opendata.ms > 3000 ? 'warn' : 'ok') : 'bad',
+        sv.opendata.ok ? 'Répond en ' + sv.opendata.ms + ' ms · testé ' + ago(sv.opendata.checked) : esc(odDiag.detail || sv.opendata.err || '?') + (sv.opendata.since ? ' · depuis ' + ago(sv.opendata.since).replace('il y a ', '') : ''), odDiag)}
+      ${svcBlock('tpg', 'Info trafic · tpg.ch', sv.tpg.ok ? 'ok' : (sv.tpg.count ? 'warn' : 'bad'),
+        sv.tpg.ok ? 'OK · ' + sv.tpg.count + ' perturbation' + (sv.tpg.count > 1 ? 's' : '') + ' · testé ' + ago(sv.tpg.checked) : esc(tpgDiag.detail || sv.tpg.err || '?') + (sv.tpg.downSince ? ' · depuis ' + ago(sv.tpg.downSince).replace('il y a ', '') : '') + ' · dernière liste réussie ' + ago(sv.tpg.at), tpgDiag)}
+      ${svcBlock('walk', 'Itinéraires à pied · OpenStreetMap', sv.walk.ok ? 'ok' : 'bad', sv.walk.ok ? 'Répond en ' + sv.walk.ms + ' ms' : esc(wDiag.detail || wDiag.err || '?') + ' · estimations à vol d’oiseau utilisées', wDiag)}
       ${row(sv.redis.ok ? 'ok' : 'bad', 'Base de données · Redis', sv.redis.ok ? 'OK · ' + sv.redis.ms + ' ms (sauvegardes, notifications)' : 'Inaccessible : sauvegardes et notifications en panne')}
       ${row(sv.check.ok ? 'ok' : 'bad', 'Robot des notifications', 'Dernier passage ' + ago(sv.check.last) + (sv.check.ok ? '' : ' · les alertes ne partent plus'))}
     </div>
-    <h2 class="label" style="margin:14px 4px 6px">Chiffres</h2>
+    <h3 class="label" style="margin:16px 4px 6px;font-size:13px">Erreurs vues dans l’app · 24 h</h3>
+    <div class="card" style="padding:2px 14px">${(d.clientErrors || []).length ? d.clientErrors.slice(0, 12).map((e) => `<div style="padding:8px 0;border-bottom:1px solid var(--line2)"><b style="font-size:14px">${esc(({ opendata: 'Horaires', walk: 'Itinéraires à pied', backup: 'Sauvegarde', push: 'Notifications', infotrafic: 'Info trafic', app: 'Bug de l’app', tpg: 'Info trafic' })[e.svc] || e.svc)} · ${esc(e.kind)}</b><br><span class="small">${e.n} fois sur ${e.devs} appareil${e.devs > 1 ? 's' : ''} · ${new Date(e.first).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })} → ${new Date(e.last).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}${e.msg ? ' · ' + esc(e.msg) : ''}</span></div>`).join('') : '<p class="small" style="margin:10px 0">Aucune erreur signalée par les appareils.</p>'}</div>
+    <h3 class="label" style="margin:16px 4px 6px;font-size:13px">Journal des incidents · 30 jours</h3>
+    <div class="card" style="padding:2px 14px">${[...(d.open || []).map((x) => ({ ...x, live: true })), ...(d.incidents || [])].slice(0, 25).map((x) => {
+      const end = x.end || now, dur = Math.max(1, Math.round((end - x.start) / 60000));
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--line2)"><b style="font-size:14px;color:${x.live ? 'var(--bad)' : 'var(--ink)'}">${esc(({ opendata: 'Horaires', tpg: 'Info trafic tpg.ch', walk: 'Itinéraires à pied' })[x.svc] || x.svc)}${x.live ? ' · EN COURS' : ''}</b><br>
+        <span class="small">${new Date(x.start).toLocaleString('fr-CH', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })} → ${x.live ? 'maintenant' : new Date(end).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })} · ${dur < 60 ? dur + ' min' : Math.floor(dur / 60) + ' h ' + pad(dur % 60)}<br>${esc(x.detail || x.kind || '')}${x.fails ? ' · ' + x.fails + ' test' + (x.fails > 1 ? 's' : '') + ' en échec' : ''}</span></div>`;
+    }).join('') || '<p class="small" style="margin:10px 0">Aucun incident enregistré.</p>'}</div>
+    <h3 class="label" style="margin:16px 4px 6px;font-size:13px">Chiffres</h3>
     <div class="card" style="padding:4px 14px">
       ${[['Appareils abonnés aux notifications', t.subs], ['Trajets pendulaires suivis', t.commutes], ['Départs suivis (cloche)', t.bells], ['Sauvegardes', t.backups], ['Appareils admin', t.admins]].map(([k, v]) => `<div class="info-row" style="padding:8px 0"><span class="muted">${k}</span><b>${v}</b></div>`).join('')}
     </div>
-    <h2 class="label" style="margin:14px 4px 6px">Cet appareil</h2>
+    <h3 class="label" style="margin:16px 4px 6px;font-size:13px">Cet appareil</h3>
     <div class="card" style="padding:4px 14px">
       ${[['Version', APP_VERSION], ['Notifications', NT.sid ? 'actives' : 'désactivées'], ['Sauvegarde', backupCfg() ? 'connectée (' + esc(backupCfg().name) + ')' : 'non connectée'], ['Alertes admin', store.get('nt_admin', false) ? 'reçues ici' : 'non']].map(([k, v]) => `<div class="info-row" style="padding:8px 0"><span class="muted">${k}</span><b>${v}</b></div>`).join('')}
     </div>
-    <h2 class="label" style="margin:14px 4px 6px">Alertes admin</h2>
+    <h3 class="label" style="margin:16px 4px 6px;font-size:13px">Alertes admin</h3>
     <div class="card" style="padding:4px 14px">
       ${[['tpgDown', 'tpg.ch se met à bloquer'], ['tpgBack', 'tpg.ch répond de nouveau'], ['odDown', 'Serveur des horaires en panne'], ['odBack', 'Serveur des horaires de retour']].map(([k, l]) => `<label class="info-row" style="padding:8px 0"><span>${l}</span><input type="checkbox" data-sheet="admPref" data-k="${k}" ${d.prefs[k] ? 'checked' : ''}></label>`).join('')}
     </div>`;

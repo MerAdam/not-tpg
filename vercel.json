@@ -1,5 +1,12 @@
 {
   "functions": {
-    "api/*.js": { "maxDuration": 30 }
+    "api/*.js": {
+      "maxDuration": 30
+    }
+  },
+  "git": {
+    "deploymentEnabled": {
+      "monitor-data": false
+    }
   }
 }

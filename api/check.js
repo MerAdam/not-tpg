@@ -6,7 +6,7 @@
 const { redis, pipeline, getJSON, setJSON } = require('./_redis');
 const { send } = require('./_webpush');
 const { getAlerts } = require('./_tpgsource');
-const { watchOpendata } = require('./_monitor');
+const { watchOpendata, watchWalk } = require('./_monitor');
 
 const API = 'https://transport.opendata.ch/v1';
 const WINDOW = 30; // minutes avant le départ
@@ -150,6 +150,7 @@ module.exports = async (req, res) => {
     await redis('SET', 'check:last', String(started));
     try { await getAlerts(); } catch {} // surveille tpg.ch (au plus toutes les 5 min) même sans trajet suivi
     try { await watchOpendata(); } catch {} // idem pour le serveur des horaires
+    try { await watchWalk(); } catch {} // et les itinéraires à pied
     const wids = (await redis('SMEMBERS', 'watches')) || [];
     if (!wids.length) return res.status(200).json({ watches: 0 });
     const raw = await pipeline(wids.map((w) => ['GET', `watch:${w}`]));
