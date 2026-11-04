@@ -181,6 +181,10 @@
   .tab.on{color:var(--accent)}
   .next{width:100%;margin-top:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;text-align:left}
   #toast{position:fixed;z-index:50;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:12px 16px;border-radius:12px;font-weight:700;font-size:14px;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .22s,transform .3s cubic-bezier(.2,.8,.2,1);transform:translate(-50%,14px)}
+  #apiDown{flex:none;position:relative;z-index:4;margin:6px 12px;display:flex;gap:10px;align-items:flex-start;text-align:left;background:var(--bad);color:#fff;border:0;border-radius:14px;padding:10px 14px;font:inherit;font-size:13px;font-weight:600;line-height:1.35;box-shadow:0 4px 14px rgba(0,0,0,.2);animation:riseIn .3s ease-out}
+  #apiDown[hidden]{display:none}
+  body.api-down #toast{bottom:calc(env(safe-area-inset-bottom) + 190px)}
+  #apiDown b{display:block;font-size:14px;font-weight:800;margin-bottom:2px}
   #toast.show{opacity:1;pointer-events:auto;cursor:pointer;transform:translate(-50%,0)}
   #toast.wide{width:calc(100% - 32px);max-width:520px;text-align:center;line-height:1.35}
 
@@ -292,6 +296,7 @@
 <body>
 <div id="app">
   <div id="main"></div>
+  <button id="apiDown" type="button" role="alert" hidden></button>
   <nav>
     <button class="tab on" id="tabHome" data-tab="home">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/></svg>
@@ -406,11 +411,42 @@ function fetchT(url, ms = 9000, opts = {}) {
   const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
   return fetch(url, { ...opts, signal: c.signal }).finally(() => clearTimeout(t));
 }
+/* État du serveur des horaires : si transport.opendata.ch ne répond pas (ou plus de connexion),
+   un bandeau s'affiche en haut ; on vérifie toutes les 20 s et tout se recharge dès qu'il revient. */
+const HEALTH = { down: false, why: '', timer: null };
+function setApiDown(down, why) {
+  const el = $('#apiDown'); if (!el) return;
+  if (down) {
+    HEALTH.why = why || (navigator.onLine === false ? 'offline' : 'server');
+    el.innerHTML = HEALTH.why === 'offline'
+      ? '<span><b>Pas de connexion internet</b>Les horaires reviendront dès que ton téléphone sera reconnecté.</span>'
+      : '<span><b>Le serveur des horaires ne répond pas</b>Ce n’est pas un problème de l’app : transport.opendata.ch, qui fournit les horaires, est en panne ou surchargé. Il faut attendre, on réessaie automatiquement.</span>';
+    el.hidden = false; document.body.classList.add('api-down');
+    if (!HEALTH.down) { HEALTH.down = true; clearInterval(HEALTH.timer); HEALTH.timer = setInterval(checkApi, 20000); }
+  } else if (HEALTH.down) {
+    HEALTH.down = false; el.hidden = true; document.body.classList.remove('api-down'); clearInterval(HEALTH.timer);
+    toast('Le serveur des horaires répond de nouveau.');
+    try { refreshScreen(); } catch {}
+  }
+}
+async function checkApi() {
+  if (navigator.onLine === false) return setApiDown(true, 'offline');
+  try { const r = await fetchT(API + '/locations?query=Bel-Air&type=station', 6000); setApiDown(!r.ok, 'server'); }
+  catch { setApiDown(true); }
+}
+addEventListener('offline', () => setApiDown(true, 'offline'));
+addEventListener('online', () => checkApi());
+document.addEventListener('click', (e) => { if (e.target.closest('#apiDown')) checkApi(); });
 async function api(path) {
   if (path.startsWith('/stationboard') && /datetime=/.test(path)) { await Promise.race([shiftReady, new Promise((r) => setTimeout(r, 3000))]); path = shiftPath(path); }
   let r;
-  try { r = await fetchT(API + path); }
-  catch { r = await fetchT(API + path, 10000); } // une 2e tentative si la première n'aboutit pas
+  try { r = await fetchT(API + path, 5000); } // pas de réponse en 5 s : on prévient, puis on retente
+  catch {
+    setApiDown(true);
+    try { r = await fetchT(API + path, 10000); } catch (e) { throw e; }
+  }
+  if (r.status >= 500) { setApiDown(true); throw new Error('HTTP ' + r.status); }
+  setApiDown(false);
   if (!r.ok) throw new Error('HTTP ' + r.status);
   return r.json();
 }
@@ -422,8 +458,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v61';
-const APP_CHANGES = '« Départs précédents » saute la pause de nuit, et si le serveur des horaires ne répond pas, un message s’affiche au lieu de charger à l’infini.';
+const APP_VERSION = 'v62';
+const APP_CHANGES = 'si le serveur des horaires est en panne, un bandeau rouge te prévient en haut et tout se recharge tout seul dès qu’il revient.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -1634,7 +1670,7 @@ async function loadBoard() {
     S.board = j.stationboard || [];
     if (S.screen === 'board') drawBoard();
   } catch {
-    const d = $('#deps'); if (d) d.innerHTML = '<p class="empty">Impossible de charger les départs. Réessaie dans un instant.</p>';
+    const d = $('#deps'); if (d) d.innerHTML = `<p class="empty">${HEALTH.down ? (HEALTH.why === 'offline' ? 'Pas de connexion internet.' : 'Le serveur des horaires ne répond pas pour l’instant. Les départs s’afficheront automatiquement dès qu’il sera de retour.') : 'Impossible de charger les départs. Réessaie dans un instant.'}</p>`;
   }
   if (boardLive()) boardTimer = setTimeout(() => { if (S.screen === 'board') loadBoard(); }, 30000);
 }
