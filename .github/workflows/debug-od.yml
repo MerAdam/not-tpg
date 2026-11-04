@@ -1,0 +1,9 @@
+name: debug-od
+on: [push]
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for u in "https://transport.opendata.ch/v1/locations?query=Bel-Air&type=station" "https://transport.opendata.ch/v1/stationboard?id=8592844&limit=2"; do
+            echo "== $u"; curl -s -m 20 -o /tmp/o -w "code=%{http_code} time=%{time_total}\n" "$u"; head -c 150 /tmp/o; echo; done
