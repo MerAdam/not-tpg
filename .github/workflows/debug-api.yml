@@ -1,0 +1,9 @@
+name: debug-api
+on: [push]
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for u in "https://transport.opendata.ch/v1/stationboard?id=8592844&limit=3" "https://transport.opendata.ch/v1/stationboard?id=8592844&limit=3&datetime=2026-11-04%2001:50" "https://transport.opendata.ch/v1/stationboard?id=8587387&limit=6&datetime=2026-11-04%2001:50"; do
+            echo "== $u"; curl -s -m 30 -o /tmp/o -w "code=%{http_code} time=%{time_total}\n" "$u"; head -c 400 /tmp/o; echo; done
