@@ -525,8 +525,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v68';
-const APP_CHANGES = 'Infos trafic : message plus clair quand tpg.ch bloque l’accès, avec un lien direct vers leur page.';
+const APP_VERSION = 'v69';
+const APP_CHANGES = 'Infos trafic : un avertissement s’affiche quand la liste vient du cache et n’a pas pu être actualisée.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -2398,6 +2398,9 @@ function renderInfos() {
   main.innerHTML = `
     <header class="top"><h1 class="brand sm">Infos trafic</h1></header>
     <div class="scroll stack">
+      ${alertsError && ALERTS.length && upd ? `<div class="card" style="padding:12px 14px;display:flex;gap:10px;align-items:flex-start;border-color:var(--bad)">
+        <span style="color:var(--bad);flex:none;margin-top:2px">${WARN_ICON.replace(/13/g, '18')}</span>
+        <span class="small" style="color:var(--ink)"><b>Liste peut-être dépassée</b> : ce sont les données ${ymd(new Date(upd)) === todayStr() ? 'de ' : 'du ' + new Date(upd).getDate() + '.' + (new Date(upd).getMonth() + 1) + '. à '}${hm(new Date(upd))}. ${/403/.test(alertsError) ? 'tpg.ch bloque en ce moment l’accès depuis l’app' : 'tpg.ch ne répond pas'}, la liste n’a pas pu être actualisée. <a href="https://www.tpg.ch/fr/voyager/info-trafic/info-trafic" target="_blank" rel="noopener">Voir sur tpg.ch</a></span></div>` : ''}
       ${alertsError && !ALERTS.length ? `<div class="card empty-card" style="display:flex;flex-direction:column;gap:10px;align-items:center">
         ${/403/.test(alertsError)
           ? '<span><b>tpg.ch bloque l’accès aux infos trafic depuis l’app.</b></span><span class="small">Ce n’est pas une panne : leur site filtre en ce moment les requêtes qui ne viennent pas directement d’un navigateur. En attendant, consulte l’info trafic sur tpg.ch.</span>'
