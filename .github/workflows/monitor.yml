@@ -38,3 +38,5 @@ jobs:
           git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add . && git commit -qm "Surveillance externe"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" monitor-data
+      - name: Prévenir l'app
+        run: curl -s -m 20 -X POST "https://trulynot-tpg.vercel.app/api/monitor?action=ext" || true

@@ -549,7 +549,7 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v74';
+const APP_VERSION = 'v75';
 const APP_CHANGES = 'petites améliorations techniques.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
@@ -2927,7 +2927,7 @@ function drawAdmin() {
     </div>
     <h3 class="label" style="margin:16px 4px 6px;font-size:13px">Alertes admin</h3>
     <div class="card" style="padding:4px 14px">
-      ${[['tpgDown', 'tpg.ch se met à bloquer'], ['tpgBack', 'tpg.ch répond de nouveau'], ['odDown', 'Serveur des horaires en panne'], ['odBack', 'Serveur des horaires de retour']].map(([k, l]) => `<label class="info-row" style="padding:8px 0"><span>${l}</span><input type="checkbox" data-sheet="admPref" data-k="${k}" ${d.prefs[k] ? 'checked' : ''}></label>`).join('')}
+      ${[['tpgDown', 'tpg.ch se met à bloquer'], ['tpgBack', 'tpg.ch répond de nouveau'], ['odDown', 'Serveur des horaires en panne'], ['odBack', 'Serveur des horaires de retour'], ['extResult', 'Résultat du test GitHub (1er, puis si ça change)']].map(([k, l]) => `<label class="info-row" style="padding:8px 0"><span>${l}</span><input type="checkbox" data-sheet="admPref" data-k="${k}" ${d.prefs[k] ? 'checked' : ''}></label>`).join('')}
     </div>`;
   }
   el.innerHTML = `<h2>Panneau admin</h2>${body}
