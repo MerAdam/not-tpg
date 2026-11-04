@@ -492,8 +492,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v64';
-const APP_CHANGES = 'nouvelle sauvegarde : active-la dans Réglages → Sauvegarde pour ne plus perdre tes favoris et trajets en réinstallant l’app.';
+const APP_VERSION = 'v65';
+const APP_CHANGES = 'Réglages → Sauvegarde simplifiée : « Sauvegarder mes données » et « Restaurer mes données ».';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -1433,7 +1433,7 @@ function renderHome() {
         <div style="padding:8px 12px 12px"><button class="primary w100" type="submit">Rechercher un itinéraire</button></div>
       </form>
       <div id="nextCard"></div>
-      ${!favs.length && !commutes.length && !backupCfg() ? '<button class="card" data-act="openBackup" style="width:100%;text-align:left;padding:12px 14px;margin-top:12px;display:flex;flex-direction:column;gap:2px"><b>Tu as déjà utilisé Not TPG ?</b><span class="small">Restaure tes favoris et trajets pendulaires depuis ta sauvegarde (Réglages → Sauvegarde).</span></button>' : ''}
+      ${!favs.length && !commutes.length && !backupCfg() ? '<button class="card" data-act="openBackup" style="width:100%;text-align:left;padding:12px 14px;margin-top:12px;display:flex;flex-direction:column;gap:2px"><b>Tu as déjà utilisé Not TPG ?</b><span class="small">Restaure tes favoris et trajets pendulaires depuis ta sauvegarde.</span></button>' : ''}
       <div class="sec-head"><h2 class="label">Mes arrêts</h2>
         ${favs.length ? `<button class="link" data-act="editFavs">${S.editFavs ? 'Terminé' : 'Modifier'}</button>` : ''}</div>
       <div class="card list">
@@ -1624,6 +1624,7 @@ function timeSheetHtml() {
     </div>`;
 }
 const SHEET = {
+  bkCreate: (ds, el) => ACT.bkCreate(ds, el), bkRestore: (ds, el) => ACT.bkRestore(ds, el), bkNow: (ds, el) => ACT.bkNow(ds, el), bkOff: () => ACT.bkOff(), bkRecover: () => ACT.bkRecover(),
   mapStyle: (ds) => { store.set('nt_mapstyle', ds.id); setBaseLayer(); $('#sheetBody').innerHTML = mapStylesHtml(); },
   mapDim: (ds, el) => { store.set('nt_mapdim', el.checked); setBaseLayer(); },
   close: () => closeSheet(),
@@ -2765,17 +2766,42 @@ if (darkMQ) {
 function backupCardHtml() {
   const b = backupCfg();
   const when = b && b.at ? new Date(b.at).toLocaleString('fr-CH', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-  return `<div class="card" id="bkCard" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+  return `<div class="card" id="bkCard" style="padding:16px 16px 6px;display:flex;flex-direction:column;gap:4px">
     <h2 class="label">Sauvegarde</h2>
-    ${b ? `<p style="margin:0;font-weight:800;color:${b.err ? 'var(--bad)' : 'var(--ok)'}">${b.err ? 'Dernière sauvegarde échouée' : 'Sauvegarde automatique activée'}</p>
-      <p class="small" style="margin:0">Nom : <b>${esc(b.name)}</b>${when ? ' · dernière sauvegarde le ' + when : ''}. Tes favoris, trajets pendulaires et réglages sont sauvegardés à chaque changement. Si tu réinstalles l’app, choisis « Restaurer » ici avec ton nom et ton code.</p>
-      <div class="row gap"><button class="ghost" data-act="bkNow">Sauvegarder maintenant</button><button class="ghost danger" data-act="bkOff">Désactiver</button></div>`
-    : `<p class="small" style="margin:0">Sur iPhone, supprimer l’app efface tes favoris et trajets pendulaires. Active la sauvegarde avec un <b>nom</b> et un <b>code de 4 à 8 chiffres</b> dont tu te souviendras : tu pourras tout restaurer après une réinstallation.</p>
-      <input id="bkName" class="time-in" placeholder="Nom (ex. pablo)" autocomplete="username" autocapitalize="none" style="width:100%">
-      <input id="bkPin" class="time-in" placeholder="Code (4 à 8 chiffres)" inputmode="numeric" type="password" autocomplete="current-password" style="width:100%">
-      <div class="row gap"><button class="primary" data-act="bkCreate" style="flex:1">Activer</button><button class="ghost" data-act="bkRestore" style="flex:1">Restaurer</button></div>`}
-    <button class="link" data-act="bkRecover" style="align-self:flex-start;padding:0">Récupérer d’anciens trajets pendulaires</button>
+    ${b ? `<p class="small" style="margin:0;color:${b.err ? 'var(--bad)' : 'var(--ok)'};font-weight:800">${b.err ? 'Dernière sauvegarde échouée' : 'Activée · ' + esc(b.name) + (when ? ' · ' + when : '')}</p>` : ''}
+    <div class="list" style="margin:4px -16px 0">
+      <button class="row-btn" data-act="bkOpenSave"><span>Sauvegarder mes données</span>${ICON.chev}</button>
+      <button class="row-btn" data-act="bkOpenRestore" style="border-bottom:0"><span>Restaurer mes données</span>${ICON.chev}</button>
+    </div>
   </div>`;
+}
+function bkSaveSheetHtml() {
+  const b = backupCfg();
+  const when = b && b.at ? new Date(b.at).toLocaleString('fr-CH', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  return b ? `<h2>Sauvegarder mes données</h2>
+    <div class="stack" style="gap:12px">
+      <p style="margin:0;font-weight:800;color:${b.err ? 'var(--bad)' : 'var(--ok)'}">${b.err ? 'Dernière sauvegarde échouée' : 'Sauvegarde automatique activée'}</p>
+      <p class="small" style="margin:0">Nom : <b>${esc(b.name)}</b>${when ? ' · dernière sauvegarde le ' + when : ''}. Tes favoris, trajets pendulaires, filtres de lignes et réglages sont sauvegardés automatiquement à chaque changement.</p>
+      <button class="primary w100" data-sheet="bkNow">Sauvegarder maintenant</button>
+      <button class="ghost danger w100" data-sheet="bkOff">Désactiver sur cet appareil</button>
+    </div>`
+    : `<h2>Sauvegarder mes données</h2>
+    <div class="stack" style="gap:12px">
+      <p class="small" style="margin:0">Choisis un <b>nom</b> et un <b>code de 4 à 8 chiffres</b> dont tu te souviendras. Tes favoris, trajets pendulaires, filtres de lignes et réglages seront ensuite sauvegardés automatiquement à chaque changement.</p>
+      <input id="bkName" class="time-in" placeholder="Nom" autocomplete="username" autocapitalize="none" style="width:100%">
+      <input id="bkPin" class="time-in" placeholder="Code" inputmode="numeric" type="password" autocomplete="new-password" style="width:100%">
+      <button class="primary w100" data-sheet="bkCreate">Activer la sauvegarde</button>
+    </div>`;
+}
+function bkRestoreSheetHtml() {
+  return `<h2>Restaurer mes données</h2>
+    <div class="stack" style="gap:12px">
+      <p class="small" style="margin:0">Entre le nom et le code de ta sauvegarde. Les favoris, trajets pendulaires et réglages de cet appareil seront remplacés.</p>
+      <input id="bkName" class="time-in" placeholder="Nom" autocomplete="username" autocapitalize="none" style="width:100%">
+      <input id="bkPin" class="time-in" placeholder="Code" inputmode="numeric" type="password" autocomplete="current-password" style="width:100%">
+      <button class="primary w100" data-sheet="bkRestore">Restaurer</button>
+      <button class="link" data-sheet="bkRecover" style="align-self:flex-start;padding:0">Récupérer d’anciens trajets pendulaires</button>
+    </div>`;
 }
 function renderSettings() {
   const t = getTheme();
@@ -2921,17 +2947,19 @@ const ACT = {
     M.near = null; M.results = null; M.sel = null;
     renderSettings();
   },
-  openBackup: () => { navDir = 'tab'; go('settings', false); setTimeout(() => { const c = $('#bkCard'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 350); },
+  openBackup: () => { navDir = 'tab'; go('settings', false); setTimeout(() => openSheet(bkRestoreSheetHtml()), 300); },
+  bkOpenSave: () => openSheet(bkSaveSheetHtml()),
+  bkOpenRestore: () => openSheet(bkRestoreSheetHtml()),
   bkCreate: async (ds, el) => {
     const name = $('#bkName').value, pin = $('#bkPin').value;
     el.disabled = true;
     try {
       await backupApi('save', { name, pin, data: backupData(), create: true });
       localStorage.setItem('nt_backup', JSON.stringify({ name: name.trim(), pin, at: Date.now() }));
-      toast('Sauvegarde activée.'); renderSettings();
+      toast('Sauvegarde activée.'); closeSheet(); renderSettings();
     } catch (e) {
       el.disabled = false;
-      toast(e.exists ? 'Une sauvegarde existe déjà à ce nom : touche « Restaurer » pour la récupérer.' : e.message, 4500, true);
+      toast(e.exists ? 'Une sauvegarde existe déjà à ce nom : utilise « Restaurer mes données » pour la récupérer.' : e.message, 4500, true);
     }
   },
   bkRestore: async (ds, el) => {
@@ -2944,10 +2972,10 @@ const ACT = {
       toast('Sauvegarde restaurée.'); setTimeout(() => location.reload(), 700);
     } catch (e) { el.disabled = false; el.textContent = 'Restaurer'; toast(e.message, 4500, true); }
   },
-  bkNow: async (ds, el) => { el.disabled = true; const ok = await backupNow(); toast(ok ? 'Sauvegarde faite.' : 'Échec de la sauvegarde.'); renderSettings(); },
-  bkOff: () => { localStorage.removeItem('nt_backup'); toast('Sauvegarde désactivée sur cet appareil (la copie reste sur le serveur).', 4000, true); renderSettings(); },
+  bkNow: async (ds, el) => { el.disabled = true; const ok = await backupNow(); toast(ok ? 'Sauvegarde faite.' : 'Échec de la sauvegarde.'); closeSheet(); renderSettings(); },
+  bkOff: () => { localStorage.removeItem('nt_backup'); toast('Sauvegarde désactivée sur cet appareil (la copie reste sur le serveur).', 4000, true); closeSheet(); renderSettings(); },
   bkRecover: async () => {
-    const token = prompt('Code de récupération (donné par Claude) :'); if (!token) return;
+    const token = prompt('Code de récupération (donné par Claude) :'); if (!token) return; closeSheet();
     try {
       const j = await backupApi('recover', { token });
       const found = (j.commutes || []).filter((c) => !commutes.some((x) => x.from === c.from && x.to === c.to && JSON.stringify(x.days) === JSON.stringify(c.days)));
