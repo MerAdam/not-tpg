@@ -393,9 +393,10 @@ async function backupApi(action, body) {
 let backupT = null;
 function scheduleBackup() {
   if (!backupCfg()) return;
-  clearTimeout(backupT); backupT = setTimeout(backupNow, 2500);
+  clearTimeout(backupT); backupT = setTimeout(backupNow, 1200);
 }
 async function backupNow() {
+  backupT = null;
   const b = backupCfg(); if (!b) return false;
   try {
     const j = await backupApi('save', { name: b.name, pin: b.pin, data: backupData() });
@@ -403,6 +404,32 @@ async function backupNow() {
     return true;
   } catch (e) { localStorage.setItem('nt_backup', JSON.stringify({ ...b, err: e.message })); return false; }
 }
+// Synchronisation entre appareils : on récupère la sauvegarde si elle est plus récente que ce qu'on a
+// (à l'ouverture, au retour sur l'app, et toutes les 20 s tant qu'elle est affichée).
+let syncBusy = false;
+async function pullBackup() {
+  const b = backupCfg();
+  if (!b || syncBusy || backupT || document.hidden) return;
+  syncBusy = true;
+  try {
+    const j = await backupApi('load', { name: b.name, pin: b.pin });
+    if (!j.at || (b.at && j.at <= b.at) || backupT) return;
+    const data = j.data || {};
+    for (const k of BACKUP_KEYS) {
+      if (k in data) localStorage.setItem(k, JSON.stringify(data[k])); else localStorage.removeItem(k);
+    }
+    localStorage.setItem('nt_backup', JSON.stringify({ ...b, at: j.at, err: null }));
+    favs = store.get('nt_favs', []); filters = store.get('nt_filters', {}); commutes = store.get('nt_commutes', []);
+    try { applyTheme(); } catch {}
+    if (NT.sid) syncCommutes().catch(() => {});
+    if (sheet.classList.contains('open')) return; // ne pas fermer une fenêtre ouverte
+    if (S.screen === 'board') { renderBoard(); loadBoard(); }
+    else if (['home', 'commutes', 'settings'].includes(S.screen)) ({ home: renderHome, commutes: renderCommutes, settings: renderSettings })[S.screen]();
+  } catch {} finally { syncBusy = false; }
+}
+setInterval(pullBackup, 20000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pullBackup(); });
+setTimeout(pullBackup, 1500);
 async function restoreBackup(name, pin) {
   const j = await backupApi('load', { name, pin });
   for (const [k, v] of Object.entries(j.data || {})) if (BACKUP_KEYS.includes(k)) localStorage.setItem(k, JSON.stringify(v));
@@ -492,8 +519,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v65';
-const APP_CHANGES = 'Réglages → Sauvegarde simplifiée : « Sauvegarder mes données » et « Restaurer mes données ».';
+const APP_VERSION = 'v66';
+const APP_CHANGES = 'la sauvegarde se synchronise maintenant entre tes appareils : un changement sur l’un apparaît sur l’autre en quelques secondes.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -2954,8 +2981,8 @@ const ACT = {
     const name = $('#bkName').value, pin = $('#bkPin').value;
     el.disabled = true;
     try {
-      await backupApi('save', { name, pin, data: backupData(), create: true });
-      localStorage.setItem('nt_backup', JSON.stringify({ name: name.trim(), pin, at: Date.now() }));
+      const j = await backupApi('save', { name, pin, data: backupData(), create: true });
+      localStorage.setItem('nt_backup', JSON.stringify({ name: name.trim(), pin, at: j.at }));
       toast('Sauvegarde activée.'); closeSheet(); renderSettings();
     } catch (e) {
       el.disabled = false;
