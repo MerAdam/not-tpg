@@ -549,8 +549,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v73';
-const APP_CHANGES = 'Infos trafic : l’app essaie aussi de lire tpg.ch directement depuis ton téléphone.';
+const APP_VERSION = 'v72';
+const APP_CHANGES = 'petites améliorations techniques.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -1697,7 +1697,6 @@ const SHEET = {
     try { const j = await adminApi('prefs', { prefs: { [ds.k]: el.checked } }); if (ADM.data) ADM.data.prefs = j.prefs; }
     catch (e) { el.checked = !el.checked; toast(e.message); }
   },
-  admDirect: async () => { store.set('nt_tpgdirect', null); toast('Test de lecture directe…'); await tpgDirect(); openAdmin(null); },
   admLogout: () => { store.set('nt_admin_code', ''); closeSheet(); toast('Code admin oublié sur cet appareil.'); },
   bkDelete: (ds, el) => ACT.bkDelete(ds, el),
   bkCreate: (ds, el) => ACT.bkCreate(ds, el), bkRestore: (ds, el) => ACT.bkRestore(ds, el), bkNow: (ds, el) => ACT.bkNow(ds, el), bkOff: () => ACT.bkOff(), bkRecover: () => ACT.bkRecover(),
@@ -2307,29 +2306,6 @@ const causeLabel = (a) => a.cause || '';
 function mergeAlerts() { ALERTS = (AL.list || []).filter((a) => a.title || a.text); }
 mergeAlerts();
 // Info trafic tpg (api/infotrafic, cache 60 s côté serveur)
-async function tpgDirect() {
-  const last = store.get('nt_tpgdirect', null);
-  if (last && !last.ok && Date.now() - last.at < 10 * 60000) return null; // échec récent : on ne réessaie pas tout de suite
-  let res;
-  try {
-    const c = new AbortController(); const t = setTimeout(() => c.abort(), 8000);
-    const r = await fetch('https://www.tpg.ch/fr/getInfoTrafic', { mode: 'cors', credentials: 'omit', headers: { Accept: 'application/json' }, signal: c.signal });
-    clearTimeout(t);
-    if (!r.ok) throw Object.assign(new Error('tpg.ch HTTP ' + r.status), { http: true });
-    const raw = await r.text();
-    const p = await fetch('/api/infotrafic?action=parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw }) });
-    const j = await p.json();
-    if (!p.ok) throw new Error(j.error || 'lecture impossible');
-    res = { ok: true, at: Date.now(), n: (j.alerts || []).length };
-    store.set('nt_tpgdirect', res);
-    return j.alerts || [];
-  } catch (e) {
-    const why = e.name === 'AbortError' ? 'pas de réponse en 8 s' : e.http ? e.message : e.name === 'TypeError' ? 'refusée par le navigateur (tpg.ch n’autorise pas les autres sites à lire ses données) ou réseau' : e.message;
-    store.set('nt_tpgdirect', { ok: false, at: Date.now(), err: why });
-    reportErr('tpg', 'lecture directe', why);
-    return null;
-  }
-}
 async function loadAlerts(force) {
   if (alertsLoading) return;
   if (!force && Date.now() - (AL.fetched || AL.at || 0) < 55000) return;
@@ -2343,11 +2319,6 @@ async function loadAlerts(force) {
     store.set('nt_alerts2', AL);
     if (j.stale) err = j.error || 'tpg.ch indisponible'; // liste gardée par le serveur, pas actualisée
   } catch (e) { err = e.message; if (navigator.onLine !== false && !/403/.test(err)) reportErr('infotrafic', /HTTP \d+/.test(err) ? err.match(/HTTP \d+/)[0] : errKind(e), err); }
-  // Si le serveur n'a pas pu lire tpg.ch, le téléphone essaie de le lire lui-même (vrai navigateur)
-  if (err) {
-    const direct = await tpgDirect();
-    if (direct) { AL.list = direct; AL.at = Date.now(); AL.fetched = Date.now(); store.set('nt_alerts2', AL); err = null; }
-  }
   alertsLoading = false;
   alertsError = err;
   mergeAlerts();
@@ -2952,7 +2923,7 @@ function drawAdmin() {
     </div>
     <h3 class="label" style="margin:16px 4px 6px;font-size:13px">Cet appareil</h3>
     <div class="card" style="padding:4px 14px">
-      ${[['Version', APP_VERSION], ['Notifications', NT.sid ? 'actives' : 'désactivées'], ['Sauvegarde', backupCfg() ? 'connectée (' + esc(backupCfg().name) + ')' : 'non connectée'], ['Alertes admin', store.get('nt_admin', false) ? 'reçues ici' : 'non'], ['Lecture directe tpg.ch', (() => { const t = store.get('nt_tpgdirect', null); return !t ? 'pas encore testée' : t.ok ? '<span style="color:var(--ok)">réussie</span> (' + t.n + ' perturbations, ' + hm(new Date(t.at)) + ')' : '<span style="color:var(--bad)">échec</span> (' + hm(new Date(t.at)) + ')<br><span class="small" style="font-weight:600">' + esc(t.err) + '</span>'; })()]].map(([k, v]) => `<div class="info-row" style="padding:8px 0"><span class="muted">${k}</span><b>${v}</b></div>`).join('')}
+      ${[['Version', APP_VERSION], ['Notifications', NT.sid ? 'actives' : 'désactivées'], ['Sauvegarde', backupCfg() ? 'connectée (' + esc(backupCfg().name) + ')' : 'non connectée'], ['Alertes admin', store.get('nt_admin', false) ? 'reçues ici' : 'non']].map(([k, v]) => `<div class="info-row" style="padding:8px 0"><span class="muted">${k}</span><b>${v}</b></div>`).join('')}
     </div>
     <h3 class="label" style="margin:16px 4px 6px;font-size:13px">Alertes admin</h3>
     <div class="card" style="padding:4px 14px">
@@ -2962,7 +2933,6 @@ function drawAdmin() {
   el.innerHTML = `<h2>Panneau admin</h2>${body}
     <div class="stack" style="gap:10px;margin-top:14px">
       <button class="primary w100" data-sheet="admRefresh" ${ADM.loading ? 'disabled' : ''}>${ADM.loading ? 'Tests en cours…' : 'Tester maintenant'}</button>
-      <button class="ghost w100" data-sheet="admDirect">Tester la lecture directe de tpg.ch</button>
       <button class="ghost w100" data-sheet="admNotify">M’envoyer une notification de test</button>
       <button class="ghost w100" data-sheet="admDevice">${store.get('nt_admin', false) ? 'Ne plus recevoir les alertes admin ici' : 'Recevoir les alertes admin sur cet appareil'}</button>
       <button class="link" data-sheet="admLogout" style="align-self:center">Oublier le code admin sur cet appareil</button>
