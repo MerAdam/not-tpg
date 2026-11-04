@@ -6,9 +6,11 @@
 //   POST /api/push?action=bell        {sid, run}      -> { wid }
 //   POST /api/push?action=unbell      {sid, wid}
 //   POST /api/push?action=test        {sid}
+//   POST /api/push?action=admin       {sid, code}     (cet appareil reçoit les alertes techniques, ex. retour de tpg.ch)
 const crypto = require('crypto');
 const { redis, pipeline, getJSON } = require('./_redis');
 const { vapid, send } = require('./_webpush');
+const { isAdminCode } = require('./_tpgsource');
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 const DAY = 86400;
@@ -41,7 +43,14 @@ module.exports = async (req, res) => {
     const sub = sid && (await getJSON(`sub:${sid}`));
     if (!sub) return res.status(404).json({ error: 'Abonnement inconnu', resubscribe: true });
 
+    if (action === 'admin') {
+      if (!isAdminCode(body.code)) return res.status(403).json({ error: 'Code incorrect' });
+      if (body.off) await redis('SREM', 'admin:sids', sid); else await redis('SADD', 'admin:sids', sid);
+      return res.status(200).json({ ok: true, admin: !body.off });
+    }
+
     if (action === 'unsubscribe') {
+      await redis('SREM', 'admin:sids', sid);
       await removeWatches(sid, () => true);
       await pipeline([['DEL', `sub:${sid}`], ['DEL', `user:${sid}:watches`]]);
       return res.status(200).json({ ok: true });

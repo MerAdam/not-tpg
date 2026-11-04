@@ -5,7 +5,7 @@
 // Un verrou Redis garantit au plus une exécution par minute, même si l'adresse est appelée plus souvent.
 const { redis, pipeline, getJSON, setJSON } = require('./_redis');
 const { send } = require('./_webpush');
-const { parse: parseInfoTrafic } = require('./_infotrafic');
+const { getAlerts } = require('./_tpgsource');
 
 const API = 'https://transport.opendata.ch/v1';
 const WINDOW = 30; // minutes avant le départ
@@ -146,6 +146,7 @@ module.exports = async (req, res) => {
     if (lock !== 'OK') return res.status(200).json({ skipped: 'déjà vérifié il y a moins d’une minute' });
 
     const SHIFT = await timeTick();
+    try { await getAlerts(); } catch {} // surveille tpg.ch (au plus toutes les 5 min) même sans trajet suivi
     const wids = (await redis('SMEMBERS', 'watches')) || [];
     if (!wids.length) return res.status(200).json({ watches: 0 });
     const raw = await pipeline(wids.map((w) => ['GET', `watch:${w}`]));
@@ -174,10 +175,7 @@ module.exports = async (req, res) => {
     if (!tasks.length) return res.status(200).json({ watches: watches.length, active: 0 });
 
     let alerts = [];
-    try {
-      const r = await fetch('https://www.tpg.ch/fr/getInfoTrafic', { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NotTPG/1.0)', 'X-Requested-With': 'XMLHttpRequest' } });
-      if (r.ok) alerts = parseInfoTrafic(await r.json()).items;
-    } catch {}
+    try { alerts = (await getAlerts()).items || []; } catch {}
 
     // Requêtes partagées entre utilisateurs
     const connCache = new Map(), boardCache = new Map();

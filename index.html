@@ -525,8 +525,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v69';
-const APP_CHANGES = 'Infos trafic : un avertissement s’affiche quand la liste vient du cache et n’a pas pu être actualisée.';
+const APP_VERSION = 'v70';
+const APP_CHANGES = 'Infos trafic : tpg.ch est interrogé au plus toutes les 5 minutes, et la dernière liste connue reste affichée si leur site ne répond pas.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -2267,15 +2267,16 @@ mergeAlerts();
 // Info trafic tpg (api/infotrafic, cache 60 s côté serveur)
 async function loadAlerts(force) {
   if (alertsLoading) return;
-  if (!force && Date.now() - (AL.at || 0) < 55000) return;
+  if (!force && Date.now() - (AL.fetched || AL.at || 0) < 55000) return;
   alertsLoading = true;
   let err = null;
   try {
     const r = await fetch('/api/infotrafic');
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
-    AL.list = j.alerts || []; AL.at = Date.now();
+    AL.list = j.alerts || []; AL.at = j.at || Date.now(); AL.fetched = Date.now();
     store.set('nt_alerts2', AL);
+    if (j.stale) err = j.error || 'tpg.ch indisponible'; // liste gardée par le serveur, pas actualisée
   } catch (e) { err = e.message; }
   alertsLoading = false;
   alertsError = err;
@@ -2888,7 +2889,7 @@ function renderSettings() {
       <h2 class="label" style="margin:10px 4px -4px">À propos</h2>
       <div class="card list">
         ${[
-          ['Application', '<span style="display:inline-flex;align-items:center;gap:8px"><span class="app-logo" style="width:26px;height:26px;border-radius:7px"></span>Not TPG</span>', ''],
+          ['Application', '<span data-act="adminTap" style="display:inline-flex;align-items:center;gap:8px"><span class="app-logo" style="width:26px;height:26px;border-radius:7px"></span>Not TPG</span>', ''],
           ['Horaires temps réel', 'transport.opendata.ch', 'https://transport.opendata.ch'],
           ['Arrêts', 'opentransportdata.swiss', 'https://opentransportdata.swiss'],
           ['Couleurs des lignes', 'tpg.ch', 'https://www.tpg.ch/fr/lignes'],
@@ -3002,6 +3003,17 @@ const ACT = {
     renderSettings();
   },
   openBackup: () => { navDir = 'tab'; go('settings', false); setTimeout(() => openSheet(bkRestoreSheetHtml()), 300); },
+  // Appareil « admin » (caché : toucher 5 fois le logo dans À propos) : reçoit les alertes techniques
+  adminTap: async () => {
+    ACT._taps = (ACT._taps || 0) + 1; clearTimeout(ACT._tapT); ACT._tapT = setTimeout(() => { ACT._taps = 0; }, 1500);
+    if (ACT._taps < 5) return;
+    ACT._taps = 0;
+    if (!NT.sid) return toast('Active d’abord les notifications sur cet appareil.', 3500, true);
+    const on = store.get('nt_admin', false);
+    const code = prompt(on ? 'Code admin pour arrêter les alertes techniques sur cet appareil :' : 'Code admin :'); if (!code) return;
+    try { await pushApi('admin', { sid: NT.sid, code, off: on }); store.set('nt_admin', !on); toast(on ? 'Alertes techniques désactivées sur cet appareil.' : 'Cet appareil recevra les alertes techniques (ex. retour de tpg.ch).', 4000, true); }
+    catch (e) { toast(e.message); }
+  },
   bkOpenSave: () => openSheet(bkSaveSheetHtml()),
   bkAskDelete: () => openSheet(bkDeleteSheetHtml()),
   bkDelete: async (ds, el) => {

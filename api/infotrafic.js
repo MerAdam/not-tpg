@@ -1,19 +1,16 @@
-// Info trafic tpg en cours (source : tpg.ch), mise en cache 60 s sur le CDN de Vercel.
-const { parse } = require('./_infotrafic');
+// Info trafic tpg en cours (source : tpg.ch, interrogé au plus toutes les 5 min, voir _tpgsource).
+const { getAlerts } = require('./_tpgsource');
 
 module.exports = async (req, res) => {
   try {
-    const r = await fetch('https://www.tpg.ch/fr/getInfoTrafic', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; NotTPG/1.0)',
-        'X-Requested-With': 'XMLHttpRequest',
-        Accept: 'application/json'
-      }
-    });
-    if (!r.ok) throw Object.assign(new Error('tpg.ch HTTP ' + r.status), { status: r.status });
-    const { items } = parse(await r.json());
-    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=120, stale-if-error=86400');
-    return res.status(200).json({ source: 'tpg.ch', fetchedAt: new Date().toISOString(), alerts: items });
+    const d = await getAlerts();
+    if (!d.ok && !d.items.length) {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(502).json({ error: d.err || 'tpg.ch indisponible' });
+    }
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=120');
+    // stale : liste gardée de la dernière réponse réussie de tpg.ch (at = son heure)
+    return res.status(200).json({ source: 'tpg.ch', fetchedAt: new Date(d.at).toISOString(), at: d.at, stale: !d.ok, error: d.ok ? null : d.err, alerts: d.items });
   } catch (e) {
     res.setHeader('Cache-Control', 'no-store');
     return res.status(502).json({ error: e.message });
