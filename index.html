@@ -415,8 +415,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v57';
-const APP_CHANGES = 'le temps restant s’affiche sous l’heure dans les parcours et trajets, même au-delà d’une heure.';
+const APP_VERSION = 'v58';
+const APP_CHANGES = 'Départs précédents : la recherche saute maintenant la pause de nuit et retrouve les derniers bus de la soirée.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -1580,10 +1580,24 @@ async function boardMore(dir, btn) {
   if (dir === 'after' && S.boardHidden > 0) { S.boardMax = (S.boardMax || 30) + 30; drawBoard(); return; } // déjà chargés, juste cachés
   const label = btn.textContent; btn.disabled = true; btn.textContent = 'Chargement…';
   const edge = parseISO((dir === 'before' ? all[0] : all[all.length - 1]).stop.departure);
-  const from = new Date(edge.getTime() + (dir === 'before' ? -60 : 1) * 60000);
   try {
-    const j = await api(`/stationboard?id=${encodeURIComponent(S.stop.id)}&limit=60&datetime=${encodeURIComponent(ymd(from) + ' ' + hm(from))}`);
-    const list = j.stationboard || [];
+    // Plus tôt : on remonte par paliers (1 h, 3 h, 6 h) pour sauter la pause de nuit
+    let list = [];
+    for (const back of dir === 'before' ? [60, 180, 360] : [-1]) {
+      const from = new Date(edge.getTime() - back * 60000);
+      const j = await api(`/stationboard?id=${encodeURIComponent(S.stop.id)}&limit=60&datetime=${encodeURIComponent(ymd(from) + ' ' + hm(from))}`);
+      list = j.stationboard || [];
+      if (dir !== 'before' || list.some((d) => parseISO(d.stop.departure) < edge)) break;
+    }
+    // Si on a sauté loin en arrière, on complète jusqu'à la pause pour ne pas laisser de trou
+    for (let k = 0; k < 3 && dir === 'before' && list.length >= 60; k++) {
+      const last = parseISO(list[list.length - 1].stop.departure);
+      if (last >= edge) break;
+      const j = await api(`/stationboard?id=${encodeURIComponent(S.stop.id)}&limit=60&datetime=${encodeURIComponent(ymd(last) + ' ' + hm(last))}`);
+      const more = (j.stationboard || []).filter((d) => parseISO(d.stop.departure) > last);
+      if (!more.length) break;
+      list = list.concat(more);
+    }
     const sc = $('#boardScroll'), h0 = sc ? sc.scrollHeight : 0;
     if (dir === 'before') {
       const add = list.filter((d) => parseISO(d.stop.departure) < edge);
@@ -1644,7 +1658,8 @@ function drawBoard() {
     const diff = Math.round((real - now) / 60000);
     const past = real.getTime() < now - 30000;
     const sameDay = ymd(planned) === todayStr();
-    const pref = sameDay ? '' : planned.getDate() + '.' + (planned.getMonth() + 1) + '. ';
+    const dd = Math.round((new Date(ymd(planned) + 'T12:00') - new Date(todayStr() + 'T12:00')) / 864e5);
+    const pref = sameDay ? '' : dd === -1 ? 'hier ' : dd === 1 ? 'demain ' : planned.getDate() + '.' + (planned.getMonth() + 1) + '. ';
     const delta = Math.round((real - planned) / 60000);
     const dcls = delta > 0 ? 'st-late' : 'st-early';
     const mode = depMode();
