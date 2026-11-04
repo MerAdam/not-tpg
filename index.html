@@ -415,8 +415,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v56';
-const APP_CHANGES = 'nouvelles animations : écrans qui glissent, listes en cascade, boutons qui réagissent au toucher.';
+const APP_VERSION = 'v57';
+const APP_CHANGES = 'le temps restant s’affiche sous l’heure dans les parcours et trajets, même au-delà d’une heure.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -1721,6 +1721,13 @@ function stopIssueFinder(alerts) {
     return null;
   };
 }
+// « dans combien de temps » : 5 min, 1 h 05… (vide si c'est passé ou dans plus de 24 h)
+function relTxt(t, now = Date.now()) {
+  const diff = Math.round((t - now) / 60000);
+  if (diff < 0 || diff > 1440) return '';
+  if (diff === 0) return 'Imm.';
+  return diff < 60 ? diff + ' min' : Math.floor(diff / 60) + ' h ' + pad(diff % 60);
+}
 function legTime(r, live, now) {
   if (!r.t) return '';
   const real = r.real || r.t;
@@ -1728,8 +1735,9 @@ function legTime(r, live, now) {
   const dcls = delta > 0 ? 'd' : 'd early';
   if (depMode() === 'time') return hm(r.t) + (delta ? `<span class="${dcls}">${fmtDelta(delta)} · ${hm(real)}</span>` : '');
   const diff = Math.round((real - now) / 60000);
-  // Heure de passage, avec en dessous les minutes restantes (temps réel, prochaine heure)
-  const sub = live && !r.past && diff >= 0 && diff <= 59 ? `<span class="m">${diff === 0 ? 'Imm.' : diff + ' min'}</span>` : '';
+  // Heure de passage, avec en dessous le temps restant (dès qu'il est dans le futur)
+  const rel = !r.past ? relTxt(real, now) : '';
+  const sub = rel ? `<span class="m">${rel}</span>` : '';
   return hm(real) + sub + (delta ? `<span class="${dcls}">${fmtDelta(delta)}′</span>` : '');
 }
 function renderJourney() {
@@ -1972,7 +1980,7 @@ function renderTrip() {
     const plat = (x) => (x && x.platform ? ' · quai ' + esc(x.platform) : '');
     return `
       <div class="leg" style="--c:${st.bg}">
-        <div class="leg-t">${dep ? hm(dep) : ''}${delay ? `<span class="d">+${delay}′</span>` : ''}</div>
+        <div class="leg-t">${dep ? hm(dep) : ''}${dep && relTxt(dep) ? `<span class="m">${relTxt(dep)}</span>` : ''}${delay ? `<span class="d">+${delay}′</span>` : ''}</div>
         <div class="rail"><span class="node"></span></div>
         <div class="leg-b">${stopLink(sid(s.departure), fromName)}<div class="meta">Départ${plat(s.departure)}</div></div>
       </div>
@@ -1986,7 +1994,7 @@ function renderTrip() {
         </div>
       </div>
       <div class="leg" style="--c:${st.bg}">
-        <div class="leg-t">${arr ? hm(arr) : ''}</div>
+        <div class="leg-t">${arr ? hm(arr) : ''}${arr && relTxt(arr) ? `<span class="m">${relTxt(arr)}</span>` : ''}</div>
         <div class="rail"><span class="node"></span></div>
         <div class="leg-b">${stopLink(sid(s.arrival), toName)}<div class="meta">Arrivée${plat(s.arrival)}</div></div>
       </div>`;
