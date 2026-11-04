@@ -525,8 +525,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v70';
-const APP_CHANGES = 'Infos trafic : tpg.ch est interrogé au plus toutes les 5 minutes, et la dernière liste connue reste affichée si leur site ne répond pas.';
+const APP_VERSION = 'v71';
+const APP_CHANGES = 'petites améliorations techniques.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -1657,6 +1657,22 @@ function timeSheetHtml() {
     </div>`;
 }
 const SHEET = {
+  admRefresh: () => openAdmin(null, true),
+  admNotify: async () => {
+    if (!NT.sid) return toast('Active d’abord les notifications sur cet appareil.', 3500, true);
+    try { await adminApi('notify', { sid: NT.sid }); toast('Notification de test envoyée.'); } catch (e) { toast(e.message); }
+  },
+  admDevice: async () => {
+    if (!NT.sid) return toast('Active d’abord les notifications sur cet appareil.', 3500, true);
+    const on = store.get('nt_admin', false);
+    try { await pushApi('admin', { sid: NT.sid, code: store.get('nt_admin_code', ''), off: on }); store.set('nt_admin', !on); toast(on ? 'Alertes admin désactivées ici.' : 'Cet appareil recevra les alertes admin.'); openAdmin(null); }
+    catch (e) { toast(e.message); }
+  },
+  admPref: async (ds, el) => {
+    try { const j = await adminApi('prefs', { prefs: { [ds.k]: el.checked } }); if (ADM.data) ADM.data.prefs = j.prefs; }
+    catch (e) { el.checked = !el.checked; toast(e.message); }
+  },
+  admLogout: () => { store.set('nt_admin_code', ''); closeSheet(); toast('Code admin oublié sur cet appareil.'); },
   bkDelete: (ds, el) => ACT.bkDelete(ds, el),
   bkCreate: (ds, el) => ACT.bkCreate(ds, el), bkRestore: (ds, el) => ACT.bkRestore(ds, el), bkNow: (ds, el) => ACT.bkNow(ds, el), bkOff: () => ACT.bkOff(), bkRecover: () => ACT.bkRecover(),
   mapStyle: (ds) => { store.set('nt_mapstyle', ds.id); setBaseLayer(); $('#sheetBody').innerHTML = mapStylesHtml(); },
@@ -2805,6 +2821,65 @@ if (darkMQ) {
   const onChange = () => { if (getTheme() === 'system') themeTransition(applyTheme); };
   darkMQ.addEventListener ? darkMQ.addEventListener('change', onChange) : darkMQ.addListener(onChange);
 }
+/* ---------- PANNEAU ADMIN ---------- */
+async function adminApi(action, body) {
+  const r = await fetch('/api/admin?action=' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: store.get('nt_admin_code', ''), ...body }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || 'Erreur ' + r.status); e.status = r.status; throw e; }
+  return j;
+}
+const ADM = { data: null, loading: false };
+async function openAdmin(code, force) {
+  if (code) store.set('nt_admin_code', code);
+  ADM.loading = true;
+  if (!sheet.classList.contains('open') || !$('#admPanel')) openSheet('<div id="admPanel"></div>');
+  drawAdmin();
+  try { ADM.data = await adminApi('status', { force: !!force }); }
+  catch (e) {
+    if (e.status === 403) { store.set('nt_admin_code', ''); closeSheet(); return toast('Code admin incorrect.'); }
+    ADM.data = { error: e.message };
+  }
+  ADM.loading = false; drawAdmin();
+}
+function drawAdmin() {
+  const el = $('#admPanel'); if (!el) return;
+  const d = ADM.data, now = Date.now();
+  const ago = (t) => { if (!t) return 'jamais'; const m = Math.round((now - t) / 60000); return m < 1 ? 'à l’instant' : m < 60 ? 'il y a ' + m + ' min' : m < 1440 ? 'il y a ' + Math.round(m / 60) + ' h' : 'le ' + new Date(t).toLocaleString('fr-CH', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }); };
+  const dot = (st) => `<span style="width:12px;height:12px;border-radius:6px;flex:none;margin-top:4px;background:${st === 'ok' ? 'var(--ok)' : st === 'warn' ? '#E8A317' : 'var(--bad)'}"></span>`;
+  const row = (st, title, sub) => `<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line2)">${dot(st)}<span style="display:flex;flex-direction:column;gap:2px"><b style="font-size:15px">${title}</b><span class="small">${sub}</span></span></div>`;
+  let body = '';
+  if (!d) body = '<p class="empty">Chargement…</p>';
+  else if (d.error) body = `<p class="small" style="color:var(--bad)">${esc(d.error)}</p>`;
+  else {
+    const sv = d.services, t = d.totals;
+    body = `<div class="card" style="padding:4px 14px">
+      ${row(sv.opendata.ok ? (sv.opendata.ms > 3000 ? 'warn' : 'ok') : 'bad', 'Horaires · transport.opendata.ch', sv.opendata.ok ? 'Répond en ' + sv.opendata.ms + ' ms · testé ' + ago(sv.opendata.checked) : 'Ne répond pas (' + esc(sv.opendata.err || '?') + ')' + (sv.opendata.since ? ' depuis ' + ago(sv.opendata.since).replace('il y a', '') : ''))}
+      ${row(sv.tpg.ok ? 'ok' : (sv.tpg.count ? 'warn' : 'bad'), 'Info trafic · tpg.ch', sv.tpg.ok ? 'OK · ' + sv.tpg.count + ' perturbation' + (sv.tpg.count > 1 ? 's' : '') + ' · testé ' + ago(sv.tpg.checked) : 'Bloqué (' + esc(sv.tpg.err || '?') + ')' + (sv.tpg.downSince ? ' depuis ' + ago(sv.tpg.downSince).replace('il y a ', '') : '') + ' · dernière liste réussie ' + ago(sv.tpg.at))}
+      ${row(sv.walk.ok ? 'ok' : 'bad', 'Itinéraires à pied · OpenStreetMap', sv.walk.ok ? 'Répond en ' + sv.walk.ms + ' ms' : 'Ne répond pas (' + esc(sv.walk.err || '?') + ') · estimations à vol d’oiseau utilisées')}
+      ${row(sv.redis.ok ? 'ok' : 'bad', 'Base de données · Redis', sv.redis.ok ? 'OK · ' + sv.redis.ms + ' ms (sauvegardes, notifications)' : 'Inaccessible : sauvegardes et notifications en panne')}
+      ${row(sv.check.ok ? 'ok' : 'bad', 'Robot des notifications', 'Dernier passage ' + ago(sv.check.last) + (sv.check.ok ? '' : ' · les alertes ne partent plus'))}
+    </div>
+    <h2 class="label" style="margin:14px 4px 6px">Chiffres</h2>
+    <div class="card" style="padding:4px 14px">
+      ${[['Appareils abonnés aux notifications', t.subs], ['Trajets pendulaires suivis', t.commutes], ['Départs suivis (cloche)', t.bells], ['Sauvegardes', t.backups], ['Appareils admin', t.admins]].map(([k, v]) => `<div class="info-row" style="padding:8px 0"><span class="muted">${k}</span><b>${v}</b></div>`).join('')}
+    </div>
+    <h2 class="label" style="margin:14px 4px 6px">Cet appareil</h2>
+    <div class="card" style="padding:4px 14px">
+      ${[['Version', APP_VERSION], ['Notifications', NT.sid ? 'actives' : 'désactivées'], ['Sauvegarde', backupCfg() ? 'connectée (' + esc(backupCfg().name) + ')' : 'non connectée'], ['Alertes admin', store.get('nt_admin', false) ? 'reçues ici' : 'non']].map(([k, v]) => `<div class="info-row" style="padding:8px 0"><span class="muted">${k}</span><b>${v}</b></div>`).join('')}
+    </div>
+    <h2 class="label" style="margin:14px 4px 6px">Alertes admin</h2>
+    <div class="card" style="padding:4px 14px">
+      ${[['tpgDown', 'tpg.ch se met à bloquer'], ['tpgBack', 'tpg.ch répond de nouveau'], ['odDown', 'Serveur des horaires en panne'], ['odBack', 'Serveur des horaires de retour']].map(([k, l]) => `<label class="info-row" style="padding:8px 0"><span>${l}</span><input type="checkbox" data-sheet="admPref" data-k="${k}" ${d.prefs[k] ? 'checked' : ''}></label>`).join('')}
+    </div>`;
+  }
+  el.innerHTML = `<h2>Panneau admin</h2>${body}
+    <div class="stack" style="gap:10px;margin-top:14px">
+      <button class="primary w100" data-sheet="admRefresh" ${ADM.loading ? 'disabled' : ''}>${ADM.loading ? 'Tests en cours…' : 'Tester maintenant'}</button>
+      <button class="ghost w100" data-sheet="admNotify">M’envoyer une notification de test</button>
+      <button class="ghost w100" data-sheet="admDevice">${store.get('nt_admin', false) ? 'Ne plus recevoir les alertes admin ici' : 'Recevoir les alertes admin sur cet appareil'}</button>
+      <button class="link" data-sheet="admLogout" style="align-self:center">Oublier le code admin sur cet appareil</button>
+    </div>`;
+}
 function backupCardHtml() {
   const b = backupCfg();
   const when = b && b.at ? new Date(b.at).toLocaleString('fr-CH', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
@@ -3003,16 +3078,14 @@ const ACT = {
     renderSettings();
   },
   openBackup: () => { navDir = 'tab'; go('settings', false); setTimeout(() => openSheet(bkRestoreSheetHtml()), 300); },
-  // Appareil « admin » (caché : toucher 5 fois le logo dans À propos) : reçoit les alertes techniques
-  adminTap: async () => {
+  // Panneau admin (caché : toucher 5 fois le logo dans À propos, code admin demandé la première fois)
+  adminTap: () => {
     ACT._taps = (ACT._taps || 0) + 1; clearTimeout(ACT._tapT); ACT._tapT = setTimeout(() => { ACT._taps = 0; }, 1500);
     if (ACT._taps < 5) return;
     ACT._taps = 0;
-    if (!NT.sid) return toast('Active d’abord les notifications sur cet appareil.', 3500, true);
-    const on = store.get('nt_admin', false);
-    const code = prompt(on ? 'Code admin pour arrêter les alertes techniques sur cet appareil :' : 'Code admin :'); if (!code) return;
-    try { await pushApi('admin', { sid: NT.sid, code, off: on }); store.set('nt_admin', !on); toast(on ? 'Alertes techniques désactivées sur cet appareil.' : 'Cet appareil recevra les alertes techniques (ex. retour de tpg.ch).', 4000, true); }
-    catch (e) { toast(e.message); }
+    let code = store.get('nt_admin_code', '');
+    if (!code) { code = (prompt('Code admin :') || '').trim(); if (!code) return; }
+    openAdmin(code);
   },
   bkOpenSave: () => openSheet(bkSaveSheetHtml()),
   bkAskDelete: () => openSheet(bkDeleteSheetHtml()),
