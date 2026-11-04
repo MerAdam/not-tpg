@@ -380,7 +380,7 @@ const shiftReady = (async () => {
   if (saved && Date.now() - saved.at < 3600e3) { API_SHIFT = saved.v; return; }
   try {
     const now = new Date();
-    const r = await fetch(`${API}/stationboard?id=8587387&limit=6&datetime=${encodeURIComponent(ymd(now) + ' ' + hm(now))}`);
+    const r = await fetchT(`${API}/stationboard?id=8587387&limit=6&datetime=${encodeURIComponent(ymd(now) + ' ' + hm(now))}`);
     const j = await r.json();
     const first = Math.min(...(j.stationboard || []).map((d) => parseISO(d.stop.departure).getTime()));
     if (!isFinite(first)) return;
@@ -401,9 +401,16 @@ function shiftPath(path) {
   });
   return path; // les liaisons (/connections) ne sont pas touchées par ce décalage
 }
+// fetch avec délai maximum : si le serveur ne répond pas, on abandonne au lieu de charger à l'infini
+function fetchT(url, ms = 9000, opts = {}) {
+  const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
+  return fetch(url, { ...opts, signal: c.signal }).finally(() => clearTimeout(t));
+}
 async function api(path) {
-  if (path.startsWith('/stationboard') && /datetime=/.test(path)) { await shiftReady; path = shiftPath(path); }
-  const r = await fetch(API + path);
+  if (path.startsWith('/stationboard') && /datetime=/.test(path)) { await Promise.race([shiftReady, new Promise((r) => setTimeout(r, 3000))]); path = shiftPath(path); }
+  let r;
+  try { r = await fetchT(API + path); }
+  catch { r = await fetchT(API + path, 10000); } // une 2e tentative si la première n'aboutit pas
   if (!r.ok) throw new Error('HTTP ' + r.status);
   return r.json();
 }
@@ -415,8 +422,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v58';
-const APP_CHANGES = 'Départs précédents : la recherche saute maintenant la pause de nuit et retrouve les derniers bus de la soirée.';
+const APP_VERSION = 'v59';
+const APP_CHANGES = 'si le serveur des horaires ne répond pas, l’app réessaie puis affiche un message au lieu de charger à l’infini.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
