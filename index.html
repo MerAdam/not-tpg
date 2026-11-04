@@ -172,6 +172,9 @@
   .stn{font-size:16px;font-weight:800}
   .meta{font-size:13px;color:var(--muted);margin-top:2px}
   .mid{padding:4px 0 6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .leg-open{background:none;border:0;width:100%;text-align:left;color:inherit;font:inherit;cursor:pointer;flex-wrap:nowrap}
+  .leg-open > svg:last-child{margin-left:auto;flex:none}
+  .leg-open .bell{width:auto;height:auto;color:var(--accent)}
   details.pass summary{list-style:none;cursor:pointer;font-size:13px;font-weight:800;color:var(--accent);min-height:36px;display:flex;align-items:center}
   details.pass summary::-webkit-details-marker{display:none}
   details.pass ol{margin:0 0 6px;padding:0;list-style:none}
@@ -549,8 +552,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v75';
-const APP_CHANGES = 'petites améliorations techniques.';
+const APP_VERSION = 'v76';
+const APP_CHANGES = 'itinéraires : touche une ligne pour ouvrir son voyage, ou suis tout le trajet d’un coup. Les voyages suivis s’affichent sur l’Accueil.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -1472,6 +1475,25 @@ function openStopBoard(s) {
 }
 
 /* ---------- ACCUEIL ---------- */
+// Voyages suivis (cloche) : affichés sur l'Accueil tant qu'ils ne sont pas passés
+function followedList() {
+  return NT.bells.filter((b) => Date.parse(b.planned) > Date.now() - 20 * 60000).map((b) => {
+    const [stopId, num, dep, to] = b.key.split('|');
+    const st = stopById(b.stopId || stopId);
+    return { key: b.key, stopId: b.stopId || stopId, stopName: b.stopName || (st && st.name) || '', num: b.num || num, cat: b.cat || 'B', to: b.to || to, planned: new Date(b.planned || dep) };
+  }).sort((a, b) => a.planned - b.planned);
+}
+function followedHtml() {
+  const l = followedList(); if (!l.length) return '';
+  return `<div class="sec-head"><h2 class="label">Voyages suivis</h2></div>
+    <div class="card list">${l.map((f) => {
+      const m = Math.round((f.planned - Date.now()) / 60000);
+      return `<div class="row-btn" style="gap:10px"><button class="fav-name" data-act="openFollowed" data-k="${esc(f.key)}" style="background:none;border:0;padding:0;font:inherit;color:inherit;text-align:left;flex:1;min-width:0;display:flex;align-items:center;gap:10px">
+        ${badge(f.cat, f.num)}<span style="display:flex;flex-direction:column;min-width:0"><span style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(short(f.to))}</span>
+        <span class="small">${esc(short(f.stopName))} · ${hm(f.planned)}${m >= 0 && m < 60 ? ' · dans ' + (m || '< 1') + ' min' : m < 0 ? ' · parti' : ''}</span></span></button>
+        <span class="bell on" role="button" tabindex="0" data-act="unfollow" data-k="${esc(f.key)}" aria-label="Arrêter le suivi">${BELL(true)}</span></div>`;
+    }).join('')}</div>`;
+}
 function renderHome() {
   const geoLabel = S.geo ? `Ma position (${short(S.geo.name)})` : 'Ma position';
   main.innerHTML = `
@@ -1491,6 +1513,7 @@ function renderHome() {
         <div style="padding:8px 12px 12px"><button class="primary w100" type="submit">Rechercher un itinéraire</button></div>
       </form>
       <div id="nextCard"></div>
+      ${followedHtml()}
       ${!favs.length && !commutes.length && !backupCfg() ? '<button class="card" data-act="openBackup" style="width:100%;text-align:left;padding:12px 14px;margin-top:12px;display:flex;flex-direction:column;gap:2px"><b>Tu as déjà utilisé Not TPG ?</b><span class="small">Restaure tes favoris et trajets pendulaires depuis ta sauvegarde.</span></button>' : ''}
       <div class="sec-head"><h2 class="label">Mes arrêts</h2>
         ${favs.length ? `<button class="link" data-act="editFavs">${S.editFavs ? 'Terminé' : 'Modifier'}</button>` : ''}</div>
@@ -2121,12 +2144,26 @@ function drawResults() {
 }
 
 /* ---------- DÉTAIL D'UN ITINÉRAIRE ---------- */
+// Une étape d'un trajet (connexion) transformée en « départ » comme ceux du tableau, pour l'ouvrir ou la suivre
+function legRun(s) {
+  if (!s || !s.journey || !s.departure) return null;
+  const j = s.journey, st = s.departure.station || {};
+  const id = String(st.id || '').split(':')[0];
+  if (!id) return null;
+  return {
+    stop: { id, name: st.name || '' },
+    d: { category: j.category, number: j.number, to: j.to, operator: j.operator, passList: j.passList || [],
+      stop: { departure: s.departure.departure, delay: s.departure.delay || 0, prognosis: s.departure.prognosis || {}, platform: s.departure.platform } }
+  };
+}
+const tripLegs = (c) => ((c && c.raw.sections) || []).map(legRun).filter(Boolean);
+const legFollowed = (s) => { const x = legRun(s); return x && hasBell(bellKey(x.stop.id, x.d)); };
 // Nom d'arrêt touchable : ouvre ses départs
 const stopLink = (id, name) => id ? `<button class="stn stn-link" data-act="openStopFromJourney" data-id="${esc(id)}" data-name="${esc(name)}">${esc(short(name))}</button>` : `<div class="stn">${esc(short(name))}</div>`;
 function renderTrip() {
   const c = S.trip; if (!c) return go('results', false);
   const secs = c.raw.sections || [];
-  const parts = secs.map((s) => {
+  const parts = secs.map((s, si) => {
     const dep = parseISO(s.departure && s.departure.departure);
     const arr = parseISO(s.arrival && s.arrival.arrival);
     const fromName = s.departure && s.departure.station ? s.departure.station.name : '';
@@ -2156,7 +2193,7 @@ function renderTrip() {
       <div class="leg" style="--c:${st.bg}">
         <div class="leg-t"></div><div class="rail"></div>
         <div class="leg-b">
-          <div class="mid">${badge(j.category, j.number, true)}<span style="font-weight:800">direction ${esc(short(j.to))}</span></div>
+          <button class="mid leg-open" data-act="openLeg" data-i="${si}">${badge(j.category, j.number, true)}<span style="font-weight:800">direction ${esc(short(j.to))}</span>${legFollowed(s) ? '<span class="bell on" style="pointer-events:none">' + BELL(true) + '</span>' : ''}${ICON.chev}</button>
           ${warnHtml(alertsFor([j.number], (j.passList || []).map((p) => p.station && p.station.id), dep || new Date(), j.to))}
           ${pass.length ? `<details class="pass"><summary>${pass.length} arrêt${pass.length > 1 ? 's' : ''} intermédiaire${pass.length > 1 ? 's' : ''}</summary>
             <ol>${pass.map((p) => { const t = parseISO(p.departure || p.arrival); const id = sid(p), nm = (p.station && p.station.name) || ''; return id ? `<li><button class="pass-stop" data-act="openStopFromJourney" data-id="${esc(id)}" data-name="${esc(nm)}"><span>${t ? hm(t) : ''}</span><span>${esc(short(nm))}</span></button></li>` : `<li><span>${t ? hm(t) : ''}</span><span>${esc(short(nm))}</span></li>`; }).join('')}</ol></details>` : ''}
@@ -2187,6 +2224,7 @@ function renderTrip() {
       </div></header>
     <div class="scroll stack">
       <p class="small" style="margin:0 4px">${totalMin} min · ${c.transfers ? c.transfers + ' changement' + (c.transfers > 1 ? 's' : '') : 'direct'}${S.q.date !== todayStr() ? ' · ' + esc(dateLabel(S.q.date)) : ''}</p>
+      ${tripLegs(c).some((x) => x.d && parseISO(x.d.stop.departure) > Date.now() - 60000) ? (() => { const all = tripLegs(c).filter((x) => x.d).every((x) => hasBell(bellKey(x.stop.id, x.d))); return `<button class="${all ? 'ghost' : 'primary'} w100" data-act="followTrip" style="display:flex;align-items:center;justify-content:center;gap:8px">${BELL(all)}${all ? 'Ne plus suivre ce trajet' : 'Suivre tout le trajet'}</button>`; })() : ''}
       <div class="card" style="padding:4px 0 8px">${before}${parts}${after}</div>
     </div>`;
   if (Date.now() < (S.animUntil || 0)) stagger(main.querySelectorAll('.card .leg'));
@@ -2500,7 +2538,7 @@ async function syncCommutes() {
     await pushApi('commutes', { sid: NT.sid, commutes: commutes.map((c) => ({ id: c.id, from: c.from, to: c.to, days: c.days, picks: c.picks.map((p) => ({ dep: p.dep, arr: p.arr, key: p.key, legs: p.legs })) })) });
   } catch (e) { if (e.resubscribe) { NT.sid = null; store.set('nt_push_sid', null); } }
 }
-async function toggleBell(d, stop) {
+async function toggleBell(d, stop, quiet) {
   const key = bellKey(stop.id, d);
   const existing = NT.bells.find((b) => b.key === key);
   try {
@@ -2508,12 +2546,12 @@ async function toggleBell(d, stop) {
     if (existing) {
       await pushApi('unbell', { sid: NT.sid, wid: existing.wid });
       NT.bells = NT.bells.filter((b) => b.key !== key);
-      toast('Suivi arrêté.');
+      if (!quiet) toast('Suivi arrêté.');
     } else {
       const planned = parseISO(d.stop.departure);
       const { wid } = await pushApi('bell', { sid: NT.sid, run: { stopId: stop.id, stopName: stop.name, line: String(d.number || d.category), cat: d.category, to: d.to, planned: planned.toISOString() } });
-      NT.bells.push({ key, wid, planned: planned.toISOString() });
-      toast('Suivi activé : tu seras prévenu des changements.');
+      NT.bells.push({ key, wid, planned: planned.toISOString(), stopId: stop.id, stopName: stop.name, cat: d.category, num: String(d.number || d.category), to: d.to });
+      if (!quiet) toast('Suivi activé : tu seras prévenu des changements.');
     }
     store.set('nt_bells', NT.bells);
   } catch (e) {
@@ -3129,6 +3167,37 @@ const ACT = {
     catch (e) { if (e.resubscribe) { NT.sid = null; store.set('nt_push_sid', null); renderSettings(); } toast(e.message); }
   },
   bell: (ds) => { const d = S.boardRows[+ds.i]; if (d) toggleBell(d, S.stop).then(() => { drawBoard(); popEl($(`.bell[data-i="${ds.i}"]`)); }); },
+  openFollowed: async (ds) => {
+    const f = followedList().find((x) => x.key === ds.k); if (!f) return;
+    const st = { id: f.stopId, name: f.stopName };
+    try {
+      const t = new Date(f.planned.getTime() - 2 * 60000);
+      const j = await api(`/stationboard?id=${encodeURIComponent(f.stopId)}&limit=20&datetime=${encodeURIComponent(ymd(t) + ' ' + hm(t))}`);
+      const d = (j.stationboard || []).find((x) => String(x.number || x.category) === String(f.num) && x.to === f.to && Math.abs(parseISO(x.stop.departure) - f.planned) < 90000);
+      if (d) { S.stop = st; S.journey = d; S.board = []; S.boardDate = ''; S.boardTime = ''; return go('journey'); }
+    } catch {}
+    S.stop = st; S.board = []; S.boardBefore = []; S.boardAfter = []; S.boardMax = 30; S.boardDate = ''; S.boardTime = ''; go('board'); // course introuvable : départs de l'arrêt
+  },
+  unfollow: async (ds) => {
+    const f = followedList().find((x) => x.key === ds.k); if (!f) return;
+    const b = NT.bells.find((x) => x.key === ds.k);
+    try { await pushApi('unbell', { sid: NT.sid, wid: b.wid }); } catch {}
+    NT.bells = NT.bells.filter((x) => x.key !== ds.k); store.set('nt_bells', NT.bells);
+    toast('Suivi arrêté.'); if (S.screen === 'home') renderHome();
+  },
+  openLeg: (ds) => {
+    const x = legRun((S.trip.raw.sections || [])[+ds.i]); if (!x) return;
+    S.stop = x.stop; S.journey = x.d; S.board = []; S.boardDate = ''; S.boardTime = '';
+    go('journey');
+  },
+  followTrip: async (ds, el) => {
+    const legs = tripLegs(S.trip).filter((x) => parseISO(x.d.stop.departure) > Date.now() - 60000);
+    const all = legs.every((x) => hasBell(bellKey(x.stop.id, x.d)));
+    el.disabled = true;
+    for (const x of legs) if (hasBell(bellKey(x.stop.id, x.d)) === all) await toggleBell(x.d, x.stop, true);
+    toast(all ? 'Suivi du trajet arrêté.' : 'Trajet suivi : ' + legs.length + ' voyage' + (legs.length > 1 ? 's' : '') + '. Tu seras prévenu de tout changement.', 3500, true);
+    if (S.screen === 'trip') renderTrip();
+  },
   bellJourney: () => { if (S.journey) toggleBell(S.journey, S.stop).then(() => { if (S.screen === 'journey') { renderJourney(); popEl($('[data-act="bellJourney"]')); } }); },
   walkSpeed: (ds) => {
     store.set('nt_walkspeed', ds.v);
