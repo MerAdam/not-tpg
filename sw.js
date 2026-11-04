@@ -1,7 +1,7 @@
 // Not TPG — service worker : ouverture rapide de l'app.
 // Les données temps réel (transport.opendata.ch) ne sont jamais mises en cache.
-const CACHE = 'not-tpg-v62';
-const SHELL = ['./', './index.html', './manifest.json', './icon.png'];
+const CACHE = 'not-tpg-v63';
+const SHELL = ['./', './index.html', './manifest.json', './icon.png', './icon.svg', './icon-dark.svg', './icon-180.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));

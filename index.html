@@ -20,8 +20,10 @@
   })();
 </script>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon.png">
-<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png" sizes="512x512">
+<link rel="icon" href="icon.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
+<link rel="icon" href="icon-dark.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
@@ -58,6 +60,8 @@
   .stack > *{flex-shrink:0} /* sinon les cartes se tassent au lieu de défiler */
   .top{padding:calc(env(safe-area-inset-top) + 18px) 16px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
   .top.back{padding-left:8px;justify-content:flex-start;gap:4px}
+  .app-logo{display:inline-block;background:url(icon.svg) center/cover no-repeat;flex:none}
+  html.dark .app-logo{background-image:url(icon-dark.svg)}
   .brand{margin:0;font-size:30px;font-weight:900;letter-spacing:-.01em}
   .brand.sm{font-size:28px}
   .title{margin:0;font-size:24px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -458,8 +462,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v62';
-const APP_CHANGES = 'si le serveur des horaires est en panne, un bandeau rouge te prévient en haut et tout se recharge tout seul dès qu’il revient.';
+const APP_VERSION = 'v63';
+const APP_CHANGES = 'nouveau logo ! Pour le voir sur ton écran d’accueil, supprime l’app puis rajoute-la depuis Safari.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -2426,7 +2430,7 @@ const mOpt = (tags, name, lines, txt, walk = '') => `<div class="card" style="pa
 const TUTOS = [
   { id: 'install', title: 'Installer l’app sur ton téléphone', slides: [
     { t: 'Pourquoi l’installer ?', p: 'Ajoutée à l’écran d’accueil, Not TPG s’ouvre <b>en plein écran</b> comme une vraie app, garde tes favoris et peut t’envoyer des <b>notifications</b>. Sur iPhone, c’est même <b>obligatoire</b> pour les notifications.',
-      i: () => mock(`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:10px 6px">${['#5A1E82','#00A828','#F5A300'].map((c) => `<span style="aspect-ratio:1;border-radius:14px;background:${c};opacity:.25"></span>`).join('')}<span style="aspect-ratio:1;border-radius:14px;background:#C2410C;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px">NT</span></div><p class="small" style="text-align:center;margin:0">Not TPG sur ton écran d’accueil</p>`, tap(88, 34)) },
+      i: () => mock(`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:10px 6px">${['#5A1E82','#00A828','#F5A300'].map((c) => `<span style="aspect-ratio:1;border-radius:14px;background:${c};opacity:.25"></span>`).join('')}<span class="app-logo" style="aspect-ratio:1;border-radius:14px"></span></div><p class="small" style="text-align:center;margin:0">Not TPG sur ton écran d’accueil</p>`, tap(88, 34)) },
     { t: 'Sur iPhone (Safari)', p: 'Ouvre le site dans <b>Safari</b>, touche le bouton <b>Partager</b> (le carré avec une flèche), puis <b>« Sur l’écran d’accueil »</b> et <b>Ajouter</b>.',
       i: () => mock(`<div class="card list"><div class="m-field">${ICON.plus}<span>Sur l’écran d’accueil</span></div><div class="m-field" style="color:var(--muted)">Copier</div><div class="m-field" style="color:var(--muted)">Ajouter aux favoris</div></div><div style="display:flex;justify-content:center;padding-top:4px"><span style="width:40px;height:40px;border-radius:10px;border:2px solid var(--accent);display:inline-flex;align-items:center;justify-content:center;color:var(--accent)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4M5 12v8h14v-8"/></svg></span></div>`, tap(50, 87) + tap(35, 22)) },
     { t: 'Sur Android (Chrome)', p: 'Ouvre le site dans <b>Chrome</b>, touche le menu <b>⋮</b> en haut à droite, puis <b>« Ajouter à l’écran d’accueil »</b> (ou « Installer l’application »).',
@@ -2498,11 +2502,11 @@ const TUTOS = [
     { t: 'Activer les notifications', p: 'Dans <b>Réglages → Autorisations</b>, à la ligne <b>Notifications</b>, touche <b>Activer</b> et accepte la demande du téléphone. « Envoyer un test » permet de vérifier. Sur iPhone, l’app doit être <b>installée sur l’écran d’accueil</b>.',
       i: () => mock(`<div class="card" style="padding:12px;display:flex;flex-direction:column;gap:8px"><span class="label">Notifications</span><span class="small">Reçois une alerte en cas de retard, avance, suppression ou déviation.</span><div class="m-btn">Activer les notifications</div></div>`, tap(50, 72)) },
     { t: 'Trajets pendulaires', p: 'Les jours prévus, <b>dès 30 minutes avant</b> chaque liaison de tes trajets, tu es prévenu <b>uniquement en cas de changement</b> : retard ou avance, suppression, déviation.',
-      i: () => mock(`<div class="card" style="padding:12px;display:flex;gap:10px;align-items:flex-start"><span style="width:34px;height:34px;border-radius:9px;background:#C2410C;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;flex:none">NT</span><span style="display:flex;flex-direction:column;gap:2px"><b style="font-size:14px">12 · 07:36 Plainpalais → Bel-Air</b><span class="small">Retard : +4 min (départ à 07:40).</span></span></div>`) },
+      i: () => mock(`<div class="card" style="padding:12px;display:flex;gap:10px;align-items:flex-start"><span class="app-logo" style="width:34px;height:34px;border-radius:9px;flex:none"></span><span style="display:flex;flex-direction:column;gap:2px"><b style="font-size:14px">12 · 07:36 Plainpalais → Bel-Air</b><span class="small">Retard : +4 min (départ à 07:40).</span></span></div>`) },
     { t: 'Suivre un départ avec la cloche', p: 'Touche la <b>cloche</b> à côté d’une destination pour suivre <b>ce départ précis</b>. Tu seras prévenu de tout changement jusqu’à son passage, puis le suivi s’arrête tout seul.',
       i: () => mock(`<div class="card list">${mRow('7', `<span style="display:inline-flex;align-items:center;gap:4px">Vessy, Grands-Esserts <span class="bell on" style="width:22px;height:22px;margin:0">${BELL(true)}</span></span>`, 'Prévu 04:18 · quai L', '6 min')}${mRow('9', `<span style="display:inline-flex;align-items:center;gap:4px">Lignon Tours <span class="bell" style="width:22px;height:22px;margin:0">${BELL(false)}</span></span>`, 'Prévu 04:25 · quai K', '13 min')}</div>`, tap(67, 22)) },
     { t: 'Changement d’heure', p: 'À chaque passage à l’heure d’été ou d’hiver, une notification confirme que l’app <b>s’est adaptée</b> et que tes horaires sont à la bonne heure.',
-      i: () => mock(`<div class="card" style="padding:12px;display:flex;gap:10px;align-items:flex-start"><span style="width:34px;height:34px;border-radius:9px;background:#C2410C;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;flex:none">NT</span><span style="display:flex;flex-direction:column;gap:2px"><b style="font-size:14px">Passage à l’heure d’hiver</b><span class="small">Not TPG s’est adapté : tes départs, itinéraires et notifications sont à la bonne heure.</span></span></div>`) }
+      i: () => mock(`<div class="card" style="padding:12px;display:flex;gap:10px;align-items:flex-start"><span class="app-logo" style="width:34px;height:34px;border-radius:9px;flex:none"></span><span style="display:flex;flex-direction:column;gap:2px"><b style="font-size:14px">Passage à l’heure d’hiver</b><span class="small">Not TPG s’est adapté : tes départs, itinéraires et notifications sont à la bonne heure.</span></span></div>`) }
   ] },
   { id: 'infos', title: 'Infos trafic', slides: [
     { t: 'L’onglet Infos', p: 'L’onglet <b>Infos</b> liste toutes les <b>perturbations en cours</b> sur le réseau tpg, mises à jour chaque minute. Touche une carte pour lire le détail.',
@@ -2519,7 +2523,7 @@ const TUTOS = [
 ];
 const WELCOME = { id: 'welcome', title: 'Bienvenue', slides: [
   { t: 'Bienvenue dans Not TPG', p: 'Les <b>horaires tpg en temps réel</b>, tes arrêts favoris, tes trajets de tous les jours et les infos trafic, dans une app simple et rapide.',
-    i: () => mock(`<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0"><span style="width:64px;height:64px;border-radius:16px;background:#C2410C;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:24px">NT</span><b style="font-size:20px">Not TPG</b><div style="display:flex;gap:4px">${['1', '7', '12', '15', '18'].map((l) => badge('B', l, true)).join('')}</div></div>`) },
+    i: () => mock(`<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0"><span class="app-logo" style="width:64px;height:64px;border-radius:16px"></span><b style="font-size:20px">Not TPG</b><div style="display:flex;gap:4px">${['1', '7', '12', '15', '18'].map((l) => badge('B', l, true)).join('')}</div></div>`) },
   { t: 'Tes arrêts, en un geste', p: 'Recherche un arrêt, ouvre ses départs et touche l’<b>étoile</b> pour l’ajouter à <b>Mes arrêts</b> sur l’accueil.',
     i: () => TUTOS.find((g) => g.id === 'arrets').slides[1].i() },
   { t: 'Trajets pendulaires', p: 'Enregistre tes trajets de tous les jours dans l’onglet <b>Pendulaire</b> : tu vois leur état chaque jour, et tu peux être <b>prévenu par notification</b> en cas de retard ou de déviation.',
@@ -2757,7 +2761,7 @@ function renderSettings() {
       <h2 class="label" style="margin:10px 4px -4px">À propos</h2>
       <div class="card list">
         ${[
-          ['Application', 'Not TPG', ''],
+          ['Application', '<span style="display:inline-flex;align-items:center;gap:8px"><span class="app-logo" style="width:26px;height:26px;border-radius:7px"></span>Not TPG</span>', ''],
           ['Horaires temps réel', 'transport.opendata.ch', 'https://transport.opendata.ch'],
           ['Arrêts', 'opentransportdata.swiss', 'https://opentransportdata.swiss'],
           ['Couleurs des lignes', 'tpg.ch', 'https://www.tpg.ch/fr/lignes'],
