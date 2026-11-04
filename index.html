@@ -380,7 +380,7 @@ const shiftReady = (async () => {
   if (saved && Date.now() - saved.at < 3600e3) { API_SHIFT = saved.v; return; }
   try {
     const now = new Date();
-    const r = await fetch(`${API}/stationboard?id=8587387&limit=6&datetime=${encodeURIComponent(ymd(now) + ' ' + hm(now))}`);
+    const r = await fetchT(`${API}/stationboard?id=8587387&limit=6&datetime=${encodeURIComponent(ymd(now) + ' ' + hm(now))}`);
     const j = await r.json();
     const first = Math.min(...(j.stationboard || []).map((d) => parseISO(d.stop.departure).getTime()));
     if (!isFinite(first)) return;
@@ -401,9 +401,16 @@ function shiftPath(path) {
   });
   return path; // les liaisons (/connections) ne sont pas touchées par ce décalage
 }
+// fetch avec délai maximum : si le serveur ne répond pas, on abandonne au lieu de charger à l'infini
+function fetchT(url, ms = 9000, opts = {}) {
+  const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
+  return fetch(url, { ...opts, signal: c.signal }).finally(() => clearTimeout(t));
+}
 async function api(path) {
-  if (path.startsWith('/stationboard') && /datetime=/.test(path)) { await shiftReady; path = shiftPath(path); }
-  const r = await fetch(API + path);
+  if (path.startsWith('/stationboard') && /datetime=/.test(path)) { await Promise.race([shiftReady, new Promise((r) => setTimeout(r, 3000))]); path = shiftPath(path); }
+  let r;
+  try { r = await fetchT(API + path); }
+  catch { r = await fetchT(API + path, 10000); } // une 2e tentative si la première n'aboutit pas
   if (!r.ok) throw new Error('HTTP ' + r.status);
   return r.json();
 }
@@ -415,8 +422,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v60';
-const APP_CHANGES = 'le temps restant s’affiche sous l’heure dans les parcours et trajets, même au-delà d’une heure.';
+const APP_VERSION = 'v61';
+const APP_CHANGES = '« Départs précédents » saute la pause de nuit, et si le serveur des horaires ne répond pas, un message s’affiche au lieu de charger à l’infini.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -1580,10 +1587,24 @@ async function boardMore(dir, btn) {
   if (dir === 'after' && S.boardHidden > 0) { S.boardMax = (S.boardMax || 30) + 30; drawBoard(); return; } // déjà chargés, juste cachés
   const label = btn.textContent; btn.disabled = true; btn.textContent = 'Chargement…';
   const edge = parseISO((dir === 'before' ? all[0] : all[all.length - 1]).stop.departure);
-  const from = new Date(edge.getTime() + (dir === 'before' ? -60 : 1) * 60000);
   try {
-    const j = await api(`/stationboard?id=${encodeURIComponent(S.stop.id)}&limit=60&datetime=${encodeURIComponent(ymd(from) + ' ' + hm(from))}`);
-    const list = j.stationboard || [];
+    // Plus tôt : on remonte par paliers (1 h, 3 h, 6 h) pour sauter la pause de nuit
+    let list = [];
+    for (const back of dir === 'before' ? [60, 180, 360] : [-1]) {
+      const from = new Date(edge.getTime() - back * 60000);
+      const j = await api(`/stationboard?id=${encodeURIComponent(S.stop.id)}&limit=60&datetime=${encodeURIComponent(ymd(from) + ' ' + hm(from))}`);
+      list = j.stationboard || [];
+      if (dir !== 'before' || list.some((d) => parseISO(d.stop.departure) < edge)) break;
+    }
+    // Si on a sauté loin en arrière, on complète jusqu'à la pause pour ne pas laisser de trou
+    for (let k = 0; k < 3 && dir === 'before' && list.length >= 60; k++) {
+      const last = parseISO(list[list.length - 1].stop.departure);
+      if (last >= edge) break;
+      const j = await api(`/stationboard?id=${encodeURIComponent(S.stop.id)}&limit=60&datetime=${encodeURIComponent(ymd(last) + ' ' + hm(last))}`);
+      const more = (j.stationboard || []).filter((d) => parseISO(d.stop.departure) > last);
+      if (!more.length) break;
+      list = list.concat(more);
+    }
     const sc = $('#boardScroll'), h0 = sc ? sc.scrollHeight : 0;
     if (dir === 'before') {
       const add = list.filter((d) => parseISO(d.stop.departure) < edge);
@@ -1644,7 +1665,8 @@ function drawBoard() {
     const diff = Math.round((real - now) / 60000);
     const past = real.getTime() < now - 30000;
     const sameDay = ymd(planned) === todayStr();
-    const pref = sameDay ? '' : planned.getDate() + '.' + (planned.getMonth() + 1) + '. ';
+    const dd = Math.round((new Date(ymd(planned) + 'T12:00') - new Date(todayStr() + 'T12:00')) / 864e5);
+    const pref = sameDay ? '' : dd === -1 ? 'hier ' : dd === 1 ? 'demain ' : planned.getDate() + '.' + (planned.getMonth() + 1) + '. ';
     const delta = Math.round((real - planned) / 60000);
     const dcls = delta > 0 ? 'st-late' : 'st-early';
     const mode = depMode();
