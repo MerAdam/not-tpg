@@ -2932,7 +2932,7 @@ function drawAdmin() {
       const e = ext[k]; if (!e) return '<span class="small">Autre serveur (GitHub) : pas encore de mesure</span>';
       const both = !mine && !e.ok, onlyUs = !mine && e.ok;
       return `<span class="small">Autre serveur (GitHub, ${ago(d.ext.at)}${extOld ? ', ancien' : ''}) : ${e.ok ? 'OK en ' + e.ms + ' ms' : esc(e.detail)}</span>`
-        + (both ? '<span class="small" style="color:var(--bad);font-weight:800">→ En panne partout : le problème vient de leur côté.</span>' : onlyUs ? '<span class="small" style="color:#E8A317;font-weight:800">→ Seul notre serveur (Vercel) est touché : blocage ou limite de requêtes envers nous.</span>' : '');
+        + (both ? (e.kind === 'blocked' || e.kind === 'ratelimit' ? '<span class="small" style="color:var(--bad);font-weight:800">→ Bloqué aussi depuis GitHub : le site refuse tous les serveurs, pas seulement le nôtre (les navigateurs passent).</span>' : '<span class="small" style="color:var(--bad);font-weight:800">→ En panne partout : le problème vient de leur côté.</span>') : onlyUs ? '<span class="small" style="color:#E8A317;font-weight:800">→ Seul notre serveur (Vercel) est touché : blocage ou limite de requêtes envers nous.</span>' : '');
     };
     const svcBlock = (k, title, st, line, diag) => `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line2)">${dot(st)}<span style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0"><b style="font-size:15px">${title}</b><span class="small">${line}</span>
       ${diag && !diag.ok && diag.snippet ? `<span class="small" style="font-family:ui-monospace,monospace;font-size:11px;opacity:.8;word-break:break-word">« ${esc(diag.snippet)} »</span>` : ''}
