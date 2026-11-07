@@ -453,6 +453,12 @@ async function pullBackup() {
 }
 setInterval(pullBackup, 20000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pullBackup(); });
+// Retour dans l'app après le raccourci « Info Trafic » : on recharge l'info trafic et le panneau admin
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !ADM.waitShortcut || Date.now() - ADM.waitShortcut > 5 * 60000) return;
+  ADM.waitShortcut = 0;
+  setTimeout(async () => { AL.fetched = 0; await loadAlerts(true); if ($('#admPanel')) openAdmin(null); toast('Info trafic actualisée.'); }, 600);
+});
 setTimeout(pullBackup, 1500);
 async function restoreBackup(name, pin) {
   const j = await backupApi('load', { name, pin });
@@ -564,7 +570,7 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v84';
+const APP_VERSION = 'v85';
 const APP_CHANGES = 'Infos trafic : une mise à jour manuelle s’affiche maintenant tout de suite, et peut être retirée.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
@@ -1718,6 +1724,8 @@ function timeSheetHtml() {
 }
 const SHEET = {
   admRefresh: () => openAdmin(null, true),
+  admShortcut: () => { ADM.waitShortcut = Date.now(); }, // au retour dans l'app, on recharge l'info trafic
+  admShortcutName: () => { const n = prompt('Nom exact de ton raccourci :', store.get('nt_shortcut', 'Info Trafic')); if (n && n.trim()) { store.set('nt_shortcut', n.trim()); drawAdmin(); } },
   admClearImport: async (ds, el) => {
     if (!confirm('Retirer l’info trafic envoyée ? Les utilisateurs ne la verront plus.')) return;
     el.disabled = true;
@@ -3099,6 +3107,9 @@ function drawAdmin() {
     <div class="stack" style="gap:10px;margin-top:14px">
       <div class="card" style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">
         <b>Mettre à jour l’info trafic à la main</b>
+        ${isIOS() ? `<a class="primary w100" href="shortcuts://run-shortcut?name=${encodeURIComponent(store.get('nt_shortcut', 'Info Trafic'))}" data-sheet="admShortcut" style="display:flex;align-items:center;justify-content:center;text-decoration:none">Lancer le raccourci « ${esc(store.get('nt_shortcut', 'Info Trafic'))} »</a>
+        <span class="small">Ouvre l’app Raccourcis, envoie l’info trafic, puis reviens ici : la liste se met à jour toute seule. <button class="link" data-sheet="admShortcutName" style="padding:0;font-size:inherit">Changer le nom du raccourci</button></span>
+        <span class="small" style="border-top:1px solid var(--line2);padding-top:8px">Ou à la main :</span>` : ''}
         <span class="small">1. Ouvre la page tpg ci-dessous dans Safari · 2. Tout sélectionner → Copier · 3. Colle ici et envoie. Tous les utilisateurs verront cette liste.</span>
         <a class="ghost w100" href="https://www.tpg.ch/fr/getInfoTrafic" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none">Ouvrir la page tpg (à copier)</a>
         <textarea id="admRaw" class="time-in" rows="3" placeholder="Colle ici le contenu copié" style="width:100%;height:auto;font-size:13px;padding:8px;resize:vertical"></textarea>
