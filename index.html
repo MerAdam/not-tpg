@@ -295,7 +295,8 @@
   @media (prefers-reduced-motion: reduce){.tap,#main.a-fwd,#main.a-back,#main.a-fade,.stg,.pop{animation:none}button:active,.dep:active,.row-btn:active,.jrow:active,.card.opt:active{transform:none}#toast{transition:opacity .2s}}
   .tuto-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 16px;border:0;border-bottom:1px solid var(--line2);background:none}
   .tuto-item:last-child{border-bottom:0}
-  .tuto-num{width:32px;height:32px;border-radius:16px;background:var(--seg);display:inline-flex;align-items:center;justify-content:center;font-weight:900;flex:none}
+  .tuto-num{width:32px;height:32px;border-radius:16px;background:var(--seg);display:inline-flex;align-items:center;justify-content:center;font-weight:900;flex:none;position:relative}
+  .tuto-num.seen::after{content:'✓';position:absolute;right:-4px;bottom:-3px;width:16px;height:16px;border-radius:8px;background:var(--ok);color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--card)}
   #welcome{position:fixed;inset:0;z-index:30;background:var(--ground);display:none;flex-direction:column;padding-top:env(safe-area-inset-top)}
   #welcome.open{display:flex}
   #welcome .tuto-viewer{max-width:560px;width:100%;margin:0 auto}
@@ -563,7 +564,7 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v82';
+const APP_VERSION = 'v83';
 const APP_CHANGES = 'Infos trafic : une mise à jour manuelle s’affiche maintenant tout de suite, et peut être retirée.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
@@ -2614,12 +2615,49 @@ const mPath = (d) => `<path d="${d}" stroke="#2563EB" stroke-width="4" fill="non
 const mLine = (d, line) => `<path d="${d}" stroke="#fff" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" stroke="${lineStyle('B', line).bg}" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
 const mBadge = (x, y, line) => { const c = lineStyle('B', line); return `<rect x="${x - 13}" y="${y - 9}" width="26" height="18" rx="4" fill="${c.bg}" stroke="#fff" stroke-width="2"/><text x="${x}" y="${y + 4}" fill="${c.fg}" font-size="11" font-weight="900" text-anchor="middle">${line}</text>`; };
 const mOpt = (tags, name, lines, txt, walk = '') => `<div class="card" style="padding:9px 11px;display:flex;flex-direction:column;gap:4px">${tags ? `<div style="display:flex;gap:4px">${tags}</div>` : ''}<span style="display:flex;gap:6px;align-items:baseline"><b style="font-size:14px">${name}</b>${walk ? `<span class="small">${walk}</span>` : ''}</span><div style="display:flex;gap:4px;align-items:center">${lines.map((l) => badge('B', l, true)).join('')}<span class="small">${txt}</span></div></div>`;
+// Maquettes fidèles de Safari sur iPhone (barre d'adresse, menu Partager, écran « Ajouter »)
+const IOS_BLUE = '#0A84FF';
+const iosIcon = (d, w = 22) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const I_SHARE = '<path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/>';
+const I_ADDHOME = '<rect x="4" y="4" width="16" height="16" rx="3.5"/><path d="M12 8v8M8 12h8"/>';
+function iosSafari() {
+  return `<div style="border-radius:14px;overflow:hidden;background:var(--ground);border:1px solid var(--line);font-family:-apple-system,system-ui,sans-serif">
+    <div style="padding:8px 10px"><div style="display:flex;align-items:center;gap:8px;background:var(--seg);border-radius:14px;padding:8px 12px;font-size:13px">
+      ${iosIcon('<rect x="4" y="5" width="16" height="10" rx="2"/><path d="M8 19h8"/>', 16)}<span style="flex:1;text-align:center;font-weight:600">trulynot-tpg.vercel.app</span>${iosIcon('<path d="M20 11a8 8 0 1 1-2.3-5.7L20 8"/><path d="M20 3v5h-5"/>', 16)}</div></div>
+    <div style="padding:6px 12px 10px;display:flex;flex-direction:column;gap:6px"><b style="font-size:17px">Not TPG</b>
+      <div class="card" style="padding:8px 10px;font-size:12px;color:var(--muted)">Départ · Ma position</div><div style="height:26px;border-radius:9px;background:var(--accent);opacity:.85"></div></div>
+    <div style="margin:4px 10px 10px;display:flex;justify-content:space-around;align-items:center;background:var(--seg);border-radius:18px;padding:9px 4px;color:${IOS_BLUE}">
+      <span style="opacity:.35">${iosIcon('<path d="M15 5l-7 7 7 7"/>')}</span><span style="opacity:.35">${iosIcon('<path d="M9 5l7 7-7 7"/>')}</span>
+      <span style="background:color-mix(in srgb, ${IOS_BLUE} 18%, transparent);border-radius:10px;padding:3px 6px">${iosIcon(I_SHARE)}</span>
+      ${iosIcon('<path d="M4 5c3-1 5-1 8 1 3-2 5-2 8-1v14c-3-1-5-1-8 1-3-2-5-2-8-1z"/><path d="M12 6v14"/>')}${iosIcon('<rect x="7" y="7" width="12" height="12" rx="2"/><path d="M5 15V6a1 1 0 0 1 1-1h9"/>')}</div></div>`;
+}
+function iosShare() {
+  const row = (ic, t, hi) => `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--line2);font-size:13.5px;${hi ? `background:color-mix(in srgb, ${IOS_BLUE} 14%, transparent);font-weight:700` : ''}"><span>${t}</span><span style="color:var(--ink);opacity:${hi ? 1 : .7}">${iosIcon(ic, 18)}</span></div>`;
+  return `<div style="border-radius:14px;overflow:hidden;background:var(--ground);border:1px solid var(--line);font-family:-apple-system,system-ui,sans-serif;padding:10px">
+    <div style="display:flex;align-items:center;gap:10px;padding-bottom:8px"><span class="app-logo" style="width:34px;height:34px;border-radius:8px"></span><span style="display:flex;flex-direction:column;flex:1"><b style="font-size:13px">Not TPG</b><span style="font-size:11px;color:var(--muted)">trulynot-tpg.vercel.app</span></span><span style="width:24px;height:24px;border-radius:12px;background:var(--seg);display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)">✕</span></div>
+    <div style="display:flex;gap:10px;padding:4px 0 10px">${['AirDrop', 'Messages', 'Mail', 'Notes'].map((n, k) => `<span style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;color:var(--muted);width:25%"><span style="width:40px;height:40px;border-radius:10px;background:${['#1F8FFF', '#34C759', '#3A9BFF', '#FFD60A'][k]}"></span>${n}</span>`).join('')}</div>
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:8px">${row('<rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V6a1 1 0 0 1 1-1h9"/>', 'Copier')}${row('<path d="M7 4h10v16l-5-3-5 3z"/>', 'Ajouter un signet')}${row('<path d="M12 4l2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z"/>', 'Ajouter aux favoris')}</div>
+    <div class="card" style="padding:0;overflow:hidden">${row('<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>', 'Rechercher dans la page')}${row(I_ADDHOME, 'Sur l’écran d’accueil', true)}</div></div>`;
+}
+function iosAdd() {
+  return `<div style="border-radius:14px;overflow:hidden;background:var(--ground);border:1px solid var(--line);font-family:-apple-system,system-ui,sans-serif">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;font-size:14px"><span style="color:${IOS_BLUE}">Annuler</span><b style="font-size:13.5px">Sur l’écran d’accueil</b><b style="color:${IOS_BLUE}">Ajouter</b></div>
+    <div style="padding:0 10px 10px;display:flex;flex-direction:column;gap:10px">
+      <div class="card" style="padding:10px;display:flex;gap:10px;align-items:center"><span class="app-logo" style="width:52px;height:52px;border-radius:12px"></span>
+        <span style="display:flex;flex-direction:column;flex:1;gap:4px"><span style="font-size:15px;border-bottom:1px solid var(--line2);padding-bottom:4px">Not TPG</span><span style="font-size:11px;color:var(--muted)">https://trulynot-tpg.vercel.app/</span></span></div>
+      <div class="card" style="padding:9px 12px;display:flex;align-items:center;justify-content:space-between;font-size:13.5px"><span>Ouvrir en tant qu’app web</span><span style="width:40px;height:24px;border-radius:12px;background:#34C759;position:relative;display:inline-block"><span style="position:absolute;right:2px;top:2px;width:20px;height:20px;border-radius:10px;background:#fff"></span></span></div>
+      <p style="font-size:11px;color:var(--muted);margin:0 4px">Une icône sera ajoutée à ton écran d’accueil pour accéder rapidement à ce site web.</p></div></div>`;
+}
 const TUTOS = [
   { id: 'install', title: 'Installer l’app sur ton téléphone', slides: [
     { t: 'Pourquoi l’installer ?', p: 'Ajoutée à l’écran d’accueil, Not TPG s’ouvre <b>en plein écran</b> comme une vraie app, garde tes favoris et peut t’envoyer des <b>notifications</b>. Sur iPhone, c’est même <b>obligatoire</b> pour les notifications.',
       i: () => mock(`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:10px 6px">${['#5A1E82','#00A828','#F5A300'].map((c) => `<span style="aspect-ratio:1;border-radius:14px;background:${c};opacity:.25"></span>`).join('')}<span class="app-logo" style="aspect-ratio:1;border-radius:14px"></span></div><p class="small" style="text-align:center;margin:0">Not TPG sur ton écran d’accueil</p>`, tap(88, 34)) },
-    { t: 'Sur iPhone (Safari)', p: 'Ouvre le site dans <b>Safari</b>, touche le bouton <b>Partager</b> (le carré avec une flèche), puis <b>« Sur l’écran d’accueil »</b> et <b>Ajouter</b>.',
-      i: () => mock(`<div class="card list"><div class="m-field">${ICON.plus}<span>Sur l’écran d’accueil</span></div><div class="m-field" style="color:var(--muted)">Copier</div><div class="m-field" style="color:var(--muted)">Ajouter aux favoris</div></div><div style="display:flex;justify-content:center;padding-top:4px"><span style="width:40px;height:40px;border-radius:10px;border:2px solid var(--accent);display:inline-flex;align-items:center;justify-content:center;color:var(--accent)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4M5 12v8h14v-8"/></svg></span></div>`, tap(50, 87) + tap(35, 22)) },
+    { t: 'Sur iPhone : ouvre Safari', p: 'Ouvre <b>trulynot-tpg.vercel.app</b> dans <b>Safari</b> (pas dans Chrome ni dans une autre app). En bas de l’écran, touche le bouton <b>Partager</b> : le carré avec une flèche vers le haut.',
+      i: () => mock(iosSafari(), tap(50, 90)) },
+    { t: 'Choisis « Sur l’écran d’accueil »', p: 'Le menu de partage s’ouvre. <b>Fais défiler vers le bas</b> jusqu’à <b>« Sur l’écran d’accueil »</b> (l’icône carré avec un +) et touche-le. Tu ne le vois pas ? Tout en bas, « Modifier les actions » permet de l’ajouter.',
+      i: () => mock(iosShare(), tap(50, 84)) },
+    { t: 'Touche « Ajouter »', p: 'Laisse le nom <b>Not TPG</b> et l’option <b>Ouvrir en tant qu’app web</b> activée, puis touche <b>Ajouter</b> en haut à droite. L’icône apparaît sur ton écran d’accueil : ouvre toujours l’app depuis cette icône.',
+      i: () => mock(iosAdd(), tap(88, 9)) },
     { t: 'Sur Android (Chrome)', p: 'Ouvre le site dans <b>Chrome</b>, touche le menu <b>⋮</b> en haut à droite, puis <b>« Ajouter à l’écran d’accueil »</b> (ou « Installer l’application »).',
       i: () => mock(`<div style="display:flex;justify-content:flex-end;font-size:22px;font-weight:900;padding-right:6px">⋮</div><div class="card list" style="margin-left:30%"><div class="m-field" style="color:var(--muted)">Nouvel onglet</div><div class="m-field">${ICON.plus}<span>Ajouter à l’écran d’accueil</span></div><div class="m-field" style="color:var(--muted)">Partager…</div></div>`, tap(94, 13) + tap(70, 52)) }
   ] },
@@ -2752,6 +2790,7 @@ function mountViewer(root, guide, onDone, opts = {}) {
     dots.forEach((d, k) => d.classList.toggle('on', k === idx));
     prev.style.visibility = idx ? 'visible' : 'hidden';
     next.textContent = idx === n - 1 ? (opts.doneLabel || 'Terminer') : 'Suivant';
+    if (idx === n - 1 && guide.id !== 'welcome') { const seen = store.get('nt_tutos_seen', []); if (!seen.includes(guide.id)) store.set('nt_tutos_seen', [...seen, guide.id]); } // tutoriel vu jusqu'au bout
   };
   track.addEventListener('scroll', () => {
     const k = Math.round(track.scrollLeft / track.clientWidth);
@@ -2765,7 +2804,7 @@ function renderTutos() {
   main.innerHTML = `
     <header class="top back">${backBtn()}<h1 class="title">Tutoriels</h1></header>
     <div class="scroll stack">
-      <div class="card list">${TUTOS.map((g, k) => `<button class="tuto-item" data-act="openTuto" data-id="${g.id}"><span class="tuto-num">${k + 1}</span><span style="flex:1;font-weight:800;font-size:16px">${g.title}</span>${ICON.chev}</button>`).join('')}</div>
+      <div class="card list">${TUTOS.map((g, k) => `<button class="tuto-item" data-act="openTuto" data-id="${g.id}"><span class="tuto-num${store.get('nt_tutos_seen', []).includes(g.id) ? ' seen' : ''}">${k + 1}</span><span style="flex:1;font-weight:800;font-size:16px">${g.title}</span>${ICON.chev}</button>`).join('')}</div>
       <button class="ghost" data-act="replayWelcome" style="align-self:center">Revoir l’écran de bienvenue</button>
     </div>`;
 }
