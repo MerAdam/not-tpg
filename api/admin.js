@@ -4,7 +4,8 @@
 //   POST /api/admin?action=notify {code, sid}          -> notification de test à cet appareil
 const { redis, getJSON, setJSON } = require('./_redis');
 const { send } = require('./_webpush');
-const { getAlerts, isAdminCode } = require('./_tpgsource');
+const { getAlerts, isAdminCode, setManual } = require('./_tpgsource');
+const { parse } = require('./_infotrafic');
 const { watchOpendata, watchWalk, getPrefs, DEFAULT_PREFS, describe } = require('./_monitor');
 const { pipeline } = require('./_redis');
 
@@ -26,6 +27,16 @@ module.exports = async (req, res) => {
       const next = { ...(await getPrefs()), ...p };
       await setJSON('admin:prefs', next);
       return res.status(200).json({ prefs: next });
+    }
+    if (action === 'import') {
+      // Info trafic copiée depuis Safari (page tpg.ch/fr/getInfoTrafic) : on la lit avec le même système que d'habitude
+      let json;
+      try { json = JSON.parse(String(body.raw || '').trim()); } catch { return res.status(400).json({ error: 'Ce n’est pas le bon texte : copie tout le contenu de la page getInfoTrafic.' }); }
+      let items;
+      try { items = parse(json).items; } catch (e) { return res.status(400).json({ error: 'Format inattendu : ' + e.message }); }
+      await setManual(items);
+      await redis('DEL', 'tpg:lock');
+      return res.status(200).json({ ok: true, count: items.length });
     }
     if (action === 'notify') {
       const sub = await getJSON('sub:' + String(body.sid || '').replace(/[^a-f0-9]/g, ''));
@@ -79,7 +90,7 @@ module.exports = async (req, res) => {
         now: Date.now(), hist, open, incidents, ext, clientErrors,
         services: {
           opendata: od,
-          tpg: { ok: tpg.ok, err: tpg.err, at: tpg.at, checked: tpg.checked, downSince: tpg.downSince, count: (tpg.items || []).length, diag: tpg.diag || null },
+          tpg: { ok: tpg.ok, err: tpg.err, at: tpg.at, checked: tpg.checked, downSince: tpg.downSince, count: (tpg.items || []).length, diag: tpg.diag || null, manualAt: tpg.manualAt || null },
           walk,
           redis: { ok: redisOk, ms: redisMs },
           check: { ok: Date.now() - lastCheck < 3 * 60000, last: lastCheck }

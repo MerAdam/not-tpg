@@ -563,8 +563,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v78';
-const APP_CHANGES = 'l’app reste en mode portrait.';
+const APP_VERSION = 'v79';
+const APP_CHANGES = 'Infos trafic : la liste peut être mise à jour manuellement en attendant que tpg.ch rouvre l’accès.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -1717,6 +1717,16 @@ function timeSheetHtml() {
 }
 const SHEET = {
   admRefresh: () => openAdmin(null, true),
+  admImport: async (ds, el) => {
+    const raw = ($('#admRaw') || {}).value || '';
+    if (!raw.trim()) return toast('Colle d’abord le contenu de la page tpg.');
+    el.disabled = true; el.textContent = 'Envoi…';
+    try {
+      const j = await adminApi('import', { raw });
+      toast('Info trafic mise à jour : ' + j.count + ' perturbation' + (j.count > 1 ? 's' : '') + '.', 3500, true);
+      AL.fetched = 0; loadAlerts(true); openAdmin(null);
+    } catch (e) { el.disabled = false; el.textContent = 'Envoyer l’info trafic'; toast(e.message, 4500, true); }
+  },
   admNotify: async () => {
     if (!NT.sid) return toast('Active d’abord les notifications sur cet appareil.', 3500, true);
     try { await adminApi('notify', { sid: NT.sid }); toast('Notification de test envoyée.'); } catch (e) { toast(e.message); }
@@ -2364,7 +2374,7 @@ async function loadAlerts(force) {
     const r = await fetch('/api/infotrafic');
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
-    AL.list = j.alerts || []; AL.at = j.at || Date.now(); AL.fetched = Date.now();
+    AL.list = j.alerts || []; AL.at = j.at || Date.now(); AL.fetched = Date.now(); AL.manual = !!j.manual;
     store.set('nt_alerts2', AL);
     if (j.stale) err = j.error || 'tpg.ch indisponible'; // liste gardée par le serveur, pas actualisée
   } catch (e) { err = e.message; if (navigator.onLine !== false && !/403/.test(err)) reportErr('infotrafic', /HTTP \d+/.test(err) ? err.match(/HTTP \d+/)[0] : errKind(e), err); }
@@ -2489,6 +2499,9 @@ function renderInfos() {
   main.innerHTML = `
     <header class="top"><h1 class="brand sm">Infos trafic</h1></header>
     <div class="scroll stack">
+      ${AL.manual && !alertsError && upd ? `<div class="card" style="padding:12px 14px;display:flex;gap:10px;align-items:flex-start">
+        <span style="color:var(--late);flex:none;margin-top:2px">${WARN_ICON.replace(/13/g, '18')}</span>
+        <span class="small" style="color:var(--ink)"><b>Info trafic mise à jour manuellement</b> ${ymd(new Date(upd)) === todayStr() ? 'à ' : 'le ' + new Date(upd).getDate() + '.' + (new Date(upd).getMonth() + 1) + '. à '}${hm(new Date(upd))}. tpg.ch bloque la mise à jour automatique : les tout derniers changements peuvent manquer. <a href="https://www.tpg.ch/fr/voyager/info-trafic/info-trafic" target="_blank" rel="noopener">Voir sur tpg.ch</a></span></div>` : ''}
       ${alertsError && ALERTS.length && upd ? `<div class="card" style="padding:12px 14px;display:flex;gap:10px;align-items:flex-start;border-color:var(--bad)">
         <span style="color:var(--bad);flex:none;margin-top:2px">${WARN_ICON.replace(/13/g, '18')}</span>
         <span class="small" style="color:var(--ink)"><b>Liste peut-être dépassée</b> : ce sont les données ${ymd(new Date(upd)) === todayStr() ? 'de ' : 'du ' + new Date(upd).getDate() + '.' + (new Date(upd).getMonth() + 1) + '. à '}${hm(new Date(upd))}. ${/403/.test(alertsError) ? 'tpg.ch bloque en ce moment l’accès depuis l’app' : 'tpg.ch ne répond pas'}, la liste n’a pas pu être actualisée. <a href="https://www.tpg.ch/fr/voyager/info-trafic/info-trafic" target="_blank" rel="noopener">Voir sur tpg.ch</a></span></div>` : ''}
@@ -2953,7 +2966,7 @@ function drawAdmin() {
       ${svcBlock('opendata', 'Horaires · transport.opendata.ch', sv.opendata.ok ? (sv.opendata.ms > 3000 ? 'warn' : 'ok') : 'bad',
         sv.opendata.ok ? 'Répond en ' + sv.opendata.ms + ' ms · testé ' + ago(sv.opendata.checked) : esc(odDiag.detail || sv.opendata.err || '?') + (sv.opendata.since ? ' · depuis ' + ago(sv.opendata.since).replace('il y a ', '') : ''), odDiag)}
       ${svcBlock('tpg', 'Info trafic · tpg.ch', sv.tpg.ok ? 'ok' : (sv.tpg.count ? 'warn' : 'bad'),
-        sv.tpg.ok ? 'OK · ' + sv.tpg.count + ' perturbation' + (sv.tpg.count > 1 ? 's' : '') + ' · testé ' + ago(sv.tpg.checked) : esc(tpgDiag.detail || sv.tpg.err || '?') + (sv.tpg.downSince ? ' · depuis ' + ago(sv.tpg.downSince).replace('il y a ', '') : '') + ' · dernière liste réussie ' + ago(sv.tpg.at), tpgDiag)}
+        sv.tpg.ok ? 'OK · ' + sv.tpg.count + ' perturbation' + (sv.tpg.count > 1 ? 's' : '') + ' · testé ' + ago(sv.tpg.checked) : esc(tpgDiag.detail || sv.tpg.err || '?') + (sv.tpg.downSince ? ' · depuis ' + ago(sv.tpg.downSince).replace('il y a ', '') : '') + ' · dernière liste réussie ' + ago(sv.tpg.at) + (sv.tpg.manualAt ? ' · copie manuelle ' + ago(sv.tpg.manualAt) + ' (' + sv.tpg.count + ')' : ''), tpgDiag)}
       ${svcBlock('walk', 'Itinéraires à pied · OpenStreetMap', sv.walk.ok ? 'ok' : 'bad', sv.walk.ok ? 'Répond en ' + sv.walk.ms + ' ms' : esc(wDiag.detail || wDiag.err || '?') + ' · estimations à vol d’oiseau utilisées', wDiag)}
       ${row(sv.redis.ok ? 'ok' : 'bad', 'Base de données · Redis', sv.redis.ok ? 'OK · ' + sv.redis.ms + ' ms (sauvegardes, notifications)' : 'Inaccessible : sauvegardes et notifications en panne')}
       ${row(sv.check.ok ? 'ok' : 'bad', 'Robot des notifications', 'Dernier passage ' + ago(sv.check.last) + (sv.check.ok ? '' : ' · les alertes ne partent plus'))}
@@ -2981,6 +2994,13 @@ function drawAdmin() {
   }
   el.innerHTML = `<h2>Panneau admin</h2>${body}
     <div class="stack" style="gap:10px;margin-top:14px">
+      <div class="card" style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+        <b>Mettre à jour l’info trafic à la main</b>
+        <span class="small">1. Ouvre la page tpg ci-dessous dans Safari · 2. Tout sélectionner → Copier · 3. Colle ici et envoie. Tous les utilisateurs verront cette liste.</span>
+        <a class="ghost w100" href="https://www.tpg.ch/fr/getInfoTrafic" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none">Ouvrir la page tpg (à copier)</a>
+        <textarea id="admRaw" class="time-in" rows="3" placeholder="Colle ici le contenu copié" style="width:100%;height:auto;font-size:13px;padding:8px;resize:vertical"></textarea>
+        <button class="primary w100" data-sheet="admImport">Envoyer l’info trafic</button>
+      </div>
       <button class="primary w100" data-sheet="admRefresh" ${ADM.loading ? 'disabled' : ''}>${ADM.loading ? 'Tests en cours…' : 'Tester maintenant'}</button>
       <button class="ghost w100" data-sheet="admNotify">M’envoyer une notification de test</button>
       <button class="ghost w100" data-sheet="admDevice">${store.get('nt_admin', false) ? 'Ne plus recevoir les alertes admin ici' : 'Recevoir les alertes admin sur cet appareil'}</button>

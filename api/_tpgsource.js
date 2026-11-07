@@ -11,7 +11,17 @@ const EVERY = 5 * 60 * 1000;
 const ADMIN_HASH = 'b7e933a9baa3a130e449fdcd483c7def68f8c6dac38158f0e17bd96d9c0e9610';
 const isAdminCode = (code) => crypto.createHash('sha256').update(String(code || '').trim()).digest('hex') === ADMIN_HASH;
 
-async function getAlerts(force) {
+async function getAlerts(force) { return withManual(await fetchAlerts(force)); }
+
+// Info trafic copiée à la main par l'admin (quand tpg.ch bloque) : utilisée si plus récente que la dernière lecture réussie
+async function withManual(d) {
+  if (!d || d.ok) return d;
+  const man = await getJSON('tpg:manual');
+  if (man && man.at > (d.at || 0)) return { ...d, items: man.items, manualAt: man.at };
+  return d;
+}
+
+async function fetchAlerts(force) {
   const cur = (await getJSON('tpg:info')) || null;
   if (!force && cur && Date.now() - cur.checked < EVERY) return cur;
   // Une seule requête à la fois vers tpg.ch, même si plusieurs appels arrivent ensemble
@@ -38,4 +48,4 @@ async function getAlerts(force) {
   return next;
 }
 
-module.exports = { getAlerts, isAdminCode };
+module.exports = { getAlerts, isAdminCode, setManual: (items) => setJSON('tpg:manual', { items, at: Date.now() }) };
