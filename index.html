@@ -563,7 +563,7 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v77';
+const APP_VERSION = 'v78';
 const APP_CHANGES = 'l’app reste en mode portrait.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
@@ -1733,7 +1733,7 @@ const SHEET = {
   },
   admLogout: () => { store.set('nt_admin_code', ''); closeSheet(); toast('Code admin oublié sur cet appareil.'); },
   bkDelete: (ds, el) => ACT.bkDelete(ds, el),
-  bkCreate: (ds, el) => ACT.bkCreate(ds, el), bkRestore: (ds, el) => ACT.bkRestore(ds, el), bkNow: (ds, el) => ACT.bkNow(ds, el), bkOff: () => ACT.bkOff(), bkRecover: () => ACT.bkRecover(),
+  bkCreate: (ds, el) => ACT.bkCreate(ds, el), bkRestore: (ds, el) => ACT.bkRestore(ds, el), bkNow: (ds, el) => ACT.bkNow(ds, el), bkOff: () => ACT.bkOff(),
   mapStyle: (ds) => { store.set('nt_mapstyle', ds.id); setBaseLayer(); $('#sheetBody').innerHTML = mapStylesHtml(); },
   mapDim: (ds, el) => { store.set('nt_mapdim', el.checked); setBaseLayer(); },
   close: () => closeSheet(),
@@ -3037,7 +3037,6 @@ function bkRestoreSheetHtml() {
       <input id="bkName" class="time-in" placeholder="Nom" autocomplete="username" autocapitalize="none" style="width:100%">
       <input id="bkPin" class="time-in" placeholder="Code" inputmode="numeric" type="password" autocomplete="current-password" style="width:100%">
       <button class="primary w100" data-sheet="bkRestore">Restaurer</button>
-      <button class="link" data-sheet="bkRecover" style="align-self:flex-start;padding:0">Récupérer d’anciens trajets pendulaires</button>
     </div>`;
 }
 function renderSettings() {
@@ -3264,21 +3263,6 @@ const ACT = {
   },
   bkNow: async (ds, el) => { el.disabled = true; const ok = await backupNow(); toast(ok ? 'Sauvegarde faite.' : 'Échec de la sauvegarde.'); closeSheet(); renderSettings(); },
   bkOff: () => { localStorage.removeItem('nt_backup'); toast('Sauvegarde désactivée sur cet appareil (la copie reste sur le serveur).', 4000, true); closeSheet(); renderSettings(); },
-  bkRecover: async () => {
-    const token = prompt('Code de récupération (donné par Claude) :'); if (!token) return; closeSheet();
-    try {
-      const j = await backupApi('recover', { token });
-      const found = (j.commutes || []).filter((c) => !commutes.some((x) => x.from === c.from && x.to === c.to && JSON.stringify(x.days) === JSON.stringify(c.days)));
-      if (!found.length) return toast((j.commutes || []).length ? 'Ces trajets sont déjà dans l’app.' : 'Aucun ancien trajet trouvé sur le serveur.', 4000, true);
-      for (const c of found) {
-        const deps = c.picks.map((p) => p.dep).sort();
-        commutes.push({ id: Date.now() + Math.random(), from: c.from, to: c.to, days: c.days, start: deps[0], end: deps[deps.length - 1],
-          picks: c.picks.map((p) => ({ dep: p.dep, arr: p.arr, key: p.key, legs: p.legs || [], dur: Math.max(0, t2m(p.arr) - t2m(p.dep)) })) });
-      }
-      store.set('nt_commutes', commutes); syncCommutes();
-      toast(found.length + ' trajet' + (found.length > 1 ? 's' : '') + ' pendulaire' + (found.length > 1 ? 's' : '') + ' récupéré' + (found.length > 1 ? 's' : '') + ' : regarde l’onglet Pendulaire.', 5000, true);
-    } catch (e) { toast(e.message, 4000, true); }
-  },
   theme: (ds, el) => {
     if (getTheme() === ds.v) return;
     store.set('nt_theme', ds.v);

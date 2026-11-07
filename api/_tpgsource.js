@@ -8,8 +8,8 @@ const { notifyAdmins, fmt, probe, record } = require('./_monitor');
 const { parse } = require('./_infotrafic');
 
 const EVERY = 5 * 60 * 1000;
-const ADMIN_HASH = '20d36f68e5446e9614d79f9e28b1c7b960716cfa2efa9fc22077cdc297af0cd9';
-const isAdminCode = (code) => crypto.createHash('sha256').update(String(code || '').trim().toUpperCase()).digest('hex') === ADMIN_HASH;
+const ADMIN_HASH = 'b7e933a9baa3a130e449fdcd483c7def68f8c6dac38158f0e17bd96d9c0e9610';
+const isAdminCode = (code) => crypto.createHash('sha256').update(String(code || '').trim()).digest('hex') === ADMIN_HASH;
 
 async function getAlerts(force) {
   const cur = (await getJSON('tpg:info')) || null;

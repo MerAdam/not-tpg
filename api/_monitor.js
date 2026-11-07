@@ -6,7 +6,7 @@ const { send } = require('./_webpush');
 const DEFAULT_PREFS = { tpgBack: true, tpgDown: true, odDown: true, odBack: true, extResult: true };
 const getPrefs = async () => ({ ...DEFAULT_PREFS, ...((await getJSON('admin:prefs')) || {}) });
 const SERVICES = { opendata: 'Horaires (transport.opendata.ch)', tpg: 'Info trafic (tpg.ch)', walk: 'Itinéraires à pied (OpenStreetMap)' };
-const UA = 'Mozilla/5.0 (compatible; NotTPG/1.0; +https://github.com/MerAdam/not-tpg)';
+const UA = 'Mozilla/5.0 (compatible; NotTPG/1.0)';
 
 async function notifyAdmins(kind, payload) {
   const prefs = await getPrefs();

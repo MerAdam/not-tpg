@@ -12,7 +12,7 @@ const pt = (s) => {
 };
 
 const OSRM = 'https://routing.openstreetmap.de/routed-foot';
-const UA = { 'User-Agent': 'NotTPG/1.0 (https://github.com/MerAdam/not-tpg)' };
+const UA = { 'User-Agent': 'NotTPG/1.0' };
 
 async function osrm(action, from, to) {
   if (action === 'matrix') {
