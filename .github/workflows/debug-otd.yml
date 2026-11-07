@@ -1,0 +1,7 @@
+name: debug-otd
+on: [push]
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sleep 60; curl -s -m 90 https://trulynot-tpg.vercel.app/api/otdtest | python3 -m json.tool
