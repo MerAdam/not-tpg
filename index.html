@@ -453,6 +453,15 @@ async function pullBackup() {
 }
 setInterval(pullBackup, 20000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pullBackup(); });
+// Ouverture depuis une notification (ex. « Info trafic envoyée ») : afficher le bon écran
+function openFromUrl(u) {
+  try {
+    const o = new URL(u, location.href).searchParams.get('open');
+    if (o === 'infos') { closeSheet(); navDir = 'tab'; go('infos', false); AL.fetched = 0; loadAlerts(true); }
+  } catch {}
+}
+if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.open) openFromUrl(e.data.open); });
+if (new URLSearchParams(location.search).get('open')) setTimeout(() => { openFromUrl(location.href); history.replaceState(history.state, '', location.pathname); }, 300);
 // Retour dans l'app après le raccourci « Info Trafic » : on recharge l'info trafic et le panneau admin
 document.addEventListener('visibilitychange', () => {
   if (document.hidden || !ADM.waitShortcut || Date.now() - ADM.waitShortcut > 5 * 60000) return;
@@ -570,7 +579,7 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v85';
+const APP_VERSION = 'v86';
 const APP_CHANGES = 'Infos trafic : une mise à jour manuelle s’affiche maintenant tout de suite, et peut être retirée.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */

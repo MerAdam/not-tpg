@@ -6,7 +6,7 @@ const { redis, getJSON, setJSON } = require('./_redis');
 const { send } = require('./_webpush');
 const { getAlerts, isAdminCode, setManual, clearManual } = require('./_tpgsource');
 const { parse } = require('./_infotrafic');
-const { watchOpendata, watchWalk, getPrefs, DEFAULT_PREFS, describe } = require('./_monitor');
+const { watchOpendata, watchWalk, getPrefs, DEFAULT_PREFS, describe, notifyAdmins } = require('./_monitor');
 const { pipeline } = require('./_redis');
 
 async function count(pattern) {
@@ -36,6 +36,10 @@ module.exports = async (req, res) => {
       try { items = parse(json).items; } catch (e) { return res.status(400).json({ error: 'Format inattendu : ' + e.message }); }
       await setManual(items);
       await redis('DEL', 'tpg:lock');
+      // Notification aux appareils admin : la toucher ouvre directement l'app sur l'onglet Infos
+      if (body.notify !== false) {
+        try { await notifyAdmins(null, { title: 'Info trafic envoyée', body: items.length + ' perturbation' + (items.length > 1 ? 's' : '') + ' en ligne pour tout le monde.', tag: 'info-import', url: './?open=infos' }); } catch {}
+      }
       return res.status(200).json({ ok: true, count: items.length });
     }
     if (action === 'clearImport') { await clearManual(); return res.status(200).json({ ok: true }); }

@@ -1,6 +1,6 @@
 // Not TPG — service worker : ouverture rapide de l'app.
 // Les données temps réel (transport.opendata.ch) ne sont jamais mises en cache.
-const CACHE = 'not-tpg-v85';
+const CACHE = 'not-tpg-v86';
 const SHELL = ['./', './index.html', './manifest.json', './icon.png', './icon.svg', './icon-dark.svg', './icon-180.png'];
 
 self.addEventListener('install', (e) => {
@@ -43,8 +43,9 @@ self.addEventListener('push', (e) => {
 });
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || './';
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-    for (const c of list) if ('focus' in c) return c.focus();
-    return self.clients.openWindow(e.notification.data && e.notification.data.url || './');
+    for (const c of list) if ('focus' in c) { c.postMessage({ open: url }); return c.focus(); } // app déjà ouverte : on lui dit quel écran afficher
+    return self.clients.openWindow(url);
   }));
 });
