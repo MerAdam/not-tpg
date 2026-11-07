@@ -31,7 +31,7 @@ module.exports = async (req, res) => {
     if (action === 'import') {
       // Info trafic copiée depuis Safari (page tpg.ch/fr/getInfoTrafic) : on la lit avec le même système que d'habitude
       let json;
-      try { json = JSON.parse(String(body.raw || '').trim()); } catch { return res.status(400).json({ error: 'Ce n’est pas le bon texte : copie tout le contenu de la page getInfoTrafic.' }); }
+      try { json = typeof body.raw === 'string' ? JSON.parse(body.raw.trim()) : body.raw; if (json == null) throw new Error(); } catch { return res.status(400).json({ error: 'Ce n’est pas le bon texte : copie tout le contenu de la page getInfoTrafic.' }); }
       let items;
       try { items = parse(json).items; } catch (e) { return res.status(400).json({ error: 'Format inattendu : ' + e.message }); }
       await setManual(items);
