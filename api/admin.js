@@ -38,7 +38,7 @@ module.exports = async (req, res) => {
       await redis('DEL', 'tpg:lock');
       // Notification aux appareils admin : la toucher ouvre directement l'app sur l'onglet Infos
       if (body.notify !== false) {
-        try { await notifyAdmins(null, { title: 'Info trafic envoyée', body: items.length + ' perturbation' + (items.length > 1 ? 's' : '') + ' en ligne pour tout le monde.', tag: 'info-import', url: './?open=infos' }); } catch {}
+        try { await notifyAdmins(null, { title: 'InfoTrafic', body: items.length + ' perturbation' + (items.length > 1 ? 's' : '') + ' en ligne', tag: 'info-import', url: './?open=infos' }); } catch {}
       }
       return res.status(200).json({ ok: true, count: items.length });
     }
