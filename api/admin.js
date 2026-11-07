@@ -4,7 +4,7 @@
 //   POST /api/admin?action=notify {code, sid}          -> notification de test à cet appareil
 const { redis, getJSON, setJSON } = require('./_redis');
 const { send } = require('./_webpush');
-const { getAlerts, isAdminCode, setManual } = require('./_tpgsource');
+const { getAlerts, isAdminCode, setManual, clearManual } = require('./_tpgsource');
 const { parse } = require('./_infotrafic');
 const { watchOpendata, watchWalk, getPrefs, DEFAULT_PREFS, describe } = require('./_monitor');
 const { pipeline } = require('./_redis');
@@ -38,6 +38,7 @@ module.exports = async (req, res) => {
       await redis('DEL', 'tpg:lock');
       return res.status(200).json({ ok: true, count: items.length });
     }
+    if (action === 'clearImport') { await clearManual(); return res.status(200).json({ ok: true }); }
     if (action === 'notify') {
       const sub = await getJSON('sub:' + String(body.sid || '').replace(/[^a-f0-9]/g, ''));
       if (!sub) return res.status(404).json({ error: 'Cet appareil n’est pas abonné aux notifications' });

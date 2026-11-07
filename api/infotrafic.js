@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
       res.setHeader('Cache-Control', 'no-store');
       return res.status(502).json({ error: d.err || 'tpg.ch indisponible' });
     }
-    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=120');
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=10, stale-while-revalidate=20'); // court : une copie manuelle apparaît vite partout
     // stale : liste gardée de la dernière réponse réussie de tpg.ch (at = son heure)
     if (d.manualAt) return res.status(200).json({ source: 'tpg.ch (copie manuelle)', fetchedAt: new Date(d.manualAt).toISOString(), at: d.manualAt, manual: true, stale: false, error: null, alerts: d.items });
     return res.status(200).json({ source: 'tpg.ch', fetchedAt: new Date(d.at).toISOString(), at: d.at, stale: !d.ok, error: d.ok ? null : d.err, alerts: d.items });

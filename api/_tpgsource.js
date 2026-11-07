@@ -48,4 +48,4 @@ async function fetchAlerts(force) {
   return next;
 }
 
-module.exports = { getAlerts, isAdminCode, setManual: (items) => setJSON('tpg:manual', { items, at: Date.now() }) };
+module.exports = { getAlerts, isAdminCode, setManual: (items) => setJSON('tpg:manual', { items, at: Date.now() }), clearManual: () => redis('DEL', 'tpg:manual') };

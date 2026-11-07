@@ -563,8 +563,8 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v79';
-const APP_CHANGES = 'Infos trafic : la liste peut être mise à jour manuellement en attendant que tpg.ch rouvre l’accès.';
+const APP_VERSION = 'v80';
+const APP_CHANGES = 'Infos trafic : une mise à jour manuelle s’affiche maintenant tout de suite, et peut être retirée.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
 let STOPS = null; // [{id,name,lat,lon,k,f,w,l}]
@@ -1717,6 +1717,12 @@ function timeSheetHtml() {
 }
 const SHEET = {
   admRefresh: () => openAdmin(null, true),
+  admClearImport: async (ds, el) => {
+    if (!confirm('Retirer l’info trafic envoyée ? Les utilisateurs ne la verront plus.')) return;
+    el.disabled = true;
+    try { await adminApi('clearImport', {}); toast('Info trafic manuelle retirée.'); AL.fetched = 0; await loadAlerts(true); openAdmin(null); }
+    catch (e) { el.disabled = false; toast(e.message); }
+  },
   admImport: async (ds, el) => {
     const raw = ($('#admRaw') || {}).value || '';
     if (!raw.trim()) return toast('Colle d’abord le contenu de la page tpg.');
@@ -1724,7 +1730,7 @@ const SHEET = {
     try {
       const j = await adminApi('import', { raw });
       toast('Info trafic mise à jour : ' + j.count + ' perturbation' + (j.count > 1 ? 's' : '') + '.', 3500, true);
-      AL.fetched = 0; loadAlerts(true); openAdmin(null);
+      AL.fetched = 0; await loadAlerts(true); openAdmin(null);
     } catch (e) { el.disabled = false; el.textContent = 'Envoyer l’info trafic'; toast(e.message, 4500, true); }
   },
   admNotify: async () => {
@@ -2371,17 +2377,20 @@ async function loadAlerts(force) {
   alertsLoading = true;
   let err = null;
   try {
-    const r = await fetch('/api/infotrafic');
+    const r = await fetch('/api/infotrafic' + (force ? '?t=' + Date.now() : ''), force ? { cache: 'no-store' } : undefined);
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
     AL.list = j.alerts || []; AL.at = j.at || Date.now(); AL.fetched = Date.now(); AL.manual = !!j.manual;
     store.set('nt_alerts2', AL);
     if (j.stale) err = j.error || 'tpg.ch indisponible'; // liste gardée par le serveur, pas actualisée
-  } catch (e) { err = e.message; if (navigator.onLine !== false && !/403/.test(err)) reportErr('infotrafic', /HTTP \d+/.test(err) ? err.match(/HTTP \d+/)[0] : errKind(e), err); }
+  } catch (e) {
+    err = e.message;
+    if (AL.manual) { AL.list = []; AL.manual = false; store.set('nt_alerts2', AL); } // copie manuelle retirée par l'admin
+    if (navigator.onLine !== false && !/403/.test(err)) reportErr('infotrafic', /HTTP \d+/.test(err) ? err.match(/HTTP \d+/)[0] : errKind(e), err); }
   alertsLoading = false;
   alertsError = err;
   mergeAlerts();
-  const sig = ALERTS.map((x) => x.id).join('|') + '#' + (err ? 1 : 0);
+  const sig = ALERTS.map((x) => x.id).join('|') + '#' + (err ? 1 : 0) + '#' + (AL.manual ? AL.at : 0);
   if (sig !== alertsSig) { alertsSig = sig; onAlertsChanged(); }
 }
 function onAlertsChanged() {
@@ -3000,6 +3009,7 @@ function drawAdmin() {
         <a class="ghost w100" href="https://www.tpg.ch/fr/getInfoTrafic" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none">Ouvrir la page tpg (à copier)</a>
         <textarea id="admRaw" class="time-in" rows="3" placeholder="Colle ici le contenu copié" style="width:100%;height:auto;font-size:13px;padding:8px;resize:vertical"></textarea>
         <button class="primary w100" data-sheet="admImport">Envoyer l’info trafic</button>
+        ${d && d.services && d.services.tpg.manualAt ? `<button class="ghost danger w100" data-sheet="admClearImport">Retirer l’info envoyée (${ago(d.services.tpg.manualAt)})</button>` : ''}
       </div>
       <button class="primary w100" data-sheet="admRefresh" ${ADM.loading ? 'disabled' : ''}>${ADM.loading ? 'Tests en cours…' : 'Tester maintenant'}</button>
       <button class="ghost w100" data-sheet="admNotify">M’envoyer une notification de test</button>
@@ -3377,6 +3387,7 @@ store.set('nt_seen_ver', APP_VERSION);
 loadAlerts();
 if (NT.sid) syncCommutes();
 setInterval(() => { if (document.visibilityState === 'visible') loadAlerts(); }, 60000);
+setInterval(() => { if (document.visibilityState === 'visible' && S.screen === 'infos') loadAlerts(true); }, 15000); // sur l'écran Infos : à jour en ~15 s
 dataReady.then(() => { if (S.screen === 'board' && S.board.length) drawBoard(); if (S.screen === 'commutes') renderCommutes(); });
 locate({ silent: true });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
