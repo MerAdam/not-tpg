@@ -579,7 +579,7 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v87';
+const APP_VERSION = 'v88';
 const APP_CHANGES = 'Infos trafic : une mise à jour manuelle s’affiche maintenant tout de suite, et peut être retirée.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
@@ -1952,9 +1952,12 @@ function stopIssueFinder(alerts) {
       parts.forEach((x, i) => { sets[kind].add(x); if (parts[i + 1]) sets[kind].add(x + ' ' + parts[i + 1]); });
     }
   }
+  // « Carouge GE, Tours » (horaires) = « Carouge-Tours » (info trafic) : on ignore le code de canton/pays
+  const noCanton = (x) => x.replace(/\b(ge|vd|vs|fr|ne|f|ch)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const kind of ['skip', 'moved']) for (const x of [...sets[kind]]) sets[kind].add(noCanton(x));
   return (name) => {
     const full = fold(name), local = fold(name.includes(',') ? name.slice(name.indexOf(',') + 1) : name);
-    for (const kind of ['skip', 'moved']) if (sets[kind].has(full) || sets[kind].has(local)) return kind;
+    for (const kind of ['skip', 'moved']) if (sets[kind].has(full) || sets[kind].has(local) || sets[kind].has(noCanton(full))) return kind;
     return null;
   };
 }
