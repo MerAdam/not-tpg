@@ -579,7 +579,7 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v86';
+const APP_VERSION = 'v87';
 const APP_CHANGES = 'Infos trafic : une mise à jour manuelle s’affiche maintenant tout de suite, et peut être retirée.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
@@ -2510,7 +2510,11 @@ function renderInfos() {
   const now = new Date(), week = now.getTime() + 7 * 864e5;
   const lineKey = (a) => (a.lines && a.lines.length ? a.lines.slice().sort((x, y) => x.localeCompare(y, 'fr', { numeric: true }))[0] : '~');
   const byLine = (x, y) => lineKey(x).localeCompare(lineKey(y), 'fr', { numeric: true });
-  const current = ALERTS.filter((a) => activeAt(a, now)).sort(byLine);
+  // Tri choisi : par numéro de ligne (croissant) ou les plus récentes d'abord
+  const sortMode = store.get('nt_infosort', 'line');
+  const byRecent = (x, y) => (y.seen || 0) - (x.seen || 0) || byLine(x, y);
+  const current = ALERTS.filter((a) => activeAt(a, now)).sort(sortMode === 'recent' ? byRecent : byLine);
+  const seenTxt = (t) => { if (!t) return ''; const d = new Date(t); return 'Signalée ' + (ymd(d) === todayStr() ? 'à ' : 'le ' + d.getDate() + '.' + (d.getMonth() + 1) + '. à ') + hm(d); };
   const soon = ALERTS.filter((a) => !activeAt(a, now)).filter((a) => { const n = nextStart(a, now); return n && n <= week; })
     .sort((x, y) => nextStart(x, now) - nextStart(y, now));
   const card = (a) => `
@@ -2521,6 +2525,7 @@ function renderInfos() {
       </div>
       <span class="a-title">${esc(a.title || 'Perturbation')}</span>
       ${periodLabel(a) ? `<span class="small">${esc(periodLabel(a))}</span>` : ''}
+      ${sortMode === 'recent' && a.seen ? `<span class="small">${seenTxt(a.seen)}</span>` : ''}
     </button>`;
   const upd = AL.at || 0;
   main.innerHTML = `
@@ -2537,7 +2542,8 @@ function renderInfos() {
           ? '<span><b>tpg.ch bloque l’accès aux infos trafic depuis l’app.</b></span><span class="small">Ce n’est pas une panne : leur site filtre en ce moment les requêtes qui ne viennent pas directement d’un navigateur. En attendant, consulte l’info trafic sur tpg.ch.</span>'
           : `<span>Impossible de charger les perturbations pour le moment.</span><span class="small">${esc(alertsError)}</span>`}
         <a class="ghost" href="https://www.tpg.ch/fr/voyager/info-trafic/info-trafic" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none">Ouvrir l’info trafic tpg.ch</a></div>` : `
-      <h2 class="label" style="margin:4px 4px 0">En cours${current.length ? ' · ' + current.length : ''}</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 4px 0"><h2 class="label" style="margin:0">En cours${current.length ? ' · ' + current.length : ''}</h2>
+        ${current.length > 1 ? `<div class="seg" role="group" aria-label="Trier" style="display:inline-flex"><button class="${sortMode === 'line' ? 'on' : ''}" data-act="infoSort" data-v="line" style="height:30px;font-size:13px;padding:0 12px">Par ligne</button><button class="${sortMode === 'recent' ? 'on' : ''}" data-act="infoSort" data-v="recent" style="height:30px;font-size:13px;padding:0 12px">Plus récentes</button></div>` : ''}</div>
       ${current.length ? current.map(card).join('') : `<div class="card empty-card">${upd ? 'Aucune perturbation en cours sur le réseau tpg.' : 'Chargement…'}</div>`}`}
       ${soon.length ? `<h2 class="label" style="margin:10px 4px 0">À venir · 7 jours</h2>${soon.map(card).join('')}` : ''}
       <p class="foot">${upd ? 'Mis à jour à ' + hm(new Date(upd)) + ' · ' : ''}Source : info trafic tpg.ch. Tire vers le bas pour actualiser.</p>
@@ -2784,7 +2790,7 @@ const TUTOS = [
       i: () => mock(`<div class="card" style="padding:12px;display:flex;gap:10px;align-items:flex-start"><span class="app-logo" style="width:34px;height:34px;border-radius:9px;flex:none"></span><span style="display:flex;flex-direction:column;gap:2px"><b style="font-size:14px">Passage à l’heure d’hiver</b><span class="small">Not TPG s’est adapté : tes départs, itinéraires et notifications sont à la bonne heure.</span></span></div>`) }
   ] },
   { id: 'infos', title: 'Infos trafic', slides: [
-    { t: 'L’onglet Infos', p: 'L’onglet <b>Infos</b> liste toutes les <b>perturbations en cours</b> sur le réseau tpg, mises à jour régulièrement. Touche une carte pour lire le détail.',
+    { t: 'L’onglet Infos', p: 'L’onglet <b>Infos</b> liste toutes les <b>perturbations en cours</b> sur le réseau tpg, mises à jour régulièrement. Trie-les <b>par ligne</b> ou par <b>plus récentes</b> d’abord. Touche une carte pour lire le détail.',
       i: () => mock(`${[['10', 'Travaux', 'La ligne est déviée en direction de Genève-Aéroport-Terminal.'], ['2', 'Travaux', 'Arrêt Place des Eaux-Vives non desservi.']].map(([l, c, t]) => `<div class="card" style="padding:10px 12px;display:flex;flex-direction:column;gap:4px"><div style="display:flex;justify-content:space-between">${badge('B', l, true)}<span class="a-tag">${c}</span></div><b style="font-size:13.5px">${t}</b></div>`).join('')}`, tap(50, 30)) },
     { t: 'Le « Attention » rouge', p: 'Quand une perturbation touche un départ (<b>même ligne, même direction</b>), un badge <b>Attention</b> rouge apparaît. Touche-le pour voir directement l’explication.',
       i: () => mock(`<div class="card list">${mRow('10', 'Genève-Aéroport', 'Prévu 14:40 · quai C', '5 min', mWarn())}${mRow('10', 'Rive', 'Prévu 14:41 · quai D', '6 min')}</div>`, tap(36, 44)) },
@@ -3340,6 +3346,7 @@ const ACT = {
     NT.bells = NT.bells.filter((x) => x.key !== ds.k); store.set('nt_bells', NT.bells);
     toast('Suivi arrêté.'); if (S.screen === 'home') renderHome();
   },
+  infoSort: (ds) => { store.set('nt_infosort', ds.v); renderInfos(); },
   openLeg: (ds) => {
     const x = legRun((S.trip.raw.sections || [])[+ds.i]); if (!x) return;
     S.stop = x.stop; S.journey = x.d; S.board = []; S.boardDate = ''; S.boardTime = '';

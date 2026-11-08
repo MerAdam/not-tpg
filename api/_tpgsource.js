@@ -3,13 +3,22 @@
 // Si tpg.ch refuse (ex. HTTP 403) on garde la dernière liste connue, et quand l'accès revient,
 // les appareils « admin » reçoivent une notification (personne d'autre).
 const crypto = require('crypto');
-const { redis, getJSON, setJSON } = require('./_redis');
+const { redis, pipeline, getJSON, setJSON } = require('./_redis');
 const { notifyAdmins, fmt, probe, record } = require('./_monitor');
 const { parse } = require('./_infotrafic');
 
 const EVERY = 5 * 60 * 1000;
 const ADMIN_HASH = 'b7e933a9baa3a130e449fdcd483c7def68f8c6dac38158f0e17bd96d9c0e9610';
 const isAdminCode = (code) => crypto.createHash('sha256').update(String(code || '').trim()).digest('hex') === ADMIN_HASH;
+
+// Heure à laquelle chaque perturbation est apparue pour la première fois (pour trier « plus récentes »)
+async function annotateSeen(items) {
+  if (!items || !items.length) return items;
+  const now = Date.now();
+  const res = await pipeline([...items.map((it) => ['HSETNX', 'tpg:seen', it.id, String(now)]), ['HMGET', 'tpg:seen', ...items.map((it) => it.id)]]);
+  const seen = res[res.length - 1] || [];
+  return items.map((it, i) => ({ ...it, seen: Number(seen[i]) || now }));
+}
 
 async function getAlerts(force) { return withManual(await fetchAlerts(force)); }
 
@@ -32,6 +41,7 @@ async function fetchAlerts(force) {
   let items = null;
   if (p.ok) { try { items = parse(JSON.parse(p.body)).items; } catch { p.ok = false; p.kind = 'parse'; p.detail = 'Réponse illisible (pas le format attendu)'; } }
   delete p.body;
+  if (p.ok) { try { items = await annotateSeen(items); } catch {} }
   if (p.ok) {
     next = { ok: true, items, at: Date.now(), checked: Date.now(), err: null, downSince: null, diag: p };
     if (cur && cur.ok === false) {
@@ -48,4 +58,4 @@ async function fetchAlerts(force) {
   return next;
 }
 
-module.exports = { getAlerts, isAdminCode, setManual: (items) => setJSON('tpg:manual', { items, at: Date.now() }), clearManual: () => redis('DEL', 'tpg:manual') };
+module.exports = { getAlerts, isAdminCode, setManual: async (items) => setJSON('tpg:manual', { items: await annotateSeen(items), at: Date.now() }), clearManual: () => redis('DEL', 'tpg:manual') };
