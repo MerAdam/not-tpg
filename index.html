@@ -382,7 +382,8 @@ const dmin = (d) => d.getHours() * 60 + d.getMinutes();
 const ymd = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 const dayIdx = (d) => (d.getDay() + 6) % 7;
 // Nom affiché : sans « Genève, » devant, ni le « GE » du registre national (« Carouge GE, Rondeau » → « Carouge, Rondeau »)
-const short = (n) => String(n || '').replace(/^Genève,\s*/, '').replace(/\s+GE(?=,|$)/g, '');
+const noGE = (n) => String(n || '').replace(/\s+GE(?=,|$)/g, '');
+const short = (n) => noGE(String(n || '').replace(/^Genève,\s*/, ''));
 const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const todayStr = () => ymd(new Date());
 function dateLabel(str) {
@@ -580,7 +581,7 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v89';
+const APP_VERSION = 'v90';
 const APP_CHANGES = 'Infos trafic : une mise à jour manuelle s’affiche maintenant tout de suite, et peut être retirée.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
@@ -712,7 +713,7 @@ function attachSuggest(input, box, onPick) {
   let t;
   const show = (list) => {
     box.innerHTML = list.map((s) => `<button type="button" class="sugg-item" data-id="${esc(s.id)}" data-name="${esc(s.name)}">
-      <span>${esc(s.name)}</span>${s.k ? `<span class="kind">${kindLabel(s.k)}</span>` : ''}</button>`).join('');
+      <span>${esc(noGE(s.name))}</span>${s.k ? `<span class="kind">${kindLabel(s.k)}</span>` : ''}</button>`).join('');
   };
   input.addEventListener('input', () => {
     clearTimeout(t);
@@ -1210,7 +1211,7 @@ function drawMapLayers() {
 function attachPlaceSearch(input, box, onPick) {
   let t, seq = 0;
   const render = (stops, places) => {
-    box.innerHTML = stops.map((s) => `<button type="button" class="sugg-item" data-k="s" data-id="${esc(s.id)}"><span>${esc(s.name)}</span><span class="kind">Arrêt</span></button>`).join('') +
+    box.innerHTML = stops.map((s) => `<button type="button" class="sugg-item" data-k="s" data-id="${esc(s.id)}"><span>${esc(noGE(s.name))}</span><span class="kind">Arrêt</span></button>`).join('') +
       places.map((p, i) => `<button type="button" class="sugg-item" data-k="p" data-i="${i}"><span style="display:flex;flex-direction:column"><span>${esc(p.title)}</span><span class="small" style="font-weight:600">${esc(p.sub)}</span></span><span class="kind">${esc(p.kind)}</span></button>`).join('');
     box._places = places;
   };
