@@ -581,7 +581,7 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v90';
+const APP_VERSION = 'v91';
 const APP_CHANGES = 'Infos trafic : une mise à jour manuelle s’affiche maintenant tout de suite, et peut être retirée.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
@@ -1127,6 +1127,12 @@ function lineBadgeIcon(cat, num) {
 }
 function drawTripOnMap(sel) {
   const L = window.L, all = [];
+  if (sel.walkOnly) { // itinéraire entièrement à pied
+    const end = [M.dest.lat, M.dest.lon];
+    const w = sel.route && sel.route.coords ? sel.route.coords : [M.origin, end];
+    walkLine(w);
+    return [M.origin, ...w, end];
+  }
   const stop0 = sel.quay || [sel.stop.lat, sel.stop.lon];
   // 1) À pied jusqu'au premier arrêt
   const w1 = sel.walk && sel.walk.coords ? sel.walk.coords : [M.origin, stop0];
@@ -1136,9 +1142,18 @@ function drawTripOnMap(sel) {
   secs.forEach((s, k) => {
     const a = ptOfStation(s.departure && s.departure.station, s.departure && s.departure.platform);
     const b = ptOfStation(s.arrival && s.arrival.station, s.arrival && s.arrival.platform);
-    if (!s.journey) { // marche entre deux arrêts (changement)
+    if (!s.journey) { // marche entre deux arrêts (changement, ou fin à pied proposée par l'horaire) : par les rues
       const path = [a || prevEnd, b].filter(Boolean);
-      if (path.length === 2) { walkLine(path); all.push(...path); }
+      if (path.length === 2) {
+        const tk = path[0].join(',') + '>' + path[1].join(',');
+        if (!sel.xfer) sel.xfer = {};
+        if (!(tk in sel.xfer)) {
+          sel.xfer[tk] = null;
+          walkApi('route', { from: path[0].join(','), to: path[1].join(',') }).then((w) => { sel.xfer[tk] = w; if (M.sel === sel) drawMapLayers(); }).catch(() => {});
+        }
+        const w = sel.xfer[tk] && sel.xfer[tk].coords ? sel.xfer[tk].coords : path;
+        walkLine(w); all.push(...w);
+      }
       prevEnd = b || prevEnd;
       return;
     }
@@ -1277,8 +1292,10 @@ async function mapPlan(force) {
     let origins = (await nearbyByWalk(M.origin)).slice(0, 4);
     if (!origins.length) origins = nearestStops(M.origin, 3, 1600).map((o) => ({ ...o, walk: estWalk(M.origin, [o.s.lat, o.s.lon]) })); // coin isolé
     const real = origins.length ? origins[0].real : false;
-    if (!origins.length || !destStops.length) { M.results = []; M.walkOnly = directWalk; return; }
+    if (!origins.length || !destStops.length) { M.results = []; M.walkOnly = directWalk; M.walkBetter = false; return; }
     const now = Date.now();
+    // Temps à pied réel jusqu'à la destination (par les rues), pour écarter les liaisons qui ne font rien gagner
+    const directP = walkApi('route', { from: M.origin.join(','), to: dest.join(',') }).catch(() => null);
     const cands = [];
     // Durée d'un tronçon à pied proposé par l'API (correspondance ou fin de trajet)
     const walkSecOf = (x) => {
@@ -1324,6 +1341,13 @@ async function mapPlan(force) {
       if (!cur || x.cost < cur.cost) byKey.set(k, x);
     }
     let opts = [...byKey.values()];
+    const dw = await directP;
+    const walkSec = dw && dw.duration ? Math.round(dw.duration) : directWalk;
+    M.walkRoute = dw;
+    // Liaison inutile : elle n'arrive pas avant la marche directe, ou on marche presque autant qu'à pied
+    const before = opts.length;
+    opts = opts.filter((x) => x.arrive < now + (walkSec - 120) * 1000 && x.totalWalk < walkSec * 0.8);
+    M.walkBetter = before > 0 && !opts.length;
     // On retire les options moins bonnes sur tous les plans (plus tard, plus de marche, plus de changements)
     opts = opts.filter((x) => !opts.some((y) => y !== x && y.arrive <= x.arrive && y.totalWalk <= x.totalWalk && y.c.transfers <= x.c.transfers
       && (y.arrive < x.arrive || y.totalWalk < x.totalWalk || y.c.transfers < x.c.transfers)));
@@ -1343,7 +1367,8 @@ async function mapPlan(force) {
       });
     }
     M.results = results;
-    M.walkOnly = results.length && now + directWalk * 1000 <= Math.min(...results.map((r) => r.arrive)) ? directWalk : (!results.length ? directWalk : null);
+    // Toujours proposer la marche quand elle reste raisonnable (≤ 30 min) ou quand il n'y a rien d'autre
+    M.walkOnly = !results.length || walkSec <= 1800 ? walkSec : null;
   } finally {
     M.loading = false; M.animNext = true;
     if (S.screen === 'map') { drawMapPanel(); drawMapLayers(); }
@@ -1420,7 +1445,7 @@ function drawMapPanel() {
   } else if (M.loading) {
     html = '<p class="empty" style="padding:8px 0">Recherche des meilleures options…</p>';
   } else if (M.results) {
-    const walkCard = M.walkOnly ? `<div class="card opt"><div class="opt-top"><span style="font-weight:800">À pied</span><span class="tagb near">Sans transport</span></div><span class="small">${minsTxt(M.walkOnly)} de marche · arrivée vers ${hm(new Date(Date.now() + M.walkOnly * 1000))}</span></div>` : '';
+    const walkCard = M.walkOnly ? `<button class="card opt" data-act="mapWalkSel"><div class="opt-top"><span style="font-weight:800;display:flex;align-items:center;gap:6px">${ICON.walk} À pied</span><span class="tagb near">Sans transport</span></div><span class="small">${minsTxt(M.walkOnly)} de marche · arrivée vers ${hm(new Date(Date.now() + M.walkOnly * 1000))}</span></button>` : '';
     html = `<div class="opt-top"><h2 class="label" style="margin:0">Depuis ici → ${esc(M.dest.label)}</h2><button class="link" data-act="mapRefresh" style="min-height:32px">Actualiser</button></div>` +
       (M.results.length ? M.results.map((r, i) => {
         const wait = Math.max(0, Math.round((r.c.dep - Date.now()) / 60000));
@@ -1433,7 +1458,7 @@ function drawMapPanel() {
           ${r.tailWalk >= 60 ? `<div class="small">Descendre à <b>${esc(short(r.lastStop))}</b>, puis ${minsTxt(r.tailWalk)} à pied</div>` : ''}
           <div class="small">Arrivée <b>${hm(new Date(r.arrive))}</b>${r.c.transfers ? ' · ' + r.c.transfers + ' changement' + (r.c.transfers > 1 ? 's' : '') : r.tailWalk >= 60 ? '' : ' · direct'}</div>
         </button>`;
-      }).join('') : '<div class="card empty-card">Aucune liaison trouvée depuis les arrêts proches.</div>') + walkCard;
+      }).join('') : `<div class="card empty-card">${M.walkBetter ? 'À pied, c’est plus rapide que les transports en ce moment.' : 'Aucune liaison trouvée depuis les arrêts proches.'}</div>`) + walkCard;
   }
   p.innerHTML = html;
   if (M.animNext && ((M.results && !M.loading) || (!M.dest && nearList()))) { M.animNext = false; stagger(p.querySelectorAll('.card.opt, .row-btn')); }
@@ -1473,6 +1498,20 @@ async function mapSelect(r) {
 }
 function drawSelPanel(p) {
   const r = M.sel;
+  if (r.walkOnly) {
+    const sec = r.route && r.route.duration ? r.route.duration : M.walkOnly;
+    const dist = r.route && r.route.distance;
+    const o = M.origin.join(','), d = M.dest.lat + ',' + M.dest.lon;
+    const ext = isIOS() ? `maps://?saddr=${o}&daddr=${d}&dirflg=w` : `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=walking`;
+    p.innerHTML = `<div class="opt-top"><button class="link" data-act="mapBack" style="min-height:32px;padding:0">‹ Toutes les options</button></div>
+      <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:8px">
+        <span style="font-weight:900;font-size:18px;display:flex;align-items:center;gap:8px">${ICON.walk} À pied jusqu’à ${esc(M.dest.label)}</span>
+        <div class="small">${minsTxt(sec)} de marche${dist ? ' · ' + (dist >= 1000 ? (dist / 1000).toFixed(1).replace('.', ',') + ' km' : Math.round(dist / 10) * 10 + ' m') : ''} · arrivée vers <b>${hm(new Date(Date.now() + sec * 1000))}</b></div>
+        <div class="small">L’itinéraire à pied est tracé sur la carte${r.route ? '' : ' (calcul en cours…)'}.</div>
+        <a class="primary" href="${ext}" target="_blank" rel="noopener" style="height:44px;display:flex;align-items:center;justify-content:center;text-decoration:none">Ouvrir dans ${isIOS() ? 'Plans' : 'Google Maps'} (guidage)</a>
+      </div>`;
+    return;
+  }
   const wSec = r.walk && r.walk.duration ? r.walk.duration : r.walkBase;
   const leave = new Date(r.c.dep.getTime() - (wSec + MARGIN) * 1000);
   const now = Date.now();
@@ -2761,7 +2800,7 @@ const TUTOS = [
       i: () => mock(mMap(mStop(70, 45) + mStop(195, 62) + mStop(90, 115) + mDot(140, 80)) + `<div class="card list"><div class="m-field" style="flex-direction:column;align-items:flex-start;gap:0"><span>Champel, gare/Peschier</span><span class="small">131 m · 2 min à pied</span></div></div>`) },
     { t: 'Où veux-tu aller ?', p: 'Tape ta destination en haut : un <b>arrêt tpg</b>, une <b>adresse</b> (« Rue de Carouge 12 ») ou un <b>lieu</b> (« Uni Mail »).',
       i: () => mock(`<div class="card list"><div class="m-field">${ICON.pin}uni mail</div><div class="m-field" style="background:var(--sugg);justify-content:space-between">Genève, Uni-Mail<span class="kind">Arrêt</span></div><div class="m-field" style="background:var(--sugg);justify-content:space-between"><span>Uni Mail<br><span class="small">1205, Genève</span></span><span class="kind">Lieu</span></div></div>`, tap(40, 60)) },
-    { t: 'Les meilleures options', p: 'L’app propose <b>une option par ligne utile</b> (ou combinaison de lignes avec changement), en la prenant à l’arrêt proche le plus avantageux. Elles sont classées selon l’heure d’arrivée, la marche et les changements. Si le bus te dépose plus loin, la fin à pied est indiquée. Les badges : <span class="tagb fast">+ rapide</span> arrivée la plus tôt, <span class="tagb near">+ proche</span> le moins de marche, <span class="tagb direct">Direct</span> sans changement ni longue marche à la fin. Tout est calculé pour arriver à l’arrêt <b>3 min avant le bus</b>.',
+    { t: 'Les meilleures options', p: 'L’app propose <b>une option par ligne utile</b> (ou combinaison de lignes avec changement), en la prenant à l’arrêt proche le plus avantageux. Elles sont classées selon l’heure d’arrivée, la marche et les changements. Si le bus te dépose plus loin, la fin à pied est indiquée. Les badges : <span class="tagb fast">+ rapide</span> arrivée la plus tôt, <span class="tagb near">+ proche</span> le moins de marche, <span class="tagb direct">Direct</span> sans changement ni longue marche à la fin. Si marcher est plus simple, l’option <b>À pied</b> s’affiche : touche-la pour voir l’itinéraire et l’ouvrir dans Plans ou Google Maps. Tout est calculé pour arriver à l’arrêt <b>3 min avant le bus</b>.',
       i: () => mock(mOpt('<span class="tagb fast">+ rapide</span><span class="tagb near">+ proche</span><span class="tagb direct">Direct</span>', 'Champel, gare/Peschier', ['3'], 'à <b>17:16</b> (dans 4 min)', '2 min à pied') + mOpt('', 'Champel, gare', ['5', '12'], 'à <b>17:18</b> (dans 6 min)', '4 min à pied')) },
     { t: 'Choisir un arrêt', p: 'Touche une option : le <b>chemin à pied</b> s’affiche sur la carte, avec <b>« Partir dans X min »</b> et les prochains départs. Ceux que tu ne pourras pas attraper sont grisés.',
       i: () => mock(mMap(mStop(70, 45) + mPath('M140 80 L120 66 L85 60 L72 48') + mDot(140, 80) + `<rect x="58" y="30" width="28" height="18" rx="4" fill="${lineStyle('B', '3').bg}"/><text x="72" y="43" fill="#fff" font-size="12" font-weight="900" text-anchor="middle">3</text>`, 120) + `<div class="card" style="padding:9px 11px"><b style="color:var(--bad);font-size:14px">Partir dans 1 min</b><div class="small">Départ à pied à 17:11 pour être à l’arrêt 3 min avant le bus</div></div>`, tap(50, 82)) },
@@ -3305,6 +3344,11 @@ const ACT = {
   mapRefresh: () => mapPlan(true),
   mapSel: (ds) => { const r = M.results && M.results[+ds.i]; if (r) mapSelect(r); },
   mapBack: () => { M.sel = null; drawMapPanel(); drawMapLayers(); },
+  mapWalkSel: () => {
+    const sel = { walkOnly: true, stop: { id: '__walk' }, route: M.walkRoute && M.walkRoute.coords ? M.walkRoute : null };
+    M.sel = sel; drawMapPanel(); drawMapLayers();
+    if (!sel.route) walkApi('route', { from: M.origin.join(','), to: M.dest.lat + ',' + M.dest.lon }).then((w) => { if (M.sel === sel) { sel.route = w; drawMapLayers(); drawMapPanel(); } }).catch(() => {});
+  },
   mapStop: (ds) => { const s = stopById(ds.id); if (s) openStopBoard(s); },
   mapTrip: () => {
     const r = M.sel; if (!r) return;
