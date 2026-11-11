@@ -17,8 +17,9 @@ jobs:
     steps:
       - name: Tests
         run: |
+          set +e # un service en panne ne doit pas arrêter le test (c'est justement ce qu'on veut mesurer)
           t() { # svc url [header]
-            out=$(curl -s -o /dev/null -m 20 -A "Mozilla/5.0 (compatible; NotTPG/1.0)" ${3:+-H "$3"} -w "%{http_code} %{time_total}" "$2"); rc=$?
+            rc=0; out=$(curl -s -o /dev/null -m 20 -A "Mozilla/5.0 (compatible; NotTPG/1.0)" ${3:+-H "$3"} -w "%{http_code} %{time_total}" "$2") || rc=$?
             code=${out%% *}; sec=${out##* }
             echo "{\"svc\":\"$1\",\"code\":${code:-0},\"ms\":$(awk "BEGIN{print int(${sec:-0}*1000)}"),\"curl\":$rc}"
           }
