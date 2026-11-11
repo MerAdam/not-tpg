@@ -20,7 +20,7 @@ jobs:
           set +e # un service en panne ne doit pas arrêter le test (c'est justement ce qu'on veut mesurer)
           t() { # svc url [header]
             rc=0; out=$(curl -s -o /dev/null -m 20 -A "Mozilla/5.0 (compatible; NotTPG/1.0)" ${3:+-H "$3"} -w "%{http_code} %{time_total}" "$2") || rc=$?
-            code=${out%% *}; sec=${out##* }
+            code=${out%% *}; sec=${out##* }; code=$((10#${code:-0})) # « 000 » (pas de réponse) → 0, sinon JSON invalide
             echo "{\"svc\":\"$1\",\"code\":${code:-0},\"ms\":$(awk "BEGIN{print int(${sec:-0}*1000)}"),\"curl\":$rc}"
           }
           {
