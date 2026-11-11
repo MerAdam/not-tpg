@@ -1,9 +1,0 @@
-name: debug-od
-on: [push]
-jobs:
-  t:
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          for i in 1 2 3; do for u in "https://transport.opendata.ch/v1/locations?query=Bel-Air&type=station" "https://transport.opendata.ch/v1/stationboard?id=8592844&limit=2"; do
-            curl -s -m 20 -o /tmp/o -D /tmp/h -w "code=%{http_code} time=%{time_total} $u\n" "$u"; grep -i "^retry-after\|^x-rate\|^server" /tmp/h; head -c 120 /tmp/o; echo; done; sleep 5; done
