@@ -91,11 +91,21 @@ async function record(svc, p, where = 'vercel') {
   await pipeline(cmds);
 }
 
+// Un échec n'est retenu que s'il se confirme : on réessaie tout de suite (après 2 s).
+// Un raté isolé (lenteur passagère) ne crée ni incident ni alerte.
+async function probeConfirmed(url, ms) {
+  const p = await probe(url, ms);
+  if (p.ok) return p;
+  await new Promise((r) => setTimeout(r, 2000));
+  const p2 = await probe(url, ms);
+  return p2.ok ? { ...p2, blip: p.kind } : { ...p2, at: p.at };
+}
+
 // Serveur des horaires et itinéraires à pied : testés au plus toutes les 5 min par le robot
 async function watchOpendata(force) {
   const cur = (await getJSON('od:status')) || null;
   if (!force && cur && Date.now() - cur.checked < 5 * 60000) return cur;
-  const p = await probe('https://transport.opendata.ch/v1/locations?query=Bel-Air&type=station');
+  const p = await probeConfirmed('https://transport.opendata.ch/v1/locations?query=Bel-Air&type=station');
   const next = { ...p, checked: Date.now(), since: cur && cur.ok === p.ok ? cur.since : Date.now() };
   if (cur && cur.ok && !p.ok) await notifyAdmins('odDown', { title: 'Serveur des horaires en panne', body: 'transport.opendata.ch : ' + p.detail + '.', tag: 'od-status' });
   if (cur && !cur.ok && p.ok) await notifyAdmins('odBack', { title: 'Serveur des horaires de retour', body: 'transport.opendata.ch répond de nouveau (en panne depuis le ' + fmt(cur.since) + ').', tag: 'od-status' });
@@ -106,11 +116,11 @@ async function watchOpendata(force) {
 async function watchWalk(force) {
   const cur = (await getJSON('walk:status')) || null;
   if (!force && cur && Date.now() - cur.checked < 5 * 60000) return cur;
-  const p = await probe('https://routing.openstreetmap.de/routed-foot/route/v1/driving/6.1432,46.2044;6.1450,46.2050?overview=false', 8000);
+  const p = await probeConfirmed('https://routing.openstreetmap.de/routed-foot/route/v1/driving/6.1432,46.2044;6.1450,46.2050?overview=false', 8000);
   const next = { ...p, checked: Date.now(), since: cur && cur.ok === p.ok ? cur.since : Date.now() };
   await setJSON('walk:status', next);
   await record('walk', p);
   return next;
 }
 
-module.exports = { notifyAdmins, probe, record, describe, watchOpendata, watchWalk, getPrefs, DEFAULT_PREFS, SERVICES, fmt };
+module.exports = { notifyAdmins, probe, probeConfirmed, record, describe, watchOpendata, watchWalk, getPrefs, DEFAULT_PREFS, SERVICES, fmt };

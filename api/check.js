@@ -149,8 +149,7 @@ module.exports = async (req, res) => {
     const SHIFT = await timeTick();
     await redis('SET', 'check:last', String(started));
     try { await getAlerts(); } catch {} // surveille tpg.ch (au plus toutes les 5 min) même sans trajet suivi
-    try { await watchOpendata(); } catch {} // idem pour le serveur des horaires
-    try { await watchWalk(); } catch {} // et les itinéraires à pied
+    await Promise.all([watchOpendata().catch(() => {}), watchWalk().catch(() => {})]); // serveur des horaires et itinéraires à pied (en parallèle)
     const wids = (await redis('SMEMBERS', 'watches')) || [];
     if (!wids.length) return res.status(200).json({ watches: 0 });
     const raw = await pipeline(wids.map((w) => ['GET', `watch:${w}`]));
