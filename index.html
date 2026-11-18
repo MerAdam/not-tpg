@@ -581,7 +581,7 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v92';
+const APP_VERSION = 'v93';
 const APP_CHANGES = 'Infos trafic : une mise à jour manuelle s’affiche maintenant tout de suite, et peut être retirée.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
@@ -1789,25 +1789,13 @@ const SHEET = {
       const human = (m) => m < 60 ? m + ' min' : m < 1440 ? Math.floor(m / 60) + ' h ' + pad(m % 60) : Math.floor(m / 1440) + ' j ' + Math.floor((m % 1440) / 60) + ' h ' + pad(m % 60);
       const rows = [...(d.open || []).map((x) => ({ ...x, live: true })), ...(d.incidents || [])].sort((a, b) => b.start - a.start);
       if (!rows.length) { ADM.exporting = false; drawAdmin(); return toast('Aucun incident enregistré pour l’instant.'); }
-      const head = ['N°', 'Service', 'Statut', 'Jour', 'Date début', 'Heure début', 'Date fin', 'Heure fin', 'Durée (min)', 'Durée', 'Type de problème', 'Explication', 'Code HTTP', 'Protection détectée', 'Tests en échec', 'Dernier test en échec', 'Détecté par', 'Extrait de la réponse du serveur'];
-      const lines = rows.map((x, i) => {
-        const end = x.live ? d.now : x.end, min = Math.max(1, Math.round((end - x.start) / 60000));
-        return [rows.length - i, SVC[x.svc] || x.svc, x.live ? 'En cours' : 'Résolu', wd(x.start), dt(x.start), hm(x.start), x.live ? '' : dt(end), x.live ? '' : hm(end), min, human(min) + (x.live ? ' (en cours)' : ''),
-          KIND[x.kind] || x.kind || '', x.detail || '', x.status || '', x.protection || '', x.fails || 1, x.last ? dt(x.last) + ' ' + hm(x.last) : '', x.where === 'vercel' ? 'Serveur de l’app (Vercel)' : (x.where || ''), x.snippet || ''];
-      });
-      const cell = (v) => { const s = String(v ?? ''); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-      const csv = '﻿' + [head, ...lines].map((r) => r.map(cell).join(';')).join('\r\n');
-      const name = 'not-tpg-incidents-' + new Date().toISOString().slice(0, 10) + '.csv';
-      const file = new File([csv], name, { type: 'text/csv' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try { await navigator.share({ files: [file], title: 'Incidents Not TPG' }); } catch (e) { if (e.name !== 'AbortError') throw e; }
-      } else {
-        const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name;
-        document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      }
+      const file = await incidentsPdf(d, rows, { SVC, KIND, dt, hm, wd, human });
+      ADM.pdf = file;
+      await sharePdf(file, true);
     } catch (e) { toast('Export impossible : ' + e.message); }
     ADM.exporting = false; drawAdmin();
   },
+  admIncShare: () => { if (ADM.pdf) sharePdf(ADM.pdf); },
   admShortcut: () => { ADM.waitShortcut = Date.now(); }, // au retour dans l'app, on recharge l'info trafic
   admShortcutName: () => { const n = prompt('Nom exact de ton raccourci :', store.get('nt_shortcut', 'Info Trafic')); if (n && n.trim()) { store.set('nt_shortcut', n.trim()); drawAdmin(); } },
   admClearImport: async (ds, el) => {
@@ -3187,7 +3175,8 @@ function drawAdmin() {
       return `<div style="padding:8px 0;border-bottom:1px solid var(--line2)"><b style="font-size:14px;color:${x.live ? 'var(--bad)' : 'var(--ink)'}">${esc(({ opendata: 'Horaires', tpg: 'Info trafic tpg.ch', walk: 'Itinéraires à pied' })[x.svc] || x.svc)}${x.live ? ' · EN COURS' : ''}</b><br>
         <span class="small">${new Date(x.start).toLocaleString('fr-CH', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })} → ${x.live ? 'maintenant' : new Date(end).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })} · ${dur < 60 ? dur + ' min' : Math.floor(dur / 60) + ' h ' + pad(dur % 60)}<br>${esc(x.detail || x.kind || '')}${x.fails ? ' · ' + x.fails + ' test' + (x.fails > 1 ? 's' : '') + ' en échec' : ''}</span></div>`;
     }).join('') || '<p class="small" style="margin:10px 0">Aucun incident enregistré.</p>'}</div>
-    <button class="ghost w100" data-sheet="admIncExport" style="margin-top:8px" ${ADM.exporting ? 'disabled' : ''}>${ADM.exporting ? 'Préparation du fichier…' : 'Exporter tous les incidents (fichier)'}</button>
+    <button class="ghost w100" data-sheet="admIncExport" style="margin-top:8px" ${ADM.exporting ? 'disabled' : ''}>${ADM.exporting ? 'Préparation du PDF…' : 'Exporter tous les incidents (PDF)'}</button>
+    ${ADM.pdf && !ADM.exporting ? '<button class="primary w100" data-sheet="admIncShare" style="margin-top:8px">Partager le PDF</button>' : ''}
     <h3 class="label" style="margin:16px 4px 6px;font-size:13px">Chiffres</h3>
     <div class="card" style="padding:4px 14px">
       ${[['Appareils abonnés aux notifications', t.subs], ['Trajets pendulaires suivis', t.commutes], ['Départs suivis (cloche)', t.bells], ['Sauvegardes', t.backups], ['Appareils admin', t.admins]].map(([k, v]) => `<div class="info-row" style="padding:8px 0"><span class="muted">${k}</span><b>${v}</b></div>`).join('')}
@@ -3219,6 +3208,117 @@ function drawAdmin() {
       <button class="ghost w100" data-sheet="admDevice">${store.get('nt_admin', false) ? 'Ne plus recevoir les alertes admin ici' : 'Recevoir les alertes admin sur cet appareil'}</button>
       <button class="link" data-sheet="admLogout" style="align-self:center">Oublier le code admin sur cet appareil</button>
     </div>`;
+}
+// Rapport PDF des incidents (généré sur le téléphone avec jsPDF, chargé seulement à la demande)
+function loadScript(src) {
+  return new Promise((ok, ko) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => ko(new Error('bibliothèque PDF introuvable (connexion ?)')); document.head.appendChild(s); });
+}
+async function sharePdf(file, auto) {
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'Incidents Not TPG' }); }
+    catch (e) {
+      if (e.name === 'AbortError') return;
+      if (auto && e.name === 'NotAllowedError') return toast('PDF prêt : touche « Partager le PDF ».');
+      throw e;
+    }
+  } else {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  }
+}
+async function incidentsPdf(d, rows, f) {
+  if (!window.jspdf) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  // Les polices intégrées ne connaissent pas certains signes : on les remplace
+  const T = (s) => String(s ?? '').replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/→/g, '->').replace(/…/g, '...').replace(/[   ]/g, ' ').replace(/[–—]/g, '-').replace(/[^\x20-\x7e -ÿ]/g, '');
+  const W = 210, M = 16, CW = W - 2 * M, ORANGE = [253, 83, 18], RED = [208, 52, 44], GREEN = [46, 139, 87], GREY = [110, 110, 110], INK = [25, 25, 25];
+  let y = 0;
+  const color = (c) => doc.setTextColor(...c);
+  const font = (size, style = 'normal', fam = 'helvetica') => { doc.setFont(fam, style); doc.setFontSize(size); };
+  const need = (h) => { if (y + h > 282) { doc.addPage(); y = 18; } };
+  const durOf = (x) => Math.max(1, Math.round(((x.live ? d.now : x.end) - x.start) / 60000));
+  // En-tête
+  doc.setFillColor(...ORANGE); doc.rect(0, 0, W, 30, 'F');
+  color([255, 255, 255]); font(20, 'bold'); doc.text('Not TPG', M, 14);
+  font(12); doc.text(T('Rapport des incidents des services'), M, 22);
+  font(9); doc.text(T('Généré le ' + f.dt(d.now) + ' à ' + f.hm(d.now)), W - M, 14, { align: 'right' });
+  const first = rows[rows.length - 1].start;
+  doc.text(T('Période : ' + f.dt(first) + ' -> ' + f.dt(d.now)), W - M, 22, { align: 'right' });
+  y = 42;
+  // Résumé
+  color(INK); font(14, 'bold'); doc.text(T('Résumé'), M, y); y += 7;
+  const total = rows.reduce((a, x) => a + durOf(x), 0), live = rows.filter((x) => x.live).length;
+  font(10); color(GREY);
+  doc.text(T(rows.length + ' incident' + (rows.length > 1 ? 's' : '') + ' enregistré' + (rows.length > 1 ? 's' : '') + ' · ' + f.human(total) + ' de panne cumulée' + (live ? ' · ' + live + ' en cours' : '')), M, y); y += 8;
+  const svcs = [...new Set(rows.map((x) => x.svc))];
+  // Tableau par service
+  doc.setFillColor(244, 244, 244); doc.rect(M, y - 4.5, CW, 7, 'F');
+  font(9, 'bold'); color(INK);
+  const cols = [M + 2, M + 72, M + 92, M + 120, M + 150];
+  ['Service', 'Incidents', 'Panne totale', 'Plus longue', 'État actuel'].forEach((h, i) => doc.text(T(h), cols[i], y));
+  y += 7;
+  for (const s of svcs) {
+    const r = rows.filter((x) => x.svc === s), longest = r.reduce((a, x) => (durOf(x) > durOf(a) ? x : a));
+    const isLive = r.some((x) => x.live);
+    font(9); color(INK);
+    doc.text(doc.splitTextToSize(T(f.SVC[s] || s), 68), cols[0], y);
+    doc.text(String(r.length), cols[1], y);
+    doc.text(T(f.human(r.reduce((a, x) => a + durOf(x), 0))), cols[2], y);
+    doc.text(T(f.human(durOf(longest))), cols[3], y);
+    color(isLive ? RED : GREEN); font(9, 'bold'); doc.text(T(isLive ? 'En panne' : 'OK'), cols[4], y);
+    font(8); color(GREY); doc.text(T('la plus longue : ' + f.dt(longest.start)), cols[3], y + 4);
+    doc.setDrawColor(225, 225, 225); doc.line(M, y + 6.5, M + CW, y + 6.5);
+    y += 11;
+  }
+  // Détail
+  y += 4; need(14);
+  color(INK); font(14, 'bold'); doc.text(T('Détail des incidents'), M, y); y += 4;
+  font(9); color(GREY); doc.text(T('Du plus récent au plus ancien. Heures de Genève.'), M, y + 4); y += 10;
+  rows.forEach((x, i) => {
+    const min = durOf(x);
+    const facts = [
+      ['Début', f.wd(x.start) + ' ' + f.dt(x.start) + ' à ' + f.hm(x.start)],
+      ['Fin', x.live ? 'toujours en cours (au ' + f.dt(d.now) + ' à ' + f.hm(d.now) + ')' : f.wd(x.end) + ' ' + f.dt(x.end) + ' à ' + f.hm(x.end)],
+      ['Durée', f.human(min) + (min >= 60 ? ' (' + min + ' min)' : '')],
+      ['Problème', f.KIND[x.kind] || x.kind || '?'],
+      ['Explication', x.detail || ''],
+      x.status ? ['Code HTTP', String(x.status)] : null,
+      x.protection ? ['Protection', x.protection] : null,
+      ['Tests en échec', String(x.fails || 1) + (x.last ? ' · dernier le ' + f.dt(x.last) + ' à ' + f.hm(x.last) : '')],
+      ['Détecté par', x.where === 'vercel' || !x.where ? "le serveur de l'app (Vercel)" : x.where]
+    ].filter(Boolean).map(([k, v]) => [k, doc.splitTextToSize(T(v), CW - 40)]);
+    font(8, 'normal', 'courier');
+    const snip = x.snippet ? doc.splitTextToSize(T('« ' + x.snippet + ' »'), CW - 8) : [];
+    const h = 11 + facts.reduce((a, [, v]) => a + v.length * 4.3, 0) + (snip.length ? snip.length * 3.6 + 5 : 0) + 3;
+    need(h);
+    const top = y;
+    doc.setFillColor(250, 250, 250); doc.setDrawColor(228, 228, 228); doc.roundedRect(M, top, CW, h, 2, 2, 'FD');
+    doc.setFillColor(...(x.live ? RED : GREY)); doc.rect(M, top, 1.6, h, 'F');
+    y = top + 7;
+    font(11, 'bold'); color(INK); doc.text(T('#' + (rows.length - i) + '  ' + (f.SVC[x.svc] || x.svc)), M + 5, y);
+    font(9, 'bold'); color(x.live ? RED : GREEN); doc.text(T(x.live ? 'EN COURS' : 'Résolu'), M + CW - 4, y, { align: 'right' });
+    y += 5.5;
+    facts.forEach(([k, v]) => {
+      font(9, 'bold'); color(GREY); doc.text(T(k), M + 5, y);
+      font(9); color(INK); doc.text(v, M + 36, y);
+      y += v.length * 4.3;
+    });
+    if (snip.length) {
+      y += 1; font(8, 'bold'); color(GREY); doc.text(T('Réponse du serveur :'), M + 5, y); y += 3.8;
+      font(8, 'normal', 'courier'); color(GREY); doc.text(snip, M + 5, y); y += snip.length * 3.6;
+    }
+    y = top + h + 4;
+  });
+  // Pied de page
+  const n = doc.getNumberOfPages();
+  for (let p = 1; p <= n; p++) {
+    doc.setPage(p); font(8); color(GREY);
+    doc.text(T('Not TPG · rapport des incidents · ' + f.dt(d.now)), M, 291);
+    doc.text(p + ' / ' + n, W - M, 291, { align: 'right' });
+  }
+  const name = 'not-tpg-incidents-' + new Date(d.now).toISOString().slice(0, 10) + '.pdf';
+  return new File([doc.output('blob')], name, { type: 'application/pdf' });
 }
 function backupCardHtml() {
   const b = backupCfg();
