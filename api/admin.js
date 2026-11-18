@@ -43,6 +43,11 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, count: items.length });
     }
     if (action === 'clearImport') { await clearManual(); return res.status(200).json({ ok: true }); }
+    if (action === 'incidents') { // tout le journal, pour l'export
+      const [incRaw, o1, o2, o3] = await pipeline([['LRANGE', 'mon:inc', 0, 999], ['GET', 'mon:open:opendata'], ['GET', 'mon:open:tpg'], ['GET', 'mon:open:walk']]);
+      const open = [o1, o2, o3].filter(Boolean).map((x) => JSON.parse(x));
+      return res.status(200).json({ now: Date.now(), open, incidents: (incRaw || []).map((x) => JSON.parse(x)) });
+    }
     if (action === 'notify') {
       const sub = await getJSON('sub:' + String(body.sid || '').replace(/[^a-f0-9]/g, ''));
       if (!sub) return res.status(404).json({ error: 'Cet appareil n’est pas abonné aux notifications' });

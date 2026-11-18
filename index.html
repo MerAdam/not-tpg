@@ -581,7 +581,7 @@ function toast(msg, ms = 2600, wide = false) {
 }
 /* Nouvelle version : petit message (7 s) à la première ouverture après une mise à jour.
    À chaque mise en ligne : changer APP_VERSION (= version du cache dans sw.js) et APP_CHANGES. */
-const APP_VERSION = 'v91';
+const APP_VERSION = 'v92';
 const APP_CHANGES = 'Infos trafic : une mise à jour manuelle s’affiche maintenant tout de suite, et peut être retirée.';
 
 /* ---------- données tpg (arrêts, couleurs) ---------- */
@@ -1774,6 +1774,40 @@ function timeSheetHtml() {
 }
 const SHEET = {
   admRefresh: () => openAdmin(null, true),
+  admIncToggle: () => { ADM.incOpen = !ADM.incOpen; drawAdmin(); },
+  admIncExport: async () => {
+    if (ADM.exporting) return;
+    ADM.exporting = true; drawAdmin();
+    try {
+      const d = await adminApi('incidents');
+      const SVC = { opendata: 'Horaires (transport.opendata.ch)', tpg: 'Info trafic (tpg.ch)', walk: 'Itinéraires à pied (OpenStreetMap)' };
+      const KIND = { timeout: 'Pas de réponse (délai dépassé)', refused: 'Connexion refusée', dns: 'Problème DNS', reset: 'Connexion coupée', tls: 'Erreur de certificat', network: 'Erreur réseau', ratelimit: 'Trop de requêtes (429)', blocked: 'Accès refusé (blocage)', server: 'Erreur serveur (5xx)', http: 'Réponse inattendue', parse: 'Réponse illisible' };
+      const tz = { timeZone: 'Europe/Zurich' };
+      const dt = (t) => t ? new Date(t).toLocaleDateString('fr-CH', { ...tz, day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+      const hm = (t) => t ? new Date(t).toLocaleTimeString('fr-CH', { ...tz, hour: '2-digit', minute: '2-digit' }) : '';
+      const wd = (t) => new Date(t).toLocaleDateString('fr-CH', { ...tz, weekday: 'long' });
+      const human = (m) => m < 60 ? m + ' min' : m < 1440 ? Math.floor(m / 60) + ' h ' + pad(m % 60) : Math.floor(m / 1440) + ' j ' + Math.floor((m % 1440) / 60) + ' h ' + pad(m % 60);
+      const rows = [...(d.open || []).map((x) => ({ ...x, live: true })), ...(d.incidents || [])].sort((a, b) => b.start - a.start);
+      if (!rows.length) { ADM.exporting = false; drawAdmin(); return toast('Aucun incident enregistré pour l’instant.'); }
+      const head = ['N°', 'Service', 'Statut', 'Jour', 'Date début', 'Heure début', 'Date fin', 'Heure fin', 'Durée (min)', 'Durée', 'Type de problème', 'Explication', 'Code HTTP', 'Protection détectée', 'Tests en échec', 'Dernier test en échec', 'Détecté par', 'Extrait de la réponse du serveur'];
+      const lines = rows.map((x, i) => {
+        const end = x.live ? d.now : x.end, min = Math.max(1, Math.round((end - x.start) / 60000));
+        return [rows.length - i, SVC[x.svc] || x.svc, x.live ? 'En cours' : 'Résolu', wd(x.start), dt(x.start), hm(x.start), x.live ? '' : dt(end), x.live ? '' : hm(end), min, human(min) + (x.live ? ' (en cours)' : ''),
+          KIND[x.kind] || x.kind || '', x.detail || '', x.status || '', x.protection || '', x.fails || 1, x.last ? dt(x.last) + ' ' + hm(x.last) : '', x.where === 'vercel' ? 'Serveur de l’app (Vercel)' : (x.where || ''), x.snippet || ''];
+      });
+      const cell = (v) => { const s = String(v ?? ''); return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+      const csv = '﻿' + [head, ...lines].map((r) => r.map(cell).join(';')).join('\r\n');
+      const name = 'not-tpg-incidents-' + new Date().toISOString().slice(0, 10) + '.csv';
+      const file = new File([csv], name, { type: 'text/csv' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'Incidents Not TPG' }); } catch (e) { if (e.name !== 'AbortError') throw e; }
+      } else {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name;
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      }
+    } catch (e) { toast('Export impossible : ' + e.message); }
+    ADM.exporting = false; drawAdmin();
+  },
   admShortcut: () => { ADM.waitShortcut = Date.now(); }, // au retour dans l'app, on recharge l'info trafic
   admShortcutName: () => { const n = prompt('Nom exact de ton raccourci :', store.get('nt_shortcut', 'Info Trafic')); if (n && n.trim()) { store.set('nt_shortcut', n.trim()); drawAdmin(); } },
   admClearImport: async (ds, el) => {
@@ -3144,11 +3178,16 @@ function drawAdmin() {
     <h3 class="label" style="margin:16px 4px 6px;font-size:13px">Erreurs vues dans l’app · 24 h</h3>
     <div class="card" style="padding:2px 14px">${(d.clientErrors || []).length ? d.clientErrors.slice(0, 12).map((e) => `<div style="padding:8px 0;border-bottom:1px solid var(--line2)"><b style="font-size:14px">${esc(({ opendata: 'Horaires', walk: 'Itinéraires à pied', backup: 'Sauvegarde', push: 'Notifications', infotrafic: 'Info trafic', app: 'Bug de l’app', tpg: 'Info trafic' })[e.svc] || e.svc)} · ${esc(e.kind)}</b><br><span class="small">${e.n} fois sur ${e.devs} appareil${e.devs > 1 ? 's' : ''} · ${new Date(e.first).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })} → ${new Date(e.last).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}${e.msg ? ' · ' + esc(e.msg) : ''}</span></div>`).join('') : '<p class="small" style="margin:10px 0">Aucune erreur signalée par les appareils.</p>'}</div>
     <h3 class="label" style="margin:16px 4px 6px;font-size:13px">Journal des incidents · 30 jours</h3>
-    <div class="card" style="padding:2px 14px">${[...(d.open || []).map((x) => ({ ...x, live: true })), ...(d.incidents || [])].slice(0, 25).map((x) => {
+    ${(() => { const nLive = (d.open || []).length, nAll = nLive + (d.incidents || []).length;
+      return `<button class="card" data-sheet="admIncToggle" style="width:100%;padding:12px 14px;display:flex;align-items:center;gap:10px;text-align:left;font:inherit;color:inherit">
+        <span style="flex:1"><b style="font-size:15px">${nAll ? nAll + ' incident' + (nAll > 1 ? 's' : '') : 'Aucun incident'}</b>${nLive ? ` <span class="small" style="color:var(--bad);font-weight:800">· ${nLive} en cours</span>` : ''}</span>
+        <span style="transition:transform .2s;transform:rotate(${ADM.incOpen ? 90 : 0}deg);font-size:18px;opacity:.6">›</span></button>`; })()}
+    <div class="card" style="padding:2px 14px;margin-top:6px;${ADM.incOpen ? '' : 'display:none'}">${[...(d.open || []).map((x) => ({ ...x, live: true })), ...(d.incidents || [])].slice(0, 25).map((x) => {
       const end = x.end || now, dur = Math.max(1, Math.round((end - x.start) / 60000));
       return `<div style="padding:8px 0;border-bottom:1px solid var(--line2)"><b style="font-size:14px;color:${x.live ? 'var(--bad)' : 'var(--ink)'}">${esc(({ opendata: 'Horaires', tpg: 'Info trafic tpg.ch', walk: 'Itinéraires à pied' })[x.svc] || x.svc)}${x.live ? ' · EN COURS' : ''}</b><br>
         <span class="small">${new Date(x.start).toLocaleString('fr-CH', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })} → ${x.live ? 'maintenant' : new Date(end).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })} · ${dur < 60 ? dur + ' min' : Math.floor(dur / 60) + ' h ' + pad(dur % 60)}<br>${esc(x.detail || x.kind || '')}${x.fails ? ' · ' + x.fails + ' test' + (x.fails > 1 ? 's' : '') + ' en échec' : ''}</span></div>`;
     }).join('') || '<p class="small" style="margin:10px 0">Aucun incident enregistré.</p>'}</div>
+    <button class="ghost w100" data-sheet="admIncExport" style="margin-top:8px" ${ADM.exporting ? 'disabled' : ''}>${ADM.exporting ? 'Préparation du fichier…' : 'Exporter tous les incidents (fichier)'}</button>
     <h3 class="label" style="margin:16px 4px 6px;font-size:13px">Chiffres</h3>
     <div class="card" style="padding:4px 14px">
       ${[['Appareils abonnés aux notifications', t.subs], ['Trajets pendulaires suivis', t.commutes], ['Départs suivis (cloche)', t.bells], ['Sauvegardes', t.backups], ['Appareils admin', t.admins]].map(([k, v]) => `<div class="info-row" style="padding:8px 0"><span class="muted">${k}</span><b>${v}</b></div>`).join('')}

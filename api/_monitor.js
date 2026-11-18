@@ -86,7 +86,7 @@ async function record(svc, p, where = 'vercel') {
     cmds.push(['SET', `mon:open:${svc}`, JSON.stringify({ ...open, fails: (open.fails || 1) + 1, last: now, detail: p.detail, kind: p.kind })]);
   } else if (p.ok && open) {
     cmds.push(['DEL', `mon:open:${svc}`],
-      ['LPUSH', 'mon:inc', JSON.stringify({ ...open, end: now })], ['LTRIM', 'mon:inc', 0, 299]);
+      ['LPUSH', 'mon:inc', JSON.stringify({ ...open, end: now })], ['LTRIM', 'mon:inc', 0, 999]);
   }
   await pipeline(cmds);
 }
